@@ -1,0 +1,33 @@
+import type { RampName } from './generateTheme.js'
+
+export interface SemanticEntry {
+  token: string
+  ramp: RampName
+  step: number | 'onSolid'
+}
+
+const s = (token: string, ramp: RampName, step: number | 'onSolid'): SemanticEntry => ({
+  token, ramp, step,
+})
+
+export const SEMANTIC_MAP: SemanticEntry[] = [
+  s('color-bg-canvas', 'neutral', 1),
+  s('color-bg-surface', 'neutral', 2),
+  s('color-bg-raised', 'neutral', 3),
+  s('color-border-subtle', 'neutral', 6),
+  s('color-border-normal', 'neutral', 7),
+  s('color-border-interactive', 'neutral', 8),
+  s('color-text-primary', 'neutral', 12),
+  s('color-text-secondary', 'neutral', 11),
+  s('color-action-bg', 'brand', 9),
+  s('color-action-bg-hover', 'brand', 10),
+  s('color-action-text', 'brand', 'onSolid'),
+  s('color-focus-ring', 'brand', 8),
+  ...(['danger', 'warning', 'success', 'info'] as const).flatMap((name) => [
+    s(`color-${name}-bg`, name, 9),
+    s(`color-${name}-bg-subtle`, name, 3),
+    s(`color-${name}-border`, name, 7),
+    s(`color-${name}-text`, name, 11),
+    s(`color-${name}-on-solid`, name, 'onSolid'),
+  ]),
+]

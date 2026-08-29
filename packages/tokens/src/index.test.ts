@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { VERSION } from './index.js'
+import { generateTheme } from './index.js'
 
 describe('toolchain', () => {
   it('resolves the package source', () => {
-    expect(VERSION).toBe('0.1.0')
+    expect(typeof generateTheme).toBe('function')
   })
 })

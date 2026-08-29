@@ -1,0 +1,61 @@
+import type { Mode } from '../colour/types.js'
+import { hexToOklch } from '../colour/oklch.js'
+import { deriveSeeds } from '../colour/semantics.js'
+import { generateRamp, type Ramp } from '../colour/ramp.js'
+import { resolveFont, type FallbackMetrics, type ResolvedFont } from '../typography/fonts.js'
+import { ELEVATION, MISC, RADIUS, SPACE, TEXT, Z } from '../scales/scales.js'
+import { breakpoints } from '../breakpoints.js'
+import { SEMANTIC_MAP, type SemanticEntry } from './semanticMap.js'
+
+export type RampName = 'brand' | 'neutral' | 'danger' | 'warning' | 'success' | 'info'
+
+export interface ThemeSeed {
+  brand: string
+  font?: { family: string; metrics?: FallbackMetrics }
+}
+
+export interface Theme {
+  seed: { brand: string }
+  font: ResolvedFont
+  ramps: Record<Mode, Record<RampName, Ramp>>
+  semantic: SemanticEntry[]
+  scales: {
+    space: typeof SPACE
+    text: typeof TEXT
+    radius: typeof RADIUS
+    elevation: typeof ELEVATION
+    z: typeof Z
+    misc: typeof MISC
+  }
+  breakpoints: typeof breakpoints
+}
+
+export function generateTheme(seed: ThemeSeed): Theme {
+  const brand = hexToOklch(seed.brand)
+  const seeds = { brand, ...deriveSeeds(brand) }
+
+  const modeRamps = (mode: Mode): Record<RampName, Ramp> => ({
+    brand: generateRamp(seeds.brand, mode),
+    neutral: generateRamp(seeds.neutral, mode),
+    danger: generateRamp(seeds.danger, mode),
+    warning: generateRamp(seeds.warning, mode),
+    success: generateRamp(seeds.success, mode),
+    info: generateRamp(seeds.info, mode),
+  })
+
+  return {
+    seed: { brand: seed.brand.toLowerCase() },
+    font: resolveFont(seed.font),
+    ramps: { light: modeRamps('light'), dark: modeRamps('dark') },
+    semantic: SEMANTIC_MAP,
+    scales: { space: SPACE, text: TEXT, radius: RADIUS, elevation: ELEVATION, z: Z, misc: MISC },
+    breakpoints,
+  }
+}
+
+export function resolveSemantic(theme: Theme, mode: Mode, token: string): string {
+  const entry = theme.semantic.find((e) => e.token === token)
+  if (!entry) throw new Error(`Unknown semantic token: ${token}`)
+  const ramp = theme.ramps[mode][entry.ramp]
+  return entry.step === 'onSolid' ? ramp.onSolid : ramp.steps[entry.step - 1]!.hex
+}
