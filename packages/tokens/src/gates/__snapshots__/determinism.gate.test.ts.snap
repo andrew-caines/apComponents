@@ -1,0 +1,909 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`gate 1: determinism > the full theme matches the committed snapshot 1`] = `
+{
+  "breakpoints": {
+    "lg": 1024,
+    "md": 768,
+    "sm": 640,
+    "xl": 1280,
+  },
+  "font": {
+    "fallbackName": "Inter Fallback",
+    "family": "Inter",
+    "metrics": {
+      "ascentOverride": "90.4365%",
+      "descentOverride": "22.518%",
+      "lineGapOverride": "0%",
+      "sizeAdjust": "107.1194%",
+    },
+    "stack": "'Inter', 'Inter Fallback', system-ui, sans-serif",
+    "weights": {
+      "medium": 500,
+      "regular": 400,
+      "semibold": 600,
+    },
+  },
+  "ramps": {
+    "dark": {
+      "brand": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#0f1116",
+            "p3": null,
+          },
+          {
+            "hex": "#141922",
+            "p3": null,
+          },
+          {
+            "hex": "#192235",
+            "p3": null,
+          },
+          {
+            "hex": "#1c2a48",
+            "p3": null,
+          },
+          {
+            "hex": "#1f315b",
+            "p3": null,
+          },
+          {
+            "hex": "#253d73",
+            "p3": null,
+          },
+          {
+            "hex": "#7296e2",
+            "p3": null,
+          },
+          {
+            "hex": "#6c9afe",
+            "p3": null,
+          },
+          {
+            "hex": "#2e5fd9",
+            "p3": null,
+          },
+          {
+            "hex": "#396ce7",
+            "p3": null,
+          },
+          {
+            "hex": "#b8d0ff",
+            "p3": "color(display-p3 0.7315 0.8103 1)",
+          },
+          {
+            "hex": "#dde8ff",
+            "p3": "color(display-p3 0.8704 0.9093 1)",
+          },
+        ],
+      },
+      "danger": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#160f0f",
+            "p3": null,
+          },
+          {
+            "hex": "#211516",
+            "p3": null,
+          },
+          {
+            "hex": "#321a1c",
+            "p3": null,
+          },
+          {
+            "hex": "#431e22",
+            "p3": null,
+          },
+          {
+            "hex": "#532027",
+            "p3": null,
+          },
+          {
+            "hex": "#69262f",
+            "p3": null,
+          },
+          {
+            "hex": "#da7b83",
+            "p3": null,
+          },
+          {
+            "hex": "#f07582",
+            "p3": null,
+          },
+          {
+            "hex": "#c72c4c",
+            "p3": null,
+          },
+          {
+            "hex": "#d63b58",
+            "p3": null,
+          },
+          {
+            "hex": "#ffbfc2",
+            "p3": "color(display-p3 1 0.7354 0.7475)",
+          },
+          {
+            "hex": "#ffe0e1",
+            "p3": "color(display-p3 1 0.8715 0.8747)",
+          },
+        ],
+      },
+      "info": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#0f1115",
+            "p3": null,
+          },
+          {
+            "hex": "#15191f",
+            "p3": null,
+          },
+          {
+            "hex": "#1a2230",
+            "p3": null,
+          },
+          {
+            "hex": "#1e2b40",
+            "p3": null,
+          },
+          {
+            "hex": "#223350",
+            "p3": null,
+          },
+          {
+            "hex": "#294065",
+            "p3": null,
+          },
+          {
+            "hex": "#7899cd",
+            "p3": null,
+          },
+          {
+            "hex": "#749ee3",
+            "p3": null,
+          },
+          {
+            "hex": "#3e6fc2",
+            "p3": null,
+          },
+          {
+            "hex": "#497ccf",
+            "p3": null,
+          },
+          {
+            "hex": "#b4d1ff",
+            "p3": "color(display-p3 0.7186 0.814 1)",
+          },
+          {
+            "hex": "#dbe9ff",
+            "p3": "color(display-p3 0.8651 0.9116 1)",
+          },
+        ],
+      },
+      "neutral": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#111111",
+            "p3": null,
+          },
+          {
+            "hex": "#181919",
+            "p3": null,
+          },
+          {
+            "hex": "#222223",
+            "p3": null,
+          },
+          {
+            "hex": "#2a2b2c",
+            "p3": null,
+          },
+          {
+            "hex": "#323335",
+            "p3": null,
+          },
+          {
+            "hex": "#3f4042",
+            "p3": null,
+          },
+          {
+            "hex": "#96989b",
+            "p3": null,
+          },
+          {
+            "hex": "#9c9ea2",
+            "p3": null,
+          },
+          {
+            "hex": "#686b70",
+            "p3": null,
+          },
+          {
+            "hex": "#74767b",
+            "p3": null,
+          },
+          {
+            "hex": "#cdcfd4",
+            "p3": null,
+          },
+          {
+            "hex": "#e6e8eb",
+            "p3": null,
+          },
+        ],
+      },
+      "success": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#0e120f",
+            "p3": null,
+          },
+          {
+            "hex": "#131b16",
+            "p3": null,
+          },
+          {
+            "hex": "#16261c",
+            "p3": null,
+          },
+          {
+            "hex": "#173121",
+            "p3": null,
+          },
+          {
+            "hex": "#163c25",
+            "p3": null,
+          },
+          {
+            "hex": "#174b2e",
+            "p3": null,
+          },
+          {
+            "hex": "#62a57a",
+            "p3": null,
+          },
+          {
+            "hex": "#54af78",
+            "p3": null,
+          },
+          {
+            "hex": "#008148",
+            "p3": "color(display-p3 0.1687 0.5075 0.2857)",
+          },
+          {
+            "hex": "#008f51",
+            "p3": "color(display-p3 0.2218 0.5554 0.3298)",
+          },
+          {
+            "hex": "#7ae4a3",
+            "p3": null,
+          },
+          {
+            "hex": "#bcf9d0",
+            "p3": null,
+          },
+        ],
+      },
+      "warning": {
+        "onSolid": "#24180a",
+        "steps": [
+          {
+            "hex": "#14100d",
+            "p3": null,
+          },
+          {
+            "hex": "#1e1811",
+            "p3": null,
+          },
+          {
+            "hex": "#2c1f10",
+            "p3": null,
+          },
+          {
+            "hex": "#3a260d",
+            "p3": null,
+          },
+          {
+            "hex": "#482d07",
+            "p3": null,
+          },
+          {
+            "hex": "#5a3700",
+            "p3": null,
+          },
+          {
+            "hex": "#c08e51",
+            "p3": null,
+          },
+          {
+            "hex": "#d18f38",
+            "p3": null,
+          },
+          {
+            "hex": "#f49f1e",
+            "p3": null,
+          },
+          {
+            "hex": "#ffad3f",
+            "p3": "color(display-p3 0.9619 0.6896 0.3093)",
+          },
+          {
+            "hex": "#ffc47d",
+            "p3": "color(display-p3 1 0.7617 0.445)",
+          },
+          {
+            "hex": "#ffe3c3",
+            "p3": "color(display-p3 1 0.8877 0.7448)",
+          },
+        ],
+      },
+    },
+    "light": {
+      "brand": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#fcfdff",
+            "p3": null,
+          },
+          {
+            "hex": "#f6f9ff",
+            "p3": null,
+          },
+          {
+            "hex": "#e9f0ff",
+            "p3": null,
+          },
+          {
+            "hex": "#dce8ff",
+            "p3": null,
+          },
+          {
+            "hex": "#cddeff",
+            "p3": null,
+          },
+          {
+            "hex": "#bad1ff",
+            "p3": null,
+          },
+          {
+            "hex": "#6c8fdb",
+            "p3": null,
+          },
+          {
+            "hex": "#5a87e9",
+            "p3": null,
+          },
+          {
+            "hex": "#2e5fd9",
+            "p3": null,
+          },
+          {
+            "hex": "#2352cb",
+            "p3": null,
+          },
+          {
+            "hex": "#254fba",
+            "p3": null,
+          },
+          {
+            "hex": "#051952",
+            "p3": null,
+          },
+        ],
+      },
+      "danger": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#fffcfc",
+            "p3": null,
+          },
+          {
+            "hex": "#fff6f7",
+            "p3": null,
+          },
+          {
+            "hex": "#ffeaeb",
+            "p3": null,
+          },
+          {
+            "hex": "#ffdedf",
+            "p3": null,
+          },
+          {
+            "hex": "#ffd0d2",
+            "p3": null,
+          },
+          {
+            "hex": "#ffbcc0",
+            "p3": null,
+          },
+          {
+            "hex": "#d3747d",
+            "p3": null,
+          },
+          {
+            "hex": "#db6270",
+            "p3": null,
+          },
+          {
+            "hex": "#c72c4c",
+            "p3": null,
+          },
+          {
+            "hex": "#b91a41",
+            "p3": null,
+          },
+          {
+            "hex": "#a3193a",
+            "p3": null,
+          },
+          {
+            "hex": "#430010",
+            "p3": "color(display-p3 0.2445 0.0099 0.0632)",
+          },
+        ],
+      },
+      "info": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#fcfdff",
+            "p3": null,
+          },
+          {
+            "hex": "#f5f9ff",
+            "p3": null,
+          },
+          {
+            "hex": "#e8f1ff",
+            "p3": null,
+          },
+          {
+            "hex": "#dae8ff",
+            "p3": null,
+          },
+          {
+            "hex": "#cbdfff",
+            "p3": null,
+          },
+          {
+            "hex": "#b6d2ff",
+            "p3": null,
+          },
+          {
+            "hex": "#7191c6",
+            "p3": null,
+          },
+          {
+            "hex": "#628bce",
+            "p3": null,
+          },
+          {
+            "hex": "#3e6fc2",
+            "p3": null,
+          },
+          {
+            "hex": "#3263b5",
+            "p3": null,
+          },
+          {
+            "hex": "#2d589f",
+            "p3": null,
+          },
+          {
+            "hex": "#071e44",
+            "p3": null,
+          },
+        ],
+      },
+      "neutral": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#fdfdfd",
+            "p3": null,
+          },
+          {
+            "hex": "#f8f9f9",
+            "p3": null,
+          },
+          {
+            "hex": "#eff0f1",
+            "p3": null,
+          },
+          {
+            "hex": "#e6e7e9",
+            "p3": null,
+          },
+          {
+            "hex": "#dcdddf",
+            "p3": null,
+          },
+          {
+            "hex": "#cfd0d3",
+            "p3": null,
+          },
+          {
+            "hex": "#8f9094",
+            "p3": null,
+          },
+          {
+            "hex": "#888b8e",
+            "p3": null,
+          },
+          {
+            "hex": "#686b70",
+            "p3": null,
+          },
+          {
+            "hex": "#5d5f64",
+            "p3": null,
+          },
+          {
+            "hex": "#575a5e",
+            "p3": null,
+          },
+          {
+            "hex": "#1f2022",
+            "p3": null,
+          },
+        ],
+      },
+      "success": {
+        "onSolid": "#ffffff",
+        "steps": [
+          {
+            "hex": "#f9fffa",
+            "p3": null,
+          },
+          {
+            "hex": "#f1fcf4",
+            "p3": null,
+          },
+          {
+            "hex": "#e1f7e7",
+            "p3": null,
+          },
+          {
+            "hex": "#d1f1da",
+            "p3": null,
+          },
+          {
+            "hex": "#bfeacc",
+            "p3": null,
+          },
+          {
+            "hex": "#aae0bb",
+            "p3": null,
+          },
+          {
+            "hex": "#5c9e75",
+            "p3": null,
+          },
+          {
+            "hex": "#409d67",
+            "p3": null,
+          },
+          {
+            "hex": "#008148",
+            "p3": "color(display-p3 0.1687 0.5075 0.2857)",
+          },
+          {
+            "hex": "#007440",
+            "p3": "color(display-p3 0.1099 0.4601 0.2423)",
+          },
+          {
+            "hex": "#00683a",
+            "p3": "color(display-p3 0.1119 0.4137 0.2213)",
+          },
+          {
+            "hex": "#002813",
+            "p3": "color(display-p3 0.0015 0.1624 0.0615)",
+          },
+        ],
+      },
+      "warning": {
+        "onSolid": "#24180a",
+        "steps": [
+          {
+            "hex": "#fffdfa",
+            "p3": null,
+          },
+          {
+            "hex": "#fff7ef",
+            "p3": null,
+          },
+          {
+            "hex": "#ffedda",
+            "p3": null,
+          },
+          {
+            "hex": "#fde2c5",
+            "p3": null,
+          },
+          {
+            "hex": "#f9d7b0",
+            "p3": null,
+          },
+          {
+            "hex": "#f3c897",
+            "p3": null,
+          },
+          {
+            "hex": "#b9864a",
+            "p3": null,
+          },
+          {
+            "hex": "#bc7c1f",
+            "p3": null,
+          },
+          {
+            "hex": "#f49f1e",
+            "p3": null,
+          },
+          {
+            "hex": "#e69300",
+            "p3": "color(display-p3 0.8564 0.5895 0.1949)",
+          },
+          {
+            "hex": "#7e4e00",
+            "p3": "color(display-p3 0.4832 0.3077 0)",
+          },
+          {
+            "hex": "#301b00",
+            "p3": "color(display-p3 0.1817 0.1045 0)",
+          },
+        ],
+      },
+    },
+  },
+  "scales": {
+    "elevation": {
+      "dark": {
+        "1": "0 1px 2px rgb(0 0 0 / 0.30)",
+        "2": "0 2px 6px rgb(0 0 0 / 0.35)",
+        "3": "0 8px 20px rgb(0 0 0 / 0.45)",
+      },
+      "light": {
+        "1": "0 1px 2px rgb(0 0 0 / 0.06), 0 1px 3px rgb(0 0 0 / 0.10)",
+        "2": "0 2px 6px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.10)",
+        "3": "0 8px 16px rgb(0 0 0 / 0.10), 0 12px 32px rgb(0 0 0 / 0.14)",
+      },
+    },
+    "misc": {
+      "focus-ring-offset": "2px",
+      "focus-ring-width": "2px",
+      "font-numeric": "'tnum'",
+      "hit-target": "24px",
+      "hit-target-coarse": "44px",
+    },
+    "radius": {
+      "full": "9999px",
+      "lg": "10px",
+      "md": "6px",
+      "sm": "4px",
+      "xl": "16px",
+    },
+    "space": {
+      "0": "0px",
+      "1": "2px",
+      "2": "4px",
+      "3": "8px",
+      "4": "12px",
+      "5": "16px",
+      "6": "24px",
+      "7": "32px",
+      "8": "48px",
+      "9": "64px",
+    },
+    "text": {
+      "2xl": {
+        "lineHeight": "32px",
+        "size": "24px",
+      },
+      "lg": {
+        "lineHeight": "28px",
+        "size": "18px",
+      },
+      "md": {
+        "lineHeight": "24px",
+        "size": "16px",
+      },
+      "sm": {
+        "lineHeight": "20px",
+        "size": "14px",
+      },
+      "xl": {
+        "lineHeight": "28px",
+        "size": "20px",
+      },
+      "xs": {
+        "lineHeight": "16px",
+        "size": "12px",
+      },
+    },
+    "z": {
+      "backdrop": 1300,
+      "dialog": 1400,
+      "popover": 1500,
+      "sticky": 1100,
+      "toast": 1600,
+      "tooltip": 1700,
+    },
+  },
+  "seed": {
+    "brand": "#2e5fd9",
+  },
+  "semantic": [
+    {
+      "ramp": "neutral",
+      "step": 1,
+      "token": "color-bg-canvas",
+    },
+    {
+      "ramp": "neutral",
+      "step": 2,
+      "token": "color-bg-surface",
+    },
+    {
+      "ramp": "neutral",
+      "step": 3,
+      "token": "color-bg-raised",
+    },
+    {
+      "ramp": "neutral",
+      "step": 6,
+      "token": "color-border-subtle",
+    },
+    {
+      "ramp": "neutral",
+      "step": 7,
+      "token": "color-border-normal",
+    },
+    {
+      "ramp": "neutral",
+      "step": 8,
+      "token": "color-border-interactive",
+    },
+    {
+      "ramp": "neutral",
+      "step": 12,
+      "token": "color-text-primary",
+    },
+    {
+      "ramp": "neutral",
+      "step": 11,
+      "token": "color-text-secondary",
+    },
+    {
+      "ramp": "brand",
+      "step": 9,
+      "token": "color-action-bg",
+    },
+    {
+      "ramp": "brand",
+      "step": 10,
+      "token": "color-action-bg-hover",
+    },
+    {
+      "ramp": "brand",
+      "step": "onSolid",
+      "token": "color-action-text",
+    },
+    {
+      "ramp": "brand",
+      "step": 8,
+      "token": "color-focus-ring",
+    },
+    {
+      "ramp": "danger",
+      "step": 9,
+      "token": "color-danger-bg",
+    },
+    {
+      "ramp": "danger",
+      "step": 3,
+      "token": "color-danger-bg-subtle",
+    },
+    {
+      "ramp": "danger",
+      "step": 7,
+      "token": "color-danger-border",
+    },
+    {
+      "ramp": "danger",
+      "step": 11,
+      "token": "color-danger-text",
+    },
+    {
+      "ramp": "danger",
+      "step": "onSolid",
+      "token": "color-danger-on-solid",
+    },
+    {
+      "ramp": "warning",
+      "step": 9,
+      "token": "color-warning-bg",
+    },
+    {
+      "ramp": "warning",
+      "step": 3,
+      "token": "color-warning-bg-subtle",
+    },
+    {
+      "ramp": "warning",
+      "step": 7,
+      "token": "color-warning-border",
+    },
+    {
+      "ramp": "warning",
+      "step": 11,
+      "token": "color-warning-text",
+    },
+    {
+      "ramp": "warning",
+      "step": "onSolid",
+      "token": "color-warning-on-solid",
+    },
+    {
+      "ramp": "success",
+      "step": 9,
+      "token": "color-success-bg",
+    },
+    {
+      "ramp": "success",
+      "step": 3,
+      "token": "color-success-bg-subtle",
+    },
+    {
+      "ramp": "success",
+      "step": 7,
+      "token": "color-success-border",
+    },
+    {
+      "ramp": "success",
+      "step": 11,
+      "token": "color-success-text",
+    },
+    {
+      "ramp": "success",
+      "step": "onSolid",
+      "token": "color-success-on-solid",
+    },
+    {
+      "ramp": "info",
+      "step": 9,
+      "token": "color-info-bg",
+    },
+    {
+      "ramp": "info",
+      "step": 3,
+      "token": "color-info-bg-subtle",
+    },
+    {
+      "ramp": "info",
+      "step": 7,
+      "token": "color-info-border",
+    },
+    {
+      "ramp": "info",
+      "step": 11,
+      "token": "color-info-text",
+    },
+    {
+      "ramp": "info",
+      "step": "onSolid",
+      "token": "color-info-on-solid",
+    },
+  ],
+}
+`;

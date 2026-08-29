@@ -10,3 +10,8 @@ export { breakpoints, media } from './breakpoints.js'
 export { resolveFont } from './typography/fonts.js'
 export type { ResolvedFont, FallbackMetrics, KnownFamily } from './typography/fonts.js'
 export { toCssText, toFallbackFontFaceCss } from './emit/cssText.js'
+
+/** Placeholder default brand until the seed decision (design doc §9.1). */
+export const DEFAULT_BRAND = '#2e5fd9'
+export { contrastPairings, renderContrastReport } from './emit/contrastReport.js'
+export type { ContrastPairing } from './emit/contrastReport.js'
