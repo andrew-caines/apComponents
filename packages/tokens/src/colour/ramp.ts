@@ -75,7 +75,15 @@ export function solveTextLightness(
     if (passes(mid)) hi = mid
     else lo = mid
   }
-  return { ...colour, l: round6(hi) }
+  // Round toward `bound`, not to nearest: `hi` sits at the edge of a
+  // hex-quantization bucket that passes; nearest-rounding can cross back
+  // into the failing bucket (same class of bug as the chroma-floor fix in
+  // gamut.ts's clampChroma — round toward the side already known to pass).
+  const rounded = mode === 'light' ? Math.floor(hi * 1e6) / 1e6 : Math.ceil(hi * 1e6) / 1e6
+  if (!passes(rounded)) {
+    throw new Error(`solveTextLightness: rounding toward bound broke the solve for ${JSON.stringify(colour)}`)
+  }
+  return { ...colour, l: rounded }
 }
 
 const DARK_TEXT: Oklch = { l: 0.22, c: 0, h: 0 }
@@ -104,13 +112,34 @@ export function generateRamp(seed: Oklch, mode: Mode): Ramp {
     steps.push(toBgStep({ l: L_TARGETS[mode][i]!, c, h: seed.h }))
   }
 
+  const past = (l: number, prev: number): number =>
+    round6(mode === 'light' ? Math.min(l, prev - 0.02) : Math.max(l, prev + 0.02))
+
+  // Contrast-solve step 7 (border) and step 8 (focus-ring anchor) against
+  // steps 1–2 — these are Tier 2's non-text pairings (WCAG 3 / APCA 45).
+  // Unlike step 9/10, the curve alone doesn't guarantee the threshold, so
+  // steps 7/8 get the same bisection treatment as steps 11/12 below.
+  const borderBgs = [steps[0]!.hex, steps[1]!.hex]
+  const base7: Oklch = {
+    l: past(L_TARGETS[mode][6]!, L_TARGETS[mode][5]!),
+    c: round6(seed.c * C_CURVE[6]!),
+    h: seed.h,
+  }
+  const solved7 = solveTextLightness(base7, borderBgs, mode, 3, 45)
+  const base8: Oklch = {
+    l: past(L_TARGETS[mode][7]!, solved7.l),
+    c: round6(seed.c * C_CURVE[7]!),
+    h: seed.h,
+  }
+  const solved8 = solveTextLightness(base8, borderBgs, mode, 3, 45)
+  steps[6] = toBgStep(solved7)
+  steps[7] = toBgStep(solved8)
+
   // Contrast-solve the text steps against steps 1–3 (step 11 is also used on
   // bg-subtle = step 3 by the Tier 2 map, so it must hold there too).
   // Start L is clamped past step 10 / step 11 so monotonic order survives a
   // seed whose own L sits between the fixed targets.
   const bgs = [steps[0]!.hex, steps[1]!.hex, steps[2]!.hex]
-  const past = (l: number, prev: number): number =>
-    round6(mode === 'light' ? Math.min(l, prev - 0.02) : Math.max(l, prev + 0.02))
   const base11: Oklch = {
     l: past(L_TARGETS[mode][10]!, hoverL),
     c: round6(seed.c * C_CURVE[10]!),

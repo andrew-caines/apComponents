@@ -17,9 +17,20 @@ describe('generateRamp / light', () => {
   it('step 9 is the seed colour (anchored)', () => {
     expect(ramp.steps[8]!.hex).toBe('#2e5fd9')
   })
-  it('lightness decreases monotonically across steps 1→12', () => {
+  it('lightness decreases monotonically across steps 1→8 and 9→12', () => {
+    // seed anchor may sit between solved neighbours, so the 8→9 boundary is
+    // not compared — steps 1–8 and 9–12 are each internally monotonic.
     const ls = ramp.steps.map((s) => hexToOklch(s.hex).l)
-    for (let i = 1; i < 12; i++) expect(ls[i]!).toBeLessThan(ls[i - 1]!)
+    for (let i = 1; i < 8; i++) expect(ls[i]!).toBeLessThan(ls[i - 1]!)
+    for (let i = 9; i < 12; i++) expect(ls[i]!).toBeLessThan(ls[i - 1]!)
+  })
+  it('steps 7 and 8 meet WCAG ≥3 and |Lc| ≥ 45 APCA on steps 1 and 2', () => {
+    for (const step of [ramp.steps[6]!, ramp.steps[7]!]) {
+      for (const bg of [ramp.steps[0]!.hex, ramp.steps[1]!.hex]) {
+        expect(wcagRatio(step.hex, bg)).toBeGreaterThanOrEqual(3)
+        expect(Math.abs(apcaLc(step.hex, bg))).toBeGreaterThanOrEqual(45)
+      }
+    }
   })
   it('step 11 meets 4.5:1 WCAG and |Lc| ≥ 75 APCA on steps 1 and 2', () => {
     for (const bg of [ramp.steps[0]!.hex, ramp.steps[1]!.hex]) {
@@ -37,13 +48,24 @@ describe('generateRamp / light', () => {
 
 describe('generateRamp / dark', () => {
   const ramp = generateRamp(brand, 'dark')
-  it('lightness increases monotonically (dark is rebuilt, not inverted)', () => {
+  it('lightness increases monotonically across steps 1→8 and 9→12 (dark is rebuilt, not inverted)', () => {
+    // seed anchor may sit between solved neighbours, so the 8→9 boundary is
+    // not compared — steps 1–8 and 9–12 are each internally monotonic.
     const ls = ramp.steps.map((s) => hexToOklch(s.hex).l)
-    for (let i = 1; i < 12; i++) expect(ls[i]!).toBeGreaterThan(ls[i - 1]!)
+    for (let i = 1; i < 8; i++) expect(ls[i]!).toBeGreaterThan(ls[i - 1]!)
+    for (let i = 9; i < 12; i++) expect(ls[i]!).toBeGreaterThan(ls[i - 1]!)
   })
   it('canvas is never pure black and text never pure white (halation rule)', () => {
     expect(ramp.steps[0]!.hex).not.toBe('#000000')
     expect(ramp.steps[11]!.hex).not.toBe('#ffffff')
+  })
+  it('steps 7 and 8 meet WCAG ≥3 and |Lc| ≥ 45 APCA on steps 1 and 2', () => {
+    for (const step of [ramp.steps[6]!, ramp.steps[7]!]) {
+      for (const bg of [ramp.steps[0]!.hex, ramp.steps[1]!.hex]) {
+        expect(wcagRatio(step.hex, bg)).toBeGreaterThanOrEqual(3)
+        expect(Math.abs(apcaLc(step.hex, bg))).toBeGreaterThanOrEqual(45)
+      }
+    }
   })
   it('step 11 passes 4.5:1 and Lc 75 on steps 1 and 2', () => {
     for (const bg of [ramp.steps[0]!.hex, ramp.steps[1]!.hex]) {

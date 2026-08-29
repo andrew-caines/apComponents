@@ -6,7 +6,7 @@ export const NEUTRAL_CHROMA = 0.008
 export const SEMANTIC_BASES = {
   danger: { l: 0.55, c: 0.19, h: 25 },
   warning: { l: 0.77, c: 0.16, h: 80 },
-  success: { l: 0.56, c: 0.15, h: 145 },
+  success: { l: 0.53, c: 0.15, h: 145 },
   info: { l: 0.55, c: 0.14, h: 250 },
 } as const satisfies Record<string, Oklch>
 
