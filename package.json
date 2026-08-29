@@ -1,0 +1,24 @@
+{
+  "name": "apcomponents",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:tokens": "vitest run packages/tokens/src/gates/determinism.gate.test.ts",
+    "test:contrast": "vitest run packages/tokens/src/gates/contrast.gate.test.ts",
+    "test:gamut": "vitest run packages/tokens/src/gates/gamut.gate.test.ts",
+    "typecheck": "tsc -b packages/tokens",
+    "report:contrast": "tsx scripts/contrast-report.ts",
+    "gen:font-metrics": "tsx scripts/gen-font-metrics.ts"
+  },
+  "devDependencies": {
+    "@capsizecss/core": "^4.1.2",
+    "@capsizecss/metrics": "^3.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
