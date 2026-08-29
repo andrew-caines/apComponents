@@ -1,7 +1,7 @@
 import type { Oklch } from './types.js'
 import { oklchToLinearSrgb, round6 } from './oklch.js'
 
-const EPS = 1.5e-5
+const EPS = 1e-6
 
 /** OKLab non-linear LMS → XYZ (inverse of Ottosson M1). */
 const LMS_TO_XYZ = [
@@ -47,7 +47,7 @@ function clampChroma(colour: Oklch, isIn: (c: Oklch) => boolean): Oklch {
     if (isIn({ ...colour, c: mid })) lo = mid
     else hi = mid
   }
-  return { ...colour, c: round6(lo) }
+  return { ...colour, c: Math.floor(lo * 1e6) / 1e6 }
 }
 
 export const clampToSrgb = (colour: Oklch): Oklch => clampChroma(colour, inSrgb)
