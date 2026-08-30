@@ -91,12 +91,22 @@ test('Inter loads from our own origin, never a third party (ADR-0015)', async ({
   // as our own.
   const ownOrigin = new URL(baseURL ?? 'http://127.0.0.1:3112').origin
   const external: string[] = []
+  const fontRequests: string[] = []
   page.on('request', (r) => {
-    const origin = new URL(r.url()).origin
-    if (origin !== ownOrigin) external.push(r.url())
+    const url = r.url()
+    const origin = new URL(url).origin
+    if (origin !== ownOrigin) external.push(url)
+    if (/inter-.*\.woff2/.test(url)) fontRequests.push(url)
   })
   await page.goto('/')
   await waitForHydration(page)
   await page.waitForTimeout(200)
   expect(external, `third-party requests: ${external.join(', ')}`).toEqual([])
+  // The negative assertion above passes identically if fonts.css failed to
+  // bundle, --ap-font-body stopped naming 'Inter', or the relative font url()
+  // broke and no woff2 was ever requested. Assert the positive half: Inter is
+  // actually served, from our own origin, and the browser actually loaded it.
+  expect(fontRequests, 'no same-origin Inter woff2 request was observed').not.toEqual([])
+  const interLoaded = await page.evaluate(() => document.fonts.check('1em Inter'))
+  expect(interLoaded, "document.fonts.check('1em Inter') was false").toBe(true)
 })

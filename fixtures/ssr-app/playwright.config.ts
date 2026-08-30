@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
   fullyParallel: false,
-  reporter: 'list',
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL: 'http://127.0.0.1:3112' },
   webServer: {
     command: 'npm run build && npm run start',

@@ -50,6 +50,14 @@ jobs:
             echo "::error::Generated files are stale. Run the gen:* scripts and commit the result."
             exit 1
           fi
+      - name: Fail if any generator started emitting a new, untracked file
+        run: |
+          untracked="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$untracked" ]; then
+            echo "$untracked"
+            echo "::error::A gen:* script emitted file(s) git diff can't see because they are untracked. Commit the new file(s) or fix the generator."
+            exit 1
+          fi
 
   consumer:
     name: Consumer build (gate 8)
