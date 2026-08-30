@@ -5,6 +5,20 @@ import { toCssText, toFallbackFontFaceCss } from './cssText.js'
 const theme = generateTheme({ brand: '#2e5fd9' })
 const css = toCssText(theme)
 
+const norm = (s: string): string => s.split('\n').map((l) => l.trim()).filter(Boolean).join('\n')
+
+/**
+ * Every block body in `source` whose selector is exactly `selector`.
+ * The old single-match regex only ever saw the FIRST `[data-ap-scheme="dark"]`
+ * block, which is precisely why the P3 cascade defect went unnoticed — the P3
+ * blocks were never compared to anything.
+ */
+function blockBodies(source: string, selector: string): string[] {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`(^|\\n)\\s*${escaped} \\{([^{}]*)\\}`, 'g')
+  return [...source.matchAll(re)].map((m) => m[2]!)
+}
+
 describe('toCssText', () => {
   it('declares layer order first', () => {
     expect(css.startsWith('@layer ap.tokens, ap.components;')).toBe(true)
@@ -22,20 +36,61 @@ describe('toCssText', () => {
     expect(css).toContain('@media (prefers-color-scheme: dark)')
     expect(css).toContain(':root:not([data-ap-scheme="light"])')
   })
-  it('dark attribute and media blocks are identical in content', () => {
-    // the two blocks sit at different indent depths — compare trimmed lines
-    const norm = (s: string): string => s.split('\n').map((l) => l.trim()).filter(Boolean).join('\n')
-    const attr = /\[data-ap-scheme="dark"\] \{([^}]+)\}/.exec(css)![1]!
-    const media = /:root:not\(\[data-ap-scheme="light"\]\) \{([^}]+)\}/.exec(css)![1]!
-    expect(norm(attr)).toBe(norm(media))
+
+  it('finds exactly two dark attribute blocks and two dark media blocks (hex + P3)', () => {
+    expect(blockBodies(css, '[data-ap-scheme="dark"]')).toHaveLength(2)
+    expect(blockBodies(css, ':root:not([data-ap-scheme="light"])')).toHaveLength(2)
   })
-  it('P3 values appear only under the gamut media query (if any exist for this seed)', () => {
-    const first = css.indexOf('display-p3')
-    // the default seed may legitimately produce zero out-of-sRGB ideals;
-    // the vivid-seed case in gamut.test.ts guarantees the mechanism itself.
-    if (first !== -1) {
-      expect(first).toBeGreaterThan(css.indexOf('@media (color-gamut: p3)'))
+
+  it('the main hex dark attribute block matches the main dark media block', () => {
+    const [attrHex] = blockBodies(css, '[data-ap-scheme="dark"]')
+    const [mediaHex] = blockBodies(css, ':root:not([data-ap-scheme="light"])')
+    expect(norm(attrHex!)).toBe(norm(mediaHex!))
+    expect(norm(attrHex!)).toContain('--ap-brand-1:')
+  })
+
+  it('the P3 dark attribute block matches the nested P3 dark media block', () => {
+    const attrP3 = blockBodies(css, '[data-ap-scheme="dark"]')[1]!
+    const mediaP3 = blockBodies(css, ':root:not([data-ap-scheme="light"])')[1]!
+    expect(norm(attrP3)).toBe(norm(mediaP3))
+    // guard against the pair being empty and passing vacuously
+    expect(norm(attrP3)).toContain('display-p3')
+  })
+
+  it('the nested P3 dark media block sits inside the gamut query, after the P3 attribute block', () => {
+    const gamut = css.indexOf('@media (color-gamut: p3)')
+    const coarse = css.indexOf('@media (pointer: coarse)')
+    const nested = css.indexOf('@media (prefers-color-scheme: dark)', gamut)
+    expect(gamut).toBeGreaterThan(-1)
+    expect(nested).toBeGreaterThan(gamut)
+    expect(nested).toBeLessThan(coarse)
+  })
+
+  it('light P3 declarations only ever land under :root:not([data-ap-scheme="dark"])', () => {
+    const gamut = css.indexOf('@media (color-gamut: p3)')
+    const coarse = css.indexOf('@media (pointer: coarse)')
+    const section = css.slice(gamut, coarse)
+    // no bare `:root {` anywhere in the gamut section — a bare :root there has
+    // the same specificity as the dark attribute block but comes later in
+    // source order, so it would repaint attribute-dark with light values
+    expect(section).not.toMatch(/(^|\n)\s*:root \{/)
+
+    const lightBody = blockBodies(section, ':root:not([data-ap-scheme="dark"])')
+    expect(lightBody).toHaveLength(1)
+    const declared = norm(lightBody[0]!).split('\n')
+    expect(declared.length).toBeGreaterThan(0)
+    const expected = new Set<string>()
+    for (const [name, ramp] of Object.entries(theme.ramps.light)) {
+      ramp.steps.forEach((s, i) => {
+        if (s.p3) expected.add(`--ap-${name}-${i + 1}: ${s.p3};`)
+      })
     }
+    expect(new Set(declared)).toEqual(expected)
+  })
+
+  it('P3 values appear only under the gamut media query', () => {
+    const first = css.indexOf('display-p3')
+    expect(first).toBeGreaterThan(css.indexOf('@media (color-gamut: p3)'))
   })
   it('bumps hit target under pointer: coarse', () => {
     expect(css).toContain('@media (pointer: coarse)')
@@ -50,6 +105,30 @@ describe('toCssText', () => {
   })
   it('matches the committed snapshot', () => {
     expect(css).toMatchSnapshot()
+  })
+})
+
+describe('toCssText / scoped emission', () => {
+  it('an explicit :root selector reproduces the default output byte for byte', () => {
+    expect(toCssText(theme, { selector: ':root' })).toBe(css)
+    expect(toCssText(theme, {})).toBe(css)
+  })
+  it('a custom selector replaces :root everywhere and qualifies the scheme attribute', () => {
+    const scoped = toCssText(theme, { selector: '.my-scope' })
+    expect(scoped).toContain('.my-scope {')
+    expect(scoped).toContain('.my-scope[data-ap-scheme="dark"] {')
+    expect(scoped).toContain('.my-scope:not([data-ap-scheme="light"]) {')
+    expect(scoped).toContain('.my-scope:not([data-ap-scheme="dark"]) {')
+    expect(scoped).not.toContain(':root')
+    // the bare attribute selector must not survive either — it would leak the
+    // dark palette out of the scope onto any ancestor carrying the attribute
+    expect(scoped).not.toMatch(/(^|\n)\s*\[data-ap-scheme="dark"\] \{/)
+  })
+  it('scoping changes only selectors, never declarations', () => {
+    const scoped = toCssText(theme, { selector: '.my-scope' })
+    const decls = (s: string): string[] =>
+      s.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('--ap-'))
+    expect(decls(scoped)).toEqual(decls(css))
   })
 })
 

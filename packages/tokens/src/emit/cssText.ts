@@ -65,29 +65,62 @@ function p3Lines(theme: Theme, mode: Mode): string[] {
 const block = (selector: string, lines: string[], indent: string): string =>
   lines.length === 0 ? '' : `${indent}${selector} {\n${lines.map((l) => `${indent}  ${l}`).join('\n')}\n${indent}}`
 
-export function toCssText(theme: Theme): string {
+export interface CssTextOptions {
+  /**
+   * Root selector the tokens are declared on. Defaults to `:root`.
+   *
+   * Scoping rule: every `:root` in the output is replaced by this selector
+   * (so `:root:not([data-ap-scheme="light"])` becomes
+   * `.scope:not([data-ap-scheme="light"])`), and the bare attribute selector
+   * `[data-ap-scheme="dark"]` becomes `.scope[data-ap-scheme="dark"]` — i.e.
+   * the scheme attribute is expected on the scoped element itself, not on an
+   * ancestor. Passing `:root` reproduces the unscoped output byte for byte.
+   */
+  selector?: string
+}
+
+export function toCssText(theme: Theme, options: CssTextOptions = {}): string {
+  const root = options.selector ?? ':root'
+  const rootNotDark = `${root}:not([data-ap-scheme="dark"])`
+  const rootNotLight = `${root}:not([data-ap-scheme="light"])`
+  const attrDark = root === ':root' ? '[data-ap-scheme="dark"]' : `${root}[data-ap-scheme="dark"]`
+
   const light = [...tier1Lines(theme, 'light'), ...tier2Lines(theme), ...scaleLines(theme, 'light')]
   const dark = darkLines(theme)
+  const p3Light = p3Lines(theme, 'light')
+  const p3Dark = p3Lines(theme, 'dark')
 
   const parts = [
     '@layer ap.tokens, ap.components;',
     '',
     '@layer ap.tokens {',
-    block(':root', light, '  '),
+    block(root, light, '  '),
     '',
-    block('[data-ap-scheme="dark"]', dark, '  '),
+    block(attrDark, dark, '  '),
     '',
     '  @media (prefers-color-scheme: dark) {',
-    block(':root:not([data-ap-scheme="light"])', dark, '    '),
+    block(rootNotLight, dark, '    '),
     '  }',
     '',
+    // The P3 section mirrors the structure above exactly — light, dark by
+    // attribute, dark by preference — so the cascade resolves the same way for
+    // P3 overrides as it does for the sRGB hexes. The light P3 block is
+    // :not([data-ap-scheme="dark"]) rather than bare :root: a bare :root here
+    // has the same specificity as the dark attribute block but comes later in
+    // source order, so it would overwrite attribute-dark with light values.
+    // Likewise dark P3 needs its own nested prefers-color-scheme block: the
+    // main dark media block is (0,2,0) and would otherwise outrank a (0,1,0)
+    // P3 attribute selector, leaving system-dark with no P3 at all.
     '  @media (color-gamut: p3) {',
-    block(':root', p3Lines(theme, 'light'), '    '),
-    block('[data-ap-scheme="dark"]', p3Lines(theme, 'dark'), '    '),
+    block(rootNotDark, p3Light, '    '),
+    block(attrDark, p3Dark, '    '),
+    p3Dark.length === 0 ? '' : '    @media (prefers-color-scheme: dark) {',
+    block(rootNotLight, p3Dark, '      '),
+    p3Dark.length === 0 ? '' : '    }',
     '  }',
     '',
     '  @media (pointer: coarse) {',
-    block(':root', [`--ap-hit-target: ${theme.scales.misc['hit-target-coarse']};`], '    '),
+    block(root, [`--ap-hit-target: ${theme.scales.misc['hit-target-coarse']};`], '    '),
     '  }',
     '}',
     '',
