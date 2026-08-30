@@ -38,17 +38,29 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
 
 - Every component module starts with `'use client'`.
 - No browser globals, `useLayoutEffect`, `Date.now()`, `Math.random()` or `react-router`
-  imports in `@ap/react` runtime source.
+  imports (including subpath and dynamic imports) in `@ap/react` runtime source, and no
+  `react-router*` dependency in `packages/react/package.json` (ADR-0001/0011).
 - Component styles reference Tier 2/3 tokens only — never a Tier 1 ramp step.
-- Logical properties only (`marginInlineStart`, not `marginLeft`).
+- Logical properties only (`marginInlineStart`, not `marginLeft`; `insetInlineStart`, not `left`).
 - No literal `zIndex`; use `vars.z.*`.
 - Never `outline: 'none'` — style `:focus-visible` instead.
+- Every component style must emit into the shared `ap.components` cascade layer
+  (ADR-0016) — never unlayered. Layered CSS always loses to unlayered CSS, so a
+  component style that isn't in the layer breaks the "consumer overrides always win"
+  guarantee the whole layering strategy exists to provide.
 
 ## Adding a component
 
 Copy the shape of `packages/react/src/components/Surface/`: a `.tsx` module with
 `'use client'`, a `.css.ts` recipe, a `.tokens.ts` file declaring the Tier 3 override
 surface, a test, and an `index.ts`. Nothing else in the tree needs to change.
+
+Import the shared `componentsLayer` from `packages/react/src/theme/layers.css.ts` and
+wrap every style object (base, each variant, each compound variant) in
+`{ '@layer': { [componentsLayer]: { ... } } }`, the way `Surface.css.ts` does. Do not
+declare a new layer per component — every component must emit into the same
+`ap.components` layer that `theme.css`'s `@layer ap.tokens, ap.components;` order
+statement names, or the cascade guarantee silently breaks.
 
 ## Known gaps in Phase 2's gates
 

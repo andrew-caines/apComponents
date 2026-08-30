@@ -16,7 +16,13 @@ const shell = isWin
 // against our source, not ADR-0002's transitive `file:` resolution — the
 // fixture is nested inside the monorepo, so Node's resolution walks up to the
 // root `node_modules` regardless of what npm installed under the fixture
-// itself. See docs/CONTRIBUTING.md, "Known gaps in Phase 2's gates".
+// itself. The gap is broader than just the `@ap/tokens` hop: this fixture's
+// lockfile records `@ap/react`'s full requirement set (`@ap/tokens`,
+// `@vanilla-extract/css`, `@vanilla-extract/recipes`, and
+// `@vanilla-extract/vite-plugin` for the build itself) with no installed
+// node for any of them — the entire dependency closure of `@ap/react` and
+// `@ap/vite` is masked by the root `node_modules`.
+// See docs/CONTRIBUTING.md, "Known gaps in Phase 2's gates".
 
 let port: number
 let base: string
@@ -219,10 +225,16 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // tier-3 token: proves Surface's OWN recipe CSS was actually served to
     // the client, not merely present somewhere on disk. This is not
     // redundant with the assertions above — a build that resolves @ap/react
-    // through its node_modules symlink with default Vite settings can emit
-    // an empty `@layer ap.components` and still satisfy every check above
-    // while silently dropping Surface's styles entirely (see vite.config.ts).
+    // through its node_modules symlink with default Vite settings can drop
+    // Surface's compiled styles from the bundle entirely while still
+    // satisfying every check above (see vite.config.ts).
     expect(css).toMatch(/\._[0-9a-z]+\{[^}]*--ap-surface-bg-canvas/)
+    // And not merely present in the served CSS at all, but genuinely inside
+    // the opened `ap.components` layer (ADR-0016) — the mere presence of the
+    // string "ap.components" in the layer-order declaration
+    // (`@layer ap.tokens, ap.components;`) would satisfy a looser check
+    // identically to a build where the recipe is emitted unlayered.
+    expect(css).toMatch(/@layer ap\.components\s*\{[\s\S]*?--ap-surface-bg-canvas/)
   })
 })
 
@@ -266,6 +278,7 @@ describe(
       expect(homeCss, 'home chunk should have an associated css file in the manifest').toBeTruthy()
       const cssOnDisk = readFileSync(join(APP, 'build/client', homeCss!), 'utf8')
       expect(cssOnDisk).toMatch(/\._[0-9a-z]+\{[^}]*--ap-surface-bg-canvas/)
+      expect(cssOnDisk).toMatch(/@layer ap\.components\s*\{[\s\S]*?--ap-surface-bg-canvas/)
     })
   },
   180_000,
