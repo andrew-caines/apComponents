@@ -17,15 +17,18 @@
     "test:sweep": "vitest run packages/tokens/src/gates/sweep.gate.test.ts",
     "test:contract": "vitest run packages/react/src/gates/contract-drift.gate.test.ts",
     "test:freshness": "vitest run packages/react/src/gates/theme-freshness.gate.test.ts",
+    "test:fonts": "vitest run packages/react/src/gates/fonts.gate.test.ts",
     "typecheck": "tsc -b packages/tokens packages/react",
     "report:contrast": "tsx scripts/contrast-report.ts",
     "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
     "gen:theme-contract": "tsx scripts/gen-theme-contract.ts",
-    "gen:theme-css": "tsx scripts/gen-theme-css.ts"
+    "gen:theme-css": "tsx scripts/gen-theme-css.ts",
+    "gen:fonts": "tsx scripts/gen-fonts.ts"
   },
   "devDependencies": {
     "@capsizecss/core": "^4.1.2",
     "@capsizecss/metrics": "^3.5.0",
+    "@fontsource-variable/inter": "^5.3.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^22.20.1",
