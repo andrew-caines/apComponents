@@ -24,6 +24,12 @@ const PAIRINGS: Array<[string, string, number]> = [
   ['color-text-secondary', 'color-bg-canvas', 4.5],
   ['color-text-secondary', 'color-bg-surface', 4.5],
   ['color-action-text', 'color-action-bg', 4.5],
+  // Ruling F guarantees the hover step moves away from the on-solid text
+  // colour, so text on hover is never less legible than text on the solid.
+  ['color-action-text', 'color-action-bg-hover', 4.5],
+  ['color-border-normal', 'color-bg-canvas', 3],
+  ['color-border-normal', 'color-bg-surface', 3],
+  ['color-text-secondary', 'color-bg-raised', 4.5],
   ['color-border-interactive', 'color-bg-canvas', 3],
   ['color-border-interactive', 'color-bg-surface', 3],
   ['color-focus-ring', 'color-bg-canvas', 3],
@@ -47,6 +53,23 @@ export function contrastPairings(theme: Theme): ContrastPairing[] {
       return { mode, fg, bg, fgHex, bgHex, ratio, required, apca: apcaLc(fgHex, bgHex), pass: ratio >= required }
     }),
   )
+}
+
+/**
+ * Throw if any Tier 2 pairing misses its required WCAG ratio. Returns void when
+ * the theme is clean — the assertion form of `contrastPairings` for consumers
+ * that want a hard failure rather than a report.
+ */
+export function assertThemeContrast(theme: Theme): void {
+  const failures = contrastPairings(theme).filter((p) => !p.pass)
+  if (failures.length === 0) return
+  const detail = failures
+    .map(
+      (p) =>
+        `  [${p.mode}] ${p.fg} on ${p.bg}: ${p.fgHex} on ${p.bgHex} = ${p.ratio.toFixed(2)}:1 (needs ${p.required}:1)`,
+    )
+    .join('\n')
+  throw new Error(`assertThemeContrast: ${failures.length} failing pairing(s)\n${detail}`)
 }
 
 export function renderContrastReport(pairings: ContrastPairing[]): string {
