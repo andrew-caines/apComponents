@@ -22,6 +22,13 @@ describe('gate: theme.css is fresh', () => {
     expect(committed).toContain('npm run gen:theme-css')
   })
 
+  it("header's seed line is tied to the live DEFAULT_BRAND constant", () => {
+    expect(
+      committed,
+      `header seed is stale — run \`npm run gen:theme-css\` and commit the result`,
+    ).toContain(`Seed: ${DEFAULT_BRAND}`)
+  })
+
   it('declares the cascade layer order first (ADR-0016)', () => {
     const body = committed.slice(committed.indexOf('@layer'))
     expect(body.startsWith('@layer ap.tokens, ap.components;')).toBe(true)
