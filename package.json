@@ -21,6 +21,7 @@
     "test:guards": "vitest run packages/react/src/gates/use-client.gate.test.ts packages/react/src/gates/ssr-safety.gate.test.ts packages/react/src/gates/style-rules.gate.test.ts",
     "fixture:install": "npm --prefix fixtures/ssr-app install && npm --prefix fixtures/consumer install",
     "test:ssr": "vitest run --config vitest.gates.config.ts packages/react/src/gates/ssr-render.gate.test.ts",
+    "test:consumer": "vitest run --config vitest.gates.config.ts packages/react/src/gates/consumer-build.gate.test.ts",
     "test:hydration": "npm --prefix fixtures/ssr-app run test:e2e",
     "typecheck": "tsc -b packages/tokens packages/react packages/vite",
     "report:contrast": "tsx scripts/contrast-report.ts",
