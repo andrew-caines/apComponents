@@ -11,6 +11,13 @@ const npm = isWin ? 'npm.cmd' : 'npm'
 // so Windows needs shell:true or every fixture gate dies with EINVAL.
 const shell = isWin
 
+// Same fixture shape and same limit as the consumer gate (see
+// consumer-build.gate.test.ts): this proves the fixture builds and serves
+// against our source, not ADR-0002's transitive `file:` resolution — the
+// fixture is nested inside the monorepo, so Node's resolution walks up to the
+// root `node_modules` regardless of what npm installed under the fixture
+// itself. See docs/CONTRIBUTING.md, "Known gaps in Phase 2's gates".
+
 let port: number
 let base: string
 let server: ChildProcess | undefined

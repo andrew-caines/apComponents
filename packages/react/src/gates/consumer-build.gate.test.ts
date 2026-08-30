@@ -10,6 +10,14 @@ const npm = isWin ? 'npm.cmd' : 'npm'
 
 let css = ''
 
+// What this gate proves and what it does not: it proves a `file:`-protocol
+// consumer builds against our source and ships real compiled component CSS
+// and token custom properties. It does NOT prove ADR-0002's transitive `file:`
+// resolution (that `@ap/react`'s own `"@ap/tokens": "file:../tokens"`
+// dependency installs for an external consumer) — this fixture is nested
+// inside the monorepo, so Node's module resolution walks up to the root
+// `node_modules` regardless of what npm installed under the fixture itself.
+// See docs/CONTRIBUTING.md, "Known gaps in Phase 2's gates".
 beforeAll(() => {
   // shell:true on Windows — Node will not spawn a .cmd without it.
   execFileSync(npm, ['run', 'build'], { cwd: APP, stdio: 'inherit', shell: isWin })
