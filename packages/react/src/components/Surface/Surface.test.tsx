@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { createRef } from 'react'
-import { renderToString } from 'react-dom/server'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { Surface } from './Surface.js'
+import { surfaceRecipe } from './Surface.css.js'
 
 describe('Surface', () => {
   it('renders its children in a div', () => {
@@ -29,11 +29,28 @@ describe('Surface', () => {
     expect(el.getAttribute('data-ap-pad')).toBe('md')
   })
 
+  it("surfaceRecipe's own defaults match the component's defaults", () => {
+    // Surface.tsx resolves tone/pad via JS default parameters before ever
+    // calling surfaceRecipe, so the recipe's defaultVariants never fire
+    // through the component. surfaceRecipe is exported for direct use
+    // though, so its own no-arg defaults are a separate contract that must
+    // stay in sync with the component's defaults, not just look similar.
+    expect(surfaceRecipe()).toBe(surfaceRecipe({ tone: 'surface', pad: 'md' }))
+
+    render(<Surface>defaults</Surface>)
+    const el = screen.getByText('defaults')
+    expect(el.className).toBe(surfaceRecipe())
+  })
+
   it('merges className rather than replacing the recipe class', () => {
+    const { unmount } = render(<Surface>bare</Surface>)
+    const bareClasses = screen.getByText('bare').className
+    unmount()
+
     render(<Surface className="mine">z</Surface>)
     const el = screen.getByText('z')
     expect(el.classList.contains('mine')).toBe(true)
-    expect(el.classList.length).toBeGreaterThan(1)
+    expect(el.className).toBe(`${bareClasses} mine`)
   })
 
   it('forwards refs and spreads unknown props', () => {
@@ -48,9 +65,13 @@ describe('Surface', () => {
     expect(ref.current?.getAttribute('aria-label')).toBe('panel')
   })
 
-  it('renders to a string on the server without touching browser globals', () => {
-    const html = renderToString(<Surface tone="canvas">ssr</Surface>)
-    expect(html).toContain('ssr')
-    expect(html).toContain('data-ap-tone="canvas"')
+  it('keeps its own data-ap-tone in sync with the applied variant even if a caller spreads a conflicting one', () => {
+    render(
+      <Surface tone="raised" {...({ 'data-ap-tone': 'canvas' } as object)}>
+        v
+      </Surface>,
+    )
+    const el = screen.getByText('v')
+    expect(el.getAttribute('data-ap-tone')).toBe('raised')
   })
 })

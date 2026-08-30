@@ -16,11 +16,11 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(function Surface
 ) {
   return (
     <div
+      {...rest}
       ref={ref}
       className={[surfaceRecipe({ tone, pad }), className].filter(Boolean).join(' ')}
       data-ap-tone={tone}
       data-ap-pad={pad}
-      {...rest}
     >
       {children}
     </div>
