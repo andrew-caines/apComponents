@@ -4,3 +4,9 @@ reports/*
 !reports/.gitkeep
 *.tsbuildinfo
 .superpowers/
+fixtures/*/node_modules/
+fixtures/*/build/
+fixtures/*/.react-router/
+fixtures/*/dist/
+test-results/
+playwright-report/

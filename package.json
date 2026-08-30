@@ -15,16 +15,27 @@
     "test:contrast": "vitest run packages/tokens/src/gates/contrast.gate.test.ts",
     "test:gamut": "vitest run packages/tokens/src/gates/gamut.gate.test.ts",
     "test:sweep": "vitest run packages/tokens/src/gates/sweep.gate.test.ts",
-    "typecheck": "tsc -b packages/tokens",
+    "test:contract": "vitest run packages/react/src/gates/contract-drift.gate.test.ts",
+    "typecheck": "tsc -b packages/tokens packages/react",
     "report:contrast": "tsx scripts/contrast-report.ts",
-    "gen:font-metrics": "tsx scripts/gen-font-metrics.ts"
+    "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
+    "gen:theme-contract": "tsx scripts/gen-theme-contract.ts"
   },
   "devDependencies": {
     "@capsizecss/core": "^4.1.2",
     "@capsizecss/metrics": "^3.5.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.20.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vanilla-extract/vite-plugin": "^5.2.6",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
+    "vite": "^8.2.2",
     "vitest": "^3.0.0"
   }
 }
