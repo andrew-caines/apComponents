@@ -42,8 +42,13 @@ describe('gate: component styles follow the token and layout rules', () => {
     })
 
     it(`${label} never removes focus indication (ADR-0016)`, () => {
-      const removals = text.match(/outline:\s*['"](none|0)['"]/g)
-      expect(removals ?? [], 'outline: none is forbidden — style :focus-visible instead').toEqual([])
+      const removals = text.match(
+        /\b(?:outlineStyle|outline):\s*['"]?none['"]?\b|\b(?:outlineWidth|outline):\s*['"]?0['"]?\b/g,
+      )
+      expect(
+        removals ?? [],
+        "outline: none/0, outlineStyle: 'none', and outlineWidth: 0 are all forbidden — style :focus-visible instead",
+      ).toEqual([])
     })
 
     it(`${label} uses logical properties only`, () => {
