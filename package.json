@@ -21,9 +21,9 @@
     "typecheck": "tsc -b packages/tokens packages/react",
     "report:contrast": "tsx scripts/contrast-report.ts",
     "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
+    "gen:fonts": "tsx scripts/gen-fonts.ts",
     "gen:theme-contract": "tsx scripts/gen-theme-contract.ts",
-    "gen:theme-css": "tsx scripts/gen-theme-css.ts",
-    "gen:fonts": "tsx scripts/gen-fonts.ts"
+    "gen:theme-css": "tsx scripts/gen-theme-css.ts"
   },
   "devDependencies": {
     "@capsizecss/core": "^4.1.2",
