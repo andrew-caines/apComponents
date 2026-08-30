@@ -2,6 +2,7 @@
   "name": "ap-fixture-ssr-app",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=22.22.0" },
   "scripts": {
     "build": "react-router build",
     "start": "react-router-serve ./build/server/index.js"

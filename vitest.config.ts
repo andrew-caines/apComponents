@@ -8,7 +8,9 @@ export default defineConfig({
     include: ['packages/*/src/**/*.test.{ts,tsx}'],
     // These two gates build a fixture app and boot a server. They are driven by
     // their own scripts (test:ssr, test:consumer) and their own CI jobs, so they
-    // must not run inside the default `npm test`.
+    // must not run inside the default `npm test`. They run instead under
+    // vitest.gates.config.ts, which carries no such exclusion — keep both
+    // files in sync if the gate filenames ever change.
     exclude: [
       ...configDefaults.exclude,
       '**/ssr-render.gate.test.ts',
