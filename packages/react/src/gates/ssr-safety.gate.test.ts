@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const SRC = join(import.meta.dirname, '..')
+const PACKAGE_JSON = join(import.meta.dirname, '../../package.json')
 
 function runtimeSources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -25,7 +26,10 @@ const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
   { pattern: /\buseLayoutEffect\b/, why: 'use useIsomorphicLayoutEffect — plain useLayoutEffect warns on the server' },
   { pattern: /\bDate\.now\(\)/, why: 'non-deterministic render causes hydration mismatch' },
   { pattern: /\bMath\.random\(\)/, why: 'non-deterministic render causes hydration mismatch' },
-  { pattern: /from ['"]react-router['"]/, why: '@ap/react must not depend on react-router (ADR-0001)' },
+  {
+    pattern: /(?:from|import)\s*\(?\s*['"]react-router(?:\/[^'"]*)?['"]/,
+    why: '@ap/react must not depend on react-router, including subpath or dynamic imports (ADR-0001)',
+  },
   { pattern: /from ['"]node:/, why: 'no Node built-ins in runtime source' },
 ]
 
@@ -45,4 +49,20 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       expect(hits, `${file}:\n  ${hits.join('\n  ')}`).toEqual([])
     })
   }
+
+  it('declares no react-router* dependency in packages/react/package.json (ADR-0001/0011)', () => {
+    // The import-scan above only proves nothing in source *imports*
+    // react-router. It says nothing about the *dependency* — a consumer who
+    // never chose react-router should never have it pulled in by installing
+    // @ap/react at all. Check both dependency fields directly.
+    const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8')) as {
+      dependencies?: Record<string, string>
+      peerDependencies?: Record<string, string>
+    }
+    const offenders = [
+      ...Object.keys(pkg.dependencies ?? {}),
+      ...Object.keys(pkg.peerDependencies ?? {}),
+    ].filter((name) => name.startsWith('react-router'))
+    expect(offenders, `packages/react/package.json declares: ${offenders.join(', ')}`).toEqual([])
+  })
 })

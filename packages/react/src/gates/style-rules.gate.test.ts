@@ -22,6 +22,14 @@ const PHYSICAL = [
 // textAlign: 'left'/'right' are physical; 'start'/'end' are the logical values and must pass.
 const TEXT_ALIGN_PHYSICAL = /\btextAlign:\s*['"](left|right)['"]/g
 
+// The bare inset longhands are physical too — use insetInlineStart/insetInlineEnd/
+// insetBlockStart/insetBlockEnd instead. Word-boundary anchored on the property key
+// so this doesn't collide with textAlign: 'left' (handled above) or with
+// borderLeft*-style keys (already covered by PHYSICAL) or insetInlineStart (the
+// word boundary after left/right/top/bottom requires a `:` immediately after,
+// which insetInlineStart's key does not have).
+const INSET_LONGHAND_PHYSICAL = /\b(left|right|top|bottom):\s*/g
+
 // A 4-value shorthand (top, right, bottom, left / corner order for radius) is physical.
 // 1-, 2- and 3-value forms are horizontally symmetric and safe.
 const SHORTHAND_4VALUE_PHYSICAL =
@@ -68,10 +76,11 @@ describe('gate: component styles follow the token and layout rules', () => {
     it(`${label} uses logical properties only`, () => {
       const physical = PHYSICAL.filter((p) => text.includes(p))
       const textAlignHits = [...text.matchAll(TEXT_ALIGN_PHYSICAL)].map((m) => m[0])
-      const violations = [...physical, ...textAlignHits]
+      const insetLonghandHits = [...text.matchAll(INSET_LONGHAND_PHYSICAL)].map((m) => m[0])
+      const violations = [...physical, ...textAlignHits, ...insetLonghandHits]
       expect(
         violations,
-        `use logical equivalents (marginInlineStart, paddingBlock, textAlign: 'start'/'end', …): ${violations.join(', ')}`,
+        `use logical equivalents (marginInlineStart, paddingBlock, textAlign: 'start'/'end', insetInlineStart/insetInlineEnd/insetBlockStart/insetBlockEnd, …): ${violations.join(', ')}`,
       ).toEqual([])
     })
 
