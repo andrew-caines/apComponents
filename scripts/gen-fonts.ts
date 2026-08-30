@@ -4,7 +4,7 @@
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DEFAULT_BRAND, generateTheme, toFallbackFontFaceCss } from '@ap/tokens'
-import { loadFontSubsetSource, pickFile, unicodeRangeFor } from '../packages/react/src/theme/font-subsets.js'
+import { loadFontSubsetSource, pickFile, unicodeRangeFor } from '../packages/react/src/gates/font-subsets.js'
 
 const { filesDir, available, wghtCss } = loadFontSubsetSource()
 

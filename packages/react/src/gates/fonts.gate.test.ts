@@ -7,7 +7,7 @@ import {
   normalizeUnicodeRange,
   pickFile,
   unicodeRangeFor,
-} from '../theme/font-subsets.js'
+} from './font-subsets.js'
 
 const ROOT = join(import.meta.dirname, '../..')
 const FONTS_CSS = join(ROOT, 'src/theme/fonts.css')

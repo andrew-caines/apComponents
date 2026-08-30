@@ -1,7 +1,13 @@
 // Shared between scripts/gen-fonts.ts (the generator) and
-// gates/fonts.gate.test.ts (the freshness gate), so declared unicode-range
-// coverage in fonts.css can never diverge from a hand-copied literal: both
-// sides read it from @fontsource-variable/inter's own wght.css.
+// fonts.gate.test.ts (the freshness gate, this file's sibling), so declared
+// unicode-range coverage in fonts.css can never diverge from a hand-copied
+// literal: both sides read it from @fontsource-variable/inter's own wght.css.
+//
+// Lives in gates/, not theme/, on purpose: this is build-and-verification
+// tooling that reads node:fs/node:module/node:path, not runtime source. The
+// gates/ directory is already this package's exempted home for Node-touching
+// tooling (see ssr-safety.gate.test.ts), so this module stays outside the
+// SSR-safe surface that gate enforces for the rest of packages/react/src.
 import { readFileSync, readdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
