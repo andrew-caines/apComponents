@@ -16,10 +16,12 @@
     "test:gamut": "vitest run packages/tokens/src/gates/gamut.gate.test.ts",
     "test:sweep": "vitest run packages/tokens/src/gates/sweep.gate.test.ts",
     "test:contract": "vitest run packages/react/src/gates/contract-drift.gate.test.ts",
+    "test:freshness": "vitest run packages/react/src/gates/theme-freshness.gate.test.ts",
     "typecheck": "tsc -b packages/tokens packages/react",
     "report:contrast": "tsx scripts/contrast-report.ts",
     "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
-    "gen:theme-contract": "tsx scripts/gen-theme-contract.ts"
+    "gen:theme-contract": "tsx scripts/gen-theme-contract.ts",
+    "gen:theme-css": "tsx scripts/gen-theme-css.ts"
   },
   "devDependencies": {
     "@capsizecss/core": "^4.1.2",
