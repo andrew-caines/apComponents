@@ -1,0 +1,14 @@
+{
+  "name": "@ap/vite",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@vanilla-extract/vite-plugin": "^5.2.6"
+  },
+  "peerDependencies": {
+    "vite": "^7.0.0 || ^8.0.0"
+  },
+  "engines": { "node": ">=22.22.0" }
+}
