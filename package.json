@@ -19,6 +19,8 @@
     "test:freshness": "vitest run packages/react/src/gates/theme-freshness.gate.test.ts",
     "test:fonts": "vitest run packages/react/src/gates/fonts.gate.test.ts",
     "test:guards": "vitest run packages/react/src/gates/use-client.gate.test.ts packages/react/src/gates/ssr-safety.gate.test.ts packages/react/src/gates/style-rules.gate.test.ts",
+    "fixture:install": "npm --prefix fixtures/ssr-app install && npm --prefix fixtures/consumer install",
+    "test:ssr": "vitest run --config vitest.gates.config.ts packages/react/src/gates/ssr-render.gate.test.ts",
     "typecheck": "tsc -b packages/tokens packages/react packages/vite",
     "report:contrast": "tsx scripts/contrast-report.ts",
     "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
