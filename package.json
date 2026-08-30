@@ -18,6 +18,7 @@
     "test:contract": "vitest run packages/react/src/gates/contract-drift.gate.test.ts",
     "test:freshness": "vitest run packages/react/src/gates/theme-freshness.gate.test.ts",
     "test:fonts": "vitest run packages/react/src/gates/fonts.gate.test.ts",
+    "test:guards": "vitest run packages/react/src/gates/use-client.gate.test.ts packages/react/src/gates/ssr-safety.gate.test.ts packages/react/src/gates/style-rules.gate.test.ts",
     "typecheck": "tsc -b packages/tokens packages/react",
     "report:contrast": "tsx scripts/contrast-report.ts",
     "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
