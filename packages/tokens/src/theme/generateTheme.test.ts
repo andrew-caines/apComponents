@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generateTheme, resolveSemantic } from './generateTheme.js'
+import { media } from '../breakpoints.js'
+import type { SemanticEntry } from './semanticMap.js'
 
 const theme = generateTheme({ brand: '#2e5fd9' })
 
@@ -30,5 +32,42 @@ describe('generateTheme', () => {
   })
   it('rejects an invalid brand hex', () => {
     expect(() => generateTheme({ brand: 'blue' })).toThrow()
+  })
+  it('normalizes the seed brand to lowercase six-digit hex (M6)', () => {
+    expect(generateTheme({ brand: '#F00' }).seed.brand).toBe('#ff0000')
+    expect(generateTheme({ brand: '#2E5FD9' }).seed.brand).toBe('#2e5fd9')
+    expect(generateTheme({ brand: '  #2e5fd9  ' }).seed.brand).toBe('#2e5fd9')
+  })
+  it('#rgb shorthand and its expansion produce identical themes', () => {
+    expect(generateTheme({ brand: '#F00' })).toEqual(generateTheme({ brand: '#ff0000' }))
+  })
+})
+
+describe('shared singletons are frozen (I6)', () => {
+  it('every scale, the semantic map and breakpoints are frozen', () => {
+    expect(Object.isFrozen(theme.scales)).toBe(true)
+    expect(Object.isFrozen(theme.scales.space)).toBe(true)
+    expect(Object.isFrozen(theme.scales.text)).toBe(true)
+    expect(Object.isFrozen(theme.scales.radius)).toBe(true)
+    expect(Object.isFrozen(theme.scales.z)).toBe(true)
+    expect(Object.isFrozen(theme.scales.misc)).toBe(true)
+    expect(Object.isFrozen(theme.scales.elevation)).toBe(true)
+    expect(Object.isFrozen(theme.scales.elevation.light)).toBe(true)
+    expect(Object.isFrozen(theme.scales.elevation.dark)).toBe(true)
+    expect(Object.isFrozen(theme.semantic)).toBe(true)
+    for (const entry of theme.semantic) expect(Object.isFrozen(entry)).toBe(true)
+    expect(Object.isFrozen(theme.breakpoints)).toBe(true)
+    expect(Object.isFrozen(media)).toBe(true)
+  })
+  it('mutating a scale throws in strict mode', () => {
+    expect(() => {
+      ;(theme.scales.space as Record<string, string>)['5'] = '999px'
+    }).toThrow(TypeError)
+    expect(() => {
+      ;(theme.semantic as SemanticEntry[])[0]!.step = 99
+    }).toThrow(TypeError)
+  })
+  it('two themes share the same frozen scale objects', () => {
+    expect(generateTheme({ brand: '#2e5fd9' }).scales.space).toBe(theme.scales.space)
   })
 })

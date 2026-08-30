@@ -8,10 +8,20 @@ const srgbToLinear = (u: number): number =>
 const linearToSrgb = (u: number): number =>
   u <= 0.0031308 ? 12.92 * u : 1.055 * u ** (1 / 2.4) - 0.055
 
-export function hexToOklch(hex: string): Oklch {
+/**
+ * Validate a hex colour and put it in canonical form: lowercase, six digits,
+ * `#rgb` shorthand expanded textually. Expansion has to be textual — round
+ * tripping through OKLCH is not identity-safe for every input.
+ */
+export function normalizeHex(hex: string): string {
   const m = /^#(?:([0-9a-f]{3})|([0-9a-f]{6}))$/i.exec(hex.trim())
   if (!m) throw new Error(`Invalid hex colour: ${hex}`)
   const full = m[1] ? [...m[1]].map((ch) => ch + ch).join('') : m[2]!
+  return `#${full.toLowerCase()}`
+}
+
+export function hexToOklch(hex: string): Oklch {
+  const full = normalizeHex(hex).slice(1)
   const r = srgbToLinear(parseInt(full.slice(0, 2), 16) / 255)
   const g = srgbToLinear(parseInt(full.slice(2, 4), 16) / 255)
   const b = srgbToLinear(parseInt(full.slice(4, 6), 16) / 255)

@@ -6,11 +6,12 @@ export interface SemanticEntry {
   step: number | 'onSolid'
 }
 
-const s = (token: string, ramp: RampName, step: number | 'onSolid'): SemanticEntry => ({
-  token, ramp, step,
-})
+const s = (token: string, ramp: RampName, step: number | 'onSolid'): SemanticEntry =>
+  Object.freeze({ token, ramp, step })
 
-export const SEMANTIC_MAP: SemanticEntry[] = [
+// Shared singleton handed straight out on `theme.semantic` — frozen array of
+// frozen entries so a consumer cannot re-point a token for every theme at once.
+export const SEMANTIC_MAP: readonly SemanticEntry[] = Object.freeze([
   s('color-bg-canvas', 'neutral', 1),
   s('color-bg-surface', 'neutral', 2),
   s('color-bg-raised', 'neutral', 3),
@@ -30,4 +31,4 @@ export const SEMANTIC_MAP: SemanticEntry[] = [
     s(`color-${name}-text`, name, 11),
     s(`color-${name}-on-solid`, name, 'onSolid'),
   ]),
-]
+])

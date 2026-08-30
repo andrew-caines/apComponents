@@ -1,5 +1,5 @@
 import type { Mode } from '../colour/types.js'
-import { hexToOklch } from '../colour/oklch.js'
+import { hexToOklch, normalizeHex } from '../colour/oklch.js'
 import { deriveSeeds } from '../colour/semantics.js'
 import { generateRamp, type Ramp } from '../colour/ramp.js'
 import { resolveFont, type FallbackMetrics, type ResolvedFont } from '../typography/fonts.js'
@@ -18,20 +18,22 @@ export interface Theme {
   seed: { brand: string }
   font: ResolvedFont
   ramps: Record<Mode, Record<RampName, Ramp>>
-  semantic: SemanticEntry[]
-  scales: {
+  semantic: readonly SemanticEntry[]
+  scales: Readonly<{
     space: typeof SPACE
     text: typeof TEXT
     radius: typeof RADIUS
     elevation: typeof ELEVATION
     z: typeof Z
     misc: typeof MISC
-  }
+  }>
   breakpoints: typeof breakpoints
 }
 
 export function generateTheme(seed: ThemeSeed): Theme {
-  const brand = hexToOklch(seed.brand)
+  // Canonical seed form: lowercase six-digit hex, `#rgb` shorthand expanded.
+  const brandHex = normalizeHex(seed.brand)
+  const brand = hexToOklch(brandHex)
   const seeds = { brand, ...deriveSeeds(brand) }
 
   const modeRamps = (mode: Mode): Record<RampName, Ramp> => ({
@@ -44,11 +46,13 @@ export function generateTheme(seed: ThemeSeed): Theme {
   })
 
   return {
-    seed: { brand: seed.brand.toLowerCase() },
+    seed: { brand: brandHex },
     font: resolveFont(seed.font),
     ramps: { light: modeRamps('light'), dark: modeRamps('dark') },
     semantic: SEMANTIC_MAP,
-    scales: { space: SPACE, text: TEXT, radius: RADIUS, elevation: ELEVATION, z: Z, misc: MISC },
+    scales: Object.freeze({
+      space: SPACE, text: TEXT, radius: RADIUS, elevation: ELEVATION, z: Z, misc: MISC,
+    }),
     breakpoints,
   }
 }
