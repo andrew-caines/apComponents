@@ -5,7 +5,8 @@
   "engines": { "node": ">=22.22.0" },
   "scripts": {
     "build": "react-router build",
-    "start": "react-router-serve ./build/server/index.js"
+    "start": "react-router-serve ./build/server/index.js",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ap/react": "file:../../packages/react",
@@ -16,6 +17,7 @@
     "isbot": "^5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@react-router/dev": "^8.3.1",
     "@react-router/node": "^8.3.1",
     "@react-router/serve": "^8.3.1",
