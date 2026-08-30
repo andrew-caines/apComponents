@@ -88,6 +88,43 @@ describe('toCssText', () => {
     expect(new Set(declared)).toEqual(expected)
   })
 
+  it('both dark P3 blocks declare every token name the light P3 block declares', () => {
+    // Structural subset guard, seed-independent. The light P3 selector
+    // :root:not([data-ap-scheme="dark"]) is (0,2,0) — same specificity as the
+    // dark hex media block, later in source — so in system-dark on P3 hardware
+    // any token the dark P3 blocks fail to redeclare falls through to the LIGHT
+    // P3 value. For the default seed that was --ap-success-11/-12, dropping
+    // color-success-text to 2.78:1 on the dark canvas.
+    const gamut = css.indexOf('@media (color-gamut: p3)')
+    const coarse = css.indexOf('@media (pointer: coarse)')
+    const section = css.slice(gamut, coarse)
+    const names = (body: string): string[] =>
+      norm(body).split('\n').map((l) => l.slice(0, l.indexOf(':')))
+
+    const lightNames = names(blockBodies(section, ':root:not([data-ap-scheme="dark"])')[0]!)
+    expect(lightNames.length).toBeGreaterThan(0)
+
+    const darkAttrNames = new Set(names(blockBodies(section, '[data-ap-scheme="dark"]')[0]!))
+    const darkMediaNames = new Set(names(blockBodies(section, ':root:not([data-ap-scheme="light"])')[0]!))
+    for (const name of lightNames) {
+      expect(darkAttrNames, `${name} missing from the P3 dark attribute block`).toContain(name)
+      expect(darkMediaNames, `${name} missing from the nested P3 dark media block`).toContain(name)
+    }
+  })
+
+  it('a dark P3 token with no dark P3 value falls back to the dark hex, not the light P3', () => {
+    const gamut = css.indexOf('@media (color-gamut: p3)')
+    const coarse = css.indexOf('@media (pointer: coarse)')
+    const darkAttr = blockBodies(css.slice(gamut, coarse), '[data-ap-scheme="dark"]')[0]!
+    // success 11/12 have light P3 but no dark P3 for the default seed
+    for (const step of [11, 12]) {
+      const dark = theme.ramps.dark.success.steps[step - 1]!
+      expect(dark.p3).toBeNull()
+      expect(theme.ramps.light.success.steps[step - 1]!.p3).not.toBeNull()
+      expect(norm(darkAttr)).toContain(`--ap-success-${step}: ${dark.hex};`)
+    }
+  })
+
   it('P3 values appear only under the gamut media query', () => {
     const first = css.indexOf('display-p3')
     expect(first).toBeGreaterThan(css.indexOf('@media (color-gamut: p3)'))

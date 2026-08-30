@@ -62,6 +62,32 @@ function p3Lines(theme: Theme, mode: Mode): string[] {
   return lines
 }
 
+/**
+ * Dark P3 declarations, over the UNION of the light and dark P3 token names.
+ *
+ * The dark blocks have to shadow every token the light P3 block declares, not
+ * just the ones that happen to have a dark P3 value. `:root:not([data-ap-scheme
+ * ="dark"])` is (0,2,0) — the same specificity as the dark *hex* media block
+ * and later in source order — so in system-dark on P3 hardware, any token the
+ * dark P3 blocks skip falls through to the LIGHT P3 value. For the default seed
+ * that hits --ap-success-11/--ap-success-12 (light P3, no dark P3), which would
+ * resolve color-success-text to the light green at 2.78:1 on the dark canvas.
+ *
+ * So for each token in the union: the dark ramp's P3 string when it has one,
+ * otherwise the dark ramp's plain hex. Ordering stays RAMP_ORDER, step ascending.
+ */
+function darkP3Lines(theme: Theme): string[] {
+  const lines: string[] = []
+  for (const name of RAMP_ORDER) {
+    const lightSteps = theme.ramps.light[name].steps
+    theme.ramps.dark[name].steps.forEach((step, i) => {
+      if (!step.p3 && !lightSteps[i]!.p3) return
+      lines.push(`--ap-${name}-${i + 1}: ${step.p3 ?? step.hex};`)
+    })
+  }
+  return lines
+}
+
 const block = (selector: string, lines: string[], indent: string): string =>
   lines.length === 0 ? '' : `${indent}${selector} {\n${lines.map((l) => `${indent}  ${l}`).join('\n')}\n${indent}}`
 
@@ -88,7 +114,7 @@ export function toCssText(theme: Theme, options: CssTextOptions = {}): string {
   const light = [...tier1Lines(theme, 'light'), ...tier2Lines(theme), ...scaleLines(theme, 'light')]
   const dark = darkLines(theme)
   const p3Light = p3Lines(theme, 'light')
-  const p3Dark = p3Lines(theme, 'dark')
+  const p3Dark = darkP3Lines(theme)
 
   const parts = [
     '@layer ap.tokens, ap.components;',
@@ -111,6 +137,8 @@ export function toCssText(theme: Theme, options: CssTextOptions = {}): string {
     // Likewise dark P3 needs its own nested prefers-color-scheme block: the
     // main dark media block is (0,2,0) and would otherwise outrank a (0,1,0)
     // P3 attribute selector, leaving system-dark with no P3 at all.
+    // The dark P3 blocks span the union of both modes' P3 token names (see
+    // darkP3Lines) so they fully shadow the light P3 block in system-dark.
     '  @media (color-gamut: p3) {',
     block(rootNotDark, p3Light, '    '),
     block(attrDark, p3Dark, '    '),

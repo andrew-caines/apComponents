@@ -9,14 +9,16 @@ export const SPACE = Object.freeze({
   '5': '16px', '6': '24px', '7': '32px', '8': '48px', '9': '64px',
 } as Record<string, string>)
 
+// Each entry is frozen too — freezing only the container still let
+// `theme.scales.text.md.size = '99px'` through, polluting every later theme.
 export const TEXT = Object.freeze({
-  xs: { size: '12px', lineHeight: '16px' },
-  sm: { size: '14px', lineHeight: '20px' },
-  md: { size: '16px', lineHeight: '24px' },
-  lg: { size: '18px', lineHeight: '28px' },
-  xl: { size: '20px', lineHeight: '28px' },
-  '2xl': { size: '24px', lineHeight: '32px' },
-} as Record<string, { size: string; lineHeight: string }>)
+  xs: Object.freeze({ size: '12px', lineHeight: '16px' }),
+  sm: Object.freeze({ size: '14px', lineHeight: '20px' }),
+  md: Object.freeze({ size: '16px', lineHeight: '24px' }),
+  lg: Object.freeze({ size: '18px', lineHeight: '28px' }),
+  xl: Object.freeze({ size: '20px', lineHeight: '28px' }),
+  '2xl': Object.freeze({ size: '24px', lineHeight: '32px' }),
+} as Record<string, Readonly<{ size: string; lineHeight: string }>>)
 
 export const RADIUS = Object.freeze({
   sm: '4px', md: '6px', lg: '10px', xl: '16px', full: '9999px',

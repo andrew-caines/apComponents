@@ -353,6 +353,8 @@ exports[`toCssText > matches the committed snapshot 1`] = `
       --ap-info-12: color(display-p3 0.8651 0.9116 1);
       --ap-success-9: color(display-p3 0.1687 0.5075 0.2857);
       --ap-success-10: color(display-p3 0.1099 0.4601 0.2423);
+      --ap-success-11: #7ae4a3;
+      --ap-success-12: #bcf9d0;
       --ap-warning-10: color(display-p3 0.9619 0.6896 0.3093);
       --ap-warning-11: color(display-p3 1 0.7617 0.445);
       --ap-warning-12: color(display-p3 1 0.8877 0.7448);
@@ -367,6 +369,8 @@ exports[`toCssText > matches the committed snapshot 1`] = `
         --ap-info-12: color(display-p3 0.8651 0.9116 1);
         --ap-success-9: color(display-p3 0.1687 0.5075 0.2857);
         --ap-success-10: color(display-p3 0.1099 0.4601 0.2423);
+        --ap-success-11: #7ae4a3;
+        --ap-success-12: #bcf9d0;
         --ap-warning-10: color(display-p3 0.9619 0.6896 0.3093);
         --ap-warning-11: color(display-p3 1 0.7617 0.445);
         --ap-warning-12: color(display-p3 1 0.8877 0.7448);

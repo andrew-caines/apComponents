@@ -48,6 +48,10 @@ describe('shared singletons are frozen (I6)', () => {
     expect(Object.isFrozen(theme.scales)).toBe(true)
     expect(Object.isFrozen(theme.scales.space)).toBe(true)
     expect(Object.isFrozen(theme.scales.text)).toBe(true)
+    for (const entry of Object.values(theme.scales.text)) {
+      expect(Object.isFrozen(entry)).toBe(true)
+    }
+    expect(Object.isFrozen(theme.scales.text.md)).toBe(true)
     expect(Object.isFrozen(theme.scales.radius)).toBe(true)
     expect(Object.isFrozen(theme.scales.z)).toBe(true)
     expect(Object.isFrozen(theme.scales.misc)).toBe(true)
@@ -66,6 +70,12 @@ describe('shared singletons are frozen (I6)', () => {
     expect(() => {
       ;(theme.semantic as SemanticEntry[])[0]!.step = 99
     }).toThrow(TypeError)
+    // nested text entries too — freezing only the container let
+    // theme.scales.text.md.size through, polluting every later theme
+    expect(() => {
+      ;(theme.scales.text.md as { size: string }).size = '99px'
+    }).toThrow(TypeError)
+    expect(generateTheme({ brand: '#2e5fd9' }).scales.text.md!.size).toBe('16px')
   })
   it('two themes share the same frozen scale objects', () => {
     expect(generateTheme({ brand: '#2e5fd9' }).scales.space).toBe(theme.scales.space)
