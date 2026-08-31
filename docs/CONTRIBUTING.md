@@ -120,3 +120,14 @@ instead through `vitest.gates.config.ts`, a separate config with no such
 exclusion, via `npm run test:ssr` and `npm run test:consumer`. The `consumer`
 and `ssr` CI jobs install their fixtures first and then run these scripts
 directly. Keep both config files in sync if the gate filenames ever change.
+
+### React Router 8 behaviours the SSR fixture depends on
+
+Three RR8 behaviours shape how `fixtures/ssr-app` and its gate are written, and
+each one silently invalidated an assertion before it was understood: Node's
+`fetch()` is classified as a bot and so never receives a streamed response; a
+fixed gate port lets a leaked server answer for a build you did not make; and an
+SPA-mode build renders root's `HydrateFallback` rather than root itself, so its
+shell legitimately contains no stylesheet link. See
+[`rr8-fixture-notes.md`](./rr8-fixture-notes.md) before changing an assertion in
+`ssr-render.gate.test.ts`.

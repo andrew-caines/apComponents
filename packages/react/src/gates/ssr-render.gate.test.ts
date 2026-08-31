@@ -35,7 +35,7 @@ let serverOutput = ''
 // `User-Agent: node`, which `isbot` flags as a bot. Without a browser-like UA
 // here, gate 6's streaming assertion silently exercises the wrong render
 // path: verified by capturing the raw response both ways (see
-// task-7-report.md) — with the default UA the whole page arrives resolved
+// docs/rr8-fixture-notes.md) — with the default UA the whole page arrives resolved
 // in one shot; with this UA the fallback is genuinely flushed first.
 const BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -46,7 +46,7 @@ function fetchAsBrowser(url: string): Promise<Response> {
 
 /**
  * A fixed port can already be bound by a leaked process from a previous run
- * (see task-7-report.md fix-report: this is exactly the bug that made the
+ * (see docs/rr8-fixture-notes.md: this is exactly the bug that made the
  * original gate pass against a stale server). Binding port 0 and reading back
  * the OS-assigned port means concurrent/leaked runs cannot collide at all.
  */
@@ -257,7 +257,7 @@ describe(
 
       // Proves the ADR-0005 shell/prerender distinction directly, rather
       // than assuming it: this is a client-rendered shell, not a
-      // server-rendered page. Verified empirically (see task-7-report.md):
+      // server-rendered page. Verified empirically (see docs/rr8-fixture-notes.md):
       // RR8's SPA-mode fallback, produced when no `prerender` paths are
       // configured, is a generic loading placeholder rendered through a
       // different code path than a real route match — it contains no
