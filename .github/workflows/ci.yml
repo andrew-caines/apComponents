@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  NODE_VERSION: '22.22.0'
+
+jobs:
+  unit:
+    name: Unit tests, gates and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:gates
+      - name: Generate the contrast report
+        run: npm run report:contrast
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contrast-report
+          path: reports/contrast.md
+
+  generated-artifacts-are-fresh:
+    name: Generated artifacts are fresh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run gen:theme-contract
+      - run: npm run gen:theme-css
+      - run: npm run gen:fonts
+      - run: npm run gen:font-metrics
+      - name: Fail if any generated file drifted from its generator
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Generated files are stale. Run the gen:* scripts and commit the result."
+            exit 1
+          fi
+      - name: Fail if any generator started emitting a new, untracked file
+        run: |
+          untracked="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$untracked" ]; then
+            echo "$untracked"
+            echo "::error::A gen:* script emitted file(s) git diff can't see because they are untracked. Commit the new file(s) or fix the generator."
+            exit 1
+          fi
+
+  consumer:
+    name: Consumer build (gate 8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix fixtures/consumer install
+      - run: npm --prefix fixtures/consumer run typecheck
+      - run: npm run test:consumer
+
+  ssr:
+    name: SSR and SPA (gates 6 and 7)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix fixtures/ssr-app install
+      - run: npm run test:ssr
+      - run: npx --prefix fixtures/ssr-app playwright install --with-deps chromium
+      - run: npm run test:hydration
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: fixtures/ssr-app/playwright-report/

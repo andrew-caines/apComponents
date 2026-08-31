@@ -1,0 +1,21 @@
+{
+  "name": "@ap/react",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": ["*.css"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./theme.css": "./src/theme/theme.css",
+    "./fonts.css": "./src/theme/fonts.css"
+  },
+  "dependencies": {
+    "@ap/tokens": "file:../tokens",
+    "@vanilla-extract/css": "^1.21.2",
+    "@vanilla-extract/recipes": "^0.5.7"
+  },
+  "peerDependencies": {
+    "react": ">=19.2.7",
+    "react-dom": ">=19.2.7"
+  },
+  "engines": { "node": ">=22.22.0" }
+}
