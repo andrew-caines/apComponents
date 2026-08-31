@@ -8,6 +8,8 @@ export default defineConfig({
   plugins: [react(), apComponents()],
   // Local workaround for a drive-letter casing artifact on this Windows
   // checkout (D:\DEV vs d:\dev) that breaks vanilla-extract's symlink
-  // resolution — not a requirement of @ap/vite or @ap/react. See task-7-report.md.
+  // resolution — not a requirement of @ap/vite or @ap/react. See
+  // docs/CONTRIBUTING.md § "Windows drive-letter casing breaks
+  // vanilla-extract silently".
   resolve: isWin ? { preserveSymlinks: true } : undefined,
 })
