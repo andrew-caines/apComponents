@@ -1,0 +1,14 @@
+{
+  "name": "@ap/motion",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": ["*.css"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./motion.css": "./src/motion.css"
+  },
+  "dependencies": {
+    "@ap/tokens": "file:../tokens"
+  },
+  "engines": { "node": ">=22.22.0" }
+}

@@ -24,7 +24,7 @@
     "test:ssr": "vitest run --config vitest.gates.config.ts packages/react/src/gates/ssr-render.gate.test.ts",
     "test:consumer": "vitest run --config vitest.gates.config.ts packages/react/src/gates/consumer-build.gate.test.ts",
     "test:hydration": "npm --prefix fixtures/ssr-app run test:e2e",
-    "typecheck": "tsc -b packages/tokens packages/react packages/vite",
+    "typecheck": "tsc -b packages/tokens packages/motion packages/react packages/vite",
     "report:contrast": "tsx scripts/contrast-report.ts",
     "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
     "gen:fonts": "tsx scripts/gen-fonts.ts",
