@@ -1,3 +1,4 @@
+export { cssKeyframeName, toMotionCss } from './emitCss.js'
 export { MOTIONS } from './motions.js'
 export type { MotionName } from './motions.js'
 export type {

@@ -29,7 +29,9 @@
     "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
     "gen:fonts": "tsx scripts/gen-fonts.ts",
     "gen:theme-contract": "tsx scripts/gen-theme-contract.ts",
-    "gen:theme-css": "tsx scripts/gen-theme-css.ts"
+    "gen:theme-css": "tsx scripts/gen-theme-css.ts",
+    "gen:motion-css": "tsx scripts/gen-motion-css.ts",
+    "test:motion": "vitest run packages/motion/src"
   },
   "devDependencies": {
     "@capsizecss/core": "^4.1.2",
