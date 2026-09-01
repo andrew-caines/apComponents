@@ -19,6 +19,25 @@ function blockBodies(source: string, selector: string): string[] {
   return [...source.matchAll(re)].map((m) => m[2]!)
 }
 
+/**
+ * Index of the `{` that closes the block opened by the `{` at `openIndex`,
+ * found by counting nested braces. Pattern-matching (e.g. `lastIndexOf('}')`)
+ * cannot prove containment when the outer block itself contains other
+ * `{...}` blocks — it just finds *a* closing brace, not necessarily the one
+ * that matches this opener.
+ */
+function matchingClose(source: string, openIndex: number): number {
+  let depth = 0
+  for (let i = openIndex; i < source.length; i++) {
+    if (source[i] === '{') depth++
+    else if (source[i] === '}') {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  throw new Error(`no matching close brace found for opener at index ${openIndex}`)
+}
+
 describe('toCssText', () => {
   it('declares layer order first', () => {
     expect(css.startsWith('@layer ap.tokens, ap.components;')).toBe(true)
@@ -195,8 +214,12 @@ describe('motion primitives', () => {
   })
 
   it('emits the reduced-motion block inside the token layer', () => {
-    const layerEnd = css.lastIndexOf('}')
-    expect(css.indexOf('@media (prefers-reduced-motion: reduce)')).toBeLessThan(layerEnd)
+    const layerOpener = '@layer ap.tokens {'
+    const openBrace = css.indexOf(layerOpener) + layerOpener.length - 1
+    const layerClose = matchingClose(css, openBrace)
+    const mediaIndex = css.indexOf('@media (prefers-reduced-motion: reduce)')
+    expect(mediaIndex).toBeGreaterThan(openBrace)
+    expect(mediaIndex).toBeLessThan(layerClose)
   })
 })
 
