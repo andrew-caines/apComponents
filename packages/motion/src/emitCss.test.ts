@@ -30,7 +30,13 @@ function matchingClose(source: string, openIndex: number): number {
 
 /** The text strictly between `openerWithBrace`'s trailing `{` and its matching `}`. */
 function blockBody(openerWithBrace: string): string {
-  const openIndex = css.indexOf(openerWithBrace) + openerWithBrace.length - 1
+  const found = css.indexOf(openerWithBrace)
+  // Without this guard a missing opener yields a bogus index rather than an
+  // error, and matchingClose only *sometimes* throws from there — given a
+  // coincidental `{...}` pair downstream it returns a wrong span silently,
+  // which is the exact failure this helper exists to rule out.
+  if (found === -1) throw new Error(`block opener not found in emitted CSS: ${openerWithBrace}`)
+  const openIndex = found + openerWithBrace.length - 1
   const closeIndex = matchingClose(css, openIndex)
   return css.slice(openIndex + 1, closeIndex)
 }
