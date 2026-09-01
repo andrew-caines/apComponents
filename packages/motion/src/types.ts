@@ -28,3 +28,20 @@ export interface MotionSpec {
   iterations: number | 'infinite'
   reduced: ReducedBehaviour
 }
+
+/**
+ * A Motion-compatible variant. Shaped for `motion/react`'s keyframes +
+ * transition convention, but typed by us — this package does not depend on
+ * Motion, and nothing in Phase 3 imports it.
+ */
+export interface MotionVariant {
+  keyframes: Record<string, (string | number)[]>
+  transition: {
+    /** Seconds, per Motion's convention. */
+    duration: number
+    ease: number[] | 'linear'
+    times: number[]
+    /** ADDITIONAL plays beyond the first, per Motion's convention. */
+    repeat: number
+  }
+}
