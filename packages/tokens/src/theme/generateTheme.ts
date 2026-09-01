@@ -4,6 +4,7 @@ import { deriveSeeds } from '../colour/semantics.js'
 import { generateRamp, type Ramp } from '../colour/ramp.js'
 import { resolveFont, type FallbackMetrics, type ResolvedFont } from '../typography/fonts.js'
 import { ELEVATION, MISC, RADIUS, SPACE, TEXT, Z } from '../scales/scales.js'
+import { DURATION, EASE } from '../scales/motion.js'
 import { breakpoints } from '../breakpoints.js'
 import { SEMANTIC_MAP, type SemanticEntry } from './semanticMap.js'
 
@@ -26,6 +27,8 @@ export interface Theme {
     elevation: typeof ELEVATION
     z: typeof Z
     misc: typeof MISC
+    duration: typeof DURATION
+    ease: typeof EASE
   }>
   breakpoints: typeof breakpoints
 }
@@ -52,6 +55,7 @@ export function generateTheme(seed: ThemeSeed): Theme {
     semantic: SEMANTIC_MAP,
     scales: Object.freeze({
       space: SPACE, text: TEXT, radius: RADIUS, elevation: ELEVATION, z: Z, misc: MISC,
+      duration: DURATION, ease: EASE,
     }),
     breakpoints,
   }

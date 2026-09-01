@@ -169,6 +169,37 @@ describe('toCssText / scoped emission', () => {
   })
 })
 
+describe('motion primitives', () => {
+  it('emits every duration and easing custom property', () => {
+    for (const k of ['instant', 'fast', 'base', 'slow', 'slower']) {
+      expect(css).toContain(`--ap-duration-${k}:`)
+    }
+    for (const k of ['out', 'in', 'in-out', 'linear']) {
+      expect(css).toContain(`--ap-ease-${k}:`)
+    }
+  })
+
+  it('collapses every non-zero duration under prefers-reduced-motion', () => {
+    const block = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(block).toContain('--ap-duration-fast: 1ms;')
+    expect(block).toContain('--ap-duration-base: 1ms;')
+    expect(block).toContain('--ap-duration-slow: 1ms;')
+    expect(block).toContain('--ap-duration-slower: 1ms;')
+  })
+
+  it('leaves the already-zero duration alone', () => {
+    // `instant` is 0ms in both modes; re-declaring it as 1ms would make the
+    // reduced-motion sheet slower than the normal one.
+    const block = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(block).not.toContain('--ap-duration-instant')
+  })
+
+  it('emits the reduced-motion block inside the token layer', () => {
+    const layerEnd = css.lastIndexOf('}')
+    expect(css.indexOf('@media (prefers-reduced-motion: reduce)')).toBeLessThan(layerEnd)
+  })
+})
+
 describe('toFallbackFontFaceCss', () => {
   it('emits a metric-matched @font-face for Inter', () => {
     const face = toFallbackFontFaceCss(theme)
