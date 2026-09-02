@@ -48,9 +48,9 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   // The exemption covers REFERENCING the hook, never CALLING it. Exempting the
   // whole rule for this file would make it the one place an unguarded
   // `useLayoutEffect(() => {})` could be added with the gate still green —
-  // proven by doing exactly that and watching 10/10 pass. So the blanket
-  // exemption is paired with the narrower assertions below, and every other
-  // rule still applies to this file.
+  // proven by doing exactly that and watching the suite stay green. So the
+  // blanket exemption is paired with the narrower assertions below, and every
+  // other rule still applies to this file.
   const ISOMORPHIC_LAYOUT_EFFECT_PATH = join(SRC, 'hooks', 'useIsomorphicLayoutEffect.ts')
   const LAYOUT_EFFECT_RULE = /\buseLayoutEffect\b/.source
 
@@ -74,17 +74,42 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
     })
 
     it('references useLayoutEffect only behind the document guard', () => {
-      expect(text()).toMatch(/typeof document !== 'undefined' \? useLayoutEffect : useEffect/)
+      // Semantic shape, not exact formatting: tolerate either quote style
+      // around 'undefined' and flexible whitespace around the operators, while
+      // still requiring the typeof document guard, the ternary, and both
+      // hooks in the right positions. An exact-text match would fail this
+      // gate for a purely cosmetic reformat (e.g. single to double quotes)
+      // with no functional change.
+      expect(text()).toMatch(
+        /typeof\s+document\s*!==\s*['"]undefined['"]\s*\?\s*useLayoutEffect\s*:\s*useEffect/,
+      )
     })
 
-    it('never CALLS useLayoutEffect, which the exemption does not cover', () => {
-      // A reference is a value; a call is the hazard. This is the assertion the
-      // blanket exemption was missing.
+    it('names useLayoutEffect exactly twice: the import and the guarded reference', () => {
+      // Call-shape regexes are unwinnable here — `useLayoutEffect?.(...)`,
+      // an aliased import invoked under its alias, and
+      // `const fn = useLayoutEffect; fn(...)` all reference the hook without
+      // ever matching `/\buseLayoutEffect\s*\(/`. Rather than chase every
+      // syntactic evasion with more regexes, count occurrences of the token
+      // itself in the code (comments stripped, so documentation prose that
+      // names the hook doesn't skew the count). In this file's code it may
+      // legitimately appear exactly twice — once in the import, once in the
+      // guarded ternary above. A third occurrence, in any syntactic form, is
+      // a finding: it means the hook is being named somewhere beyond
+      // building the wrapper, which is the one thing the exemption does not
+      // cover.
+      const code = text()
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/.*$/gm, '')
+      const matches = code.match(/\buseLayoutEffect\b/g) ?? []
       expect(
-        /\buseLayoutEffect\s*\(/.test(text()),
-        'useIsomorphicLayoutEffect.ts calls useLayoutEffect directly — the exemption ' +
-          'permits naming the hook to build the wrapper, never invoking it',
-      ).toBe(false)
+        matches.length,
+        `expected useLayoutEffect to appear exactly 2 times in useIsomorphicLayoutEffect.ts's ` +
+          `code (the import and the guarded ternary), found ${matches.length} — two is the ` +
+          'sanctioned count because a third occurrence, whatever its syntax ' +
+          '(optional chaining, an alias, assignment to a variable), means the hook is ' +
+          'being invoked outside the guard the exemption exists to cover',
+      ).toBe(2)
     })
   })
 
