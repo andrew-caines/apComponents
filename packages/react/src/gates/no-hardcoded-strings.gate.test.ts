@@ -1,15 +1,25 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { sourceFiles } from './sourceFiles.js'
 
-const COMPONENTS = join(import.meta.dirname, '..', 'components')
-// Icons render user-facing markup too — `label`/`aria-label` reach assistive
-// technology exactly like a component's — so a hardcoded icon label would be
-// just as untranslatable as one in components/. Scanning only components/
-// would let src/icons/ silently fall outside this gate's coverage the moment
-// it was added, which is exactly the kind of gap this gate exists to close.
-const ICONS = join(import.meta.dirname, '..', 'icons')
+const SRC = join(import.meta.dirname, '..')
+
+// F3: scan all of src/ with a named, commented exclusion set, mirroring
+// use-client — NOT an allowlist of directories. An allowlist has to be
+// widened by hand every time a directory is added, and whoever adds one has
+// no reason to think about this file: that is exactly how icons/ landed
+// outside this gate's original two-directory allowlist, and exactly how
+// providers/ — where Phase 5's NotificationProvider toast/banner copy will
+// live — was unscanned too. A denylist means a new directory is covered the
+// day it appears; the only thing anyone must remember is to justify an
+// exclusion.
+//
+// gates/ is test infrastructure, not shipped runtime code, and is the only
+// exclusion: everything else under src/ renders markup a screen reader or a
+// user can see, so everything else is in scope.
+const EXCLUDE_DIRS = ['gates']
 
 /**
  * A user-facing string literal in a component is a gate failure, not a review
@@ -30,6 +40,11 @@ const USER_FACING_ATTRS = [
   'placeholder',
   'alt',
   'abbr',
+  // F7: the icon set's own accessible-name prop (`<Icon label="Close" />`).
+  // It reaches assistive technology exactly like aria-label does once Icon
+  // forwards it — the most likely real hardcoded-string case this gate
+  // missed, and free to add.
+  'label',
 ] as const
 
 /**
@@ -121,76 +136,58 @@ function findHardcodedLiterals(source: string): string[] {
   return hits
 }
 
-function componentSources(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-    const p = join(dir, e.name)
-    if (e.isDirectory()) return componentSources(p)
-    return e.name.endsWith('.tsx') && !e.name.includes('.test.') && !e.name.includes('.stories.')
-      ? [p]
-      : []
+describe('gate: src/ takes user-facing strings from the message registry', () => {
+  // .tsx only: JSX attributes/text are the only surfaces this gate's AST walk
+  // looks at (JsxAttribute, JsxText), and only .tsx carries JSX in this
+  // project. Test/story files excluded (includeTests defaults to false) —
+  // fixtures aren't shipped, translated copy.
+  const files = sourceFiles(SRC, { extensions: ['.tsx'], excludeDirs: EXCLUDE_DIRS })
+
+  // Fail loudly, not silently: if src/ is ever missing or moved, or every
+  // source stops matching the `.tsx` filter, an empty file list must never
+  // read as "nothing hardcoded" — that is exactly how this gate would become
+  // a no-op.
+  if (files.length === 0) {
+    throw new Error(
+      `no-hardcoded-strings gate: found zero sources under ${SRC} — the gate has nothing to ` +
+        'scan and must not pass vacuously. Check that the directory exists and still contains ' +
+        '.tsx source files.',
+    )
+  }
+
+  it('finds sources to check', () => {
+    expect(files.length).toBeGreaterThan(0)
   })
-}
 
-// Both roots hold user-facing markup that must read strings through the
-// message registry: components/ for the components themselves, icons/ for
-// the icon set added in Task 5. Scanning them through one shared loop (rather
-// than copy-pasting the describe block per root) is deliberate — it is what
-// guarantees a THIRD root added later gets the same fail-loudly-on-zero-files
-// guard and the same per-file assertions just by being added to this list,
-// instead of relying on someone remembering to duplicate the block again.
-const SCAN_ROOTS = [
-  { label: 'components', dir: COMPONENTS },
-  { label: 'icons', dir: ICONS },
-]
+  // Proves the recursive walk actually reaches into subdirectories rather
+  // than silently stopping at the top level — every real component lives one
+  // level down (e.g. `components/Surface/Surface.tsx`), so if this ever
+  // regressed to a flat `readdirSync` the gate would report "0 files" or miss
+  // every component while still, misleadingly, passing.
+  it('scans nested component directories, not just the top level', () => {
+    expect(files.some((f) => f.includes(join('Surface', 'Surface.tsx')))).toBe(true)
+  })
 
-for (const { label, dir } of SCAN_ROOTS) {
-  describe(`gate: ${label} take user-facing strings from the message registry`, () => {
-    const files = componentSources(dir)
+  // Proves the denylist walk actually reaches providers/ — the directory the
+  // old two-root allowlist never covered, and exactly where Phase 5's
+  // NotificationProvider toast/banner copy will live.
+  it('reaches providers/, which the old components/icons allowlist never covered', () => {
+    expect(files.some((f) => f.includes(join('providers', 'ThemeProvider.tsx')))).toBe(true)
+  })
 
-    // Fail loudly, not silently: if this directory is ever missing or moved,
-    // or every source stops matching the `.tsx` filter, an empty file list
-    // must never read as "nothing hardcoded" — that is exactly how this gate
-    // would become a no-op. `readdirSync` on a missing directory already
-    // throws its own ENOENT naming the path; this guard covers the quieter
-    // failure mode where the directory exists but the walk finds nothing to
-    // scan.
-    if (files.length === 0) {
-      throw new Error(
-        `no-hardcoded-strings gate: found zero ${label} sources under ${dir} — the gate has ` +
-          'nothing to scan and must not pass vacuously. Check that the directory exists and ' +
-          'still contains .tsx source files.',
-      )
-    }
+  for (const file of files) {
+    const rel = file.slice(SRC.length + 1).replace(/\\/g, '/')
 
-    it(`finds ${label} sources to check`, () => {
-      expect(files.length).toBeGreaterThan(0)
+    it(`${rel} hardcodes no user-facing string`, () => {
+      const text = readFileSync(file, 'utf8')
+      const hits = findHardcodedLiterals(text)
+      expect(
+        hits,
+        `${rel} hardcodes ${hits[0]} — read it from useMessages() so it can be translated`,
+      ).toEqual([])
     })
-
-    if (label === 'components') {
-      // Proves the recursive walk actually reaches into subdirectories rather
-      // than silently stopping at the top level — every real component lives
-      // one level down (e.g. `components/Surface/Surface.tsx`), so if this
-      // ever regressed to a flat `readdirSync` the gate would report "0
-      // files" or miss every component while still, misleadingly, passing.
-      it('scans nested component directories, not just the top level', () => {
-        expect(files.some((f) => f.includes(join('Surface', 'Surface.tsx')))).toBe(true)
-      })
-    }
-
-    for (const file of files) {
-      const rel = file.slice(dir.length + 1).replace(/\\/g, '/')
-
-      it(`${rel} hardcodes no user-facing string`, () => {
-        const text = readFileSync(file, 'utf8')
-        const hits = findHardcodedLiterals(text)
-        expect(
-          hits,
-          `${rel} hardcodes ${hits[0]} — read it from useMessages() so it can be translated`,
-        ).toEqual([])
-      })
-    }
-  })
-}
+  }
+})
 
 describe('gate: the detection logic itself catches known evasions', () => {
   // Each of these is a way a component could carry a hardcoded, user-facing

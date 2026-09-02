@@ -1,21 +1,21 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { sourceFiles } from './sourceFiles.js'
 
 const SRC = join(import.meta.dirname, '..')
 const PACKAGE_JSON = join(import.meta.dirname, '../../package.json')
 
+// .ts and .tsx under all of src/, excluding gates/ (test infra) and test
+// files (includeTests defaults to false). .css.ts is filtered separately
+// below: it's not extension-expressible via `extensions` (both plain .ts and
+// .css.ts end in .ts) and vanilla-extract stylesheets are build-time style
+// declarations, not React runtime source subject to render-path rules.
 function runtimeSources(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-    const p = join(dir, e.name)
-    if (e.isDirectory()) return e.name === 'gates' ? [] : runtimeSources(p)
-    const isRuntime =
-      (e.name.endsWith('.ts') || e.name.endsWith('.tsx')) &&
-      !e.name.includes('.test.') &&
-      !e.name.endsWith('.css.ts')
-    return isRuntime ? [p] : []
-  })
+  return sourceFiles(dir, { extensions: ['.ts', '.tsx'], excludeDirs: ['gates'] }).filter(
+    (f) => !f.endsWith('.css.ts'),
+  )
 }
 
 const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
@@ -228,6 +228,97 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       visit(providerFn)
 
       expect(hits, `found browser-global identifiers inside ThemeProvider: ${hits.join(', ')}`).toEqual([])
+    })
+
+    // F4: the check above only looks for browser-global identifiers directly
+    // inside ThemeProvider's own span — it never re-enters applyScheme,
+    // readStoredScheme, or persistScheme, because the file-wide exemption
+    // above (DOCUMENT_RULE/STORAGE_RULE) intentionally lets THOSE top-level
+    // helper functions name document/localStorage. That exemption has a
+    // blind spot: calling one of those helpers FROM ThemeProvider's render
+    // body is a render-path browser-global read in every way that matters,
+    // but it is invisible to both checks — the browser-global scan never
+    // sees "document" or "localStorage" (only "readStoredScheme"), and
+    // nothing else asks where a call to a helper sits. `npm test` still
+    // catches it via the SSR test (renderToString would throw), but
+    // `test:guards` would not, which defeats the purpose of a gate.
+    //
+    // This closes it structurally: every call to one of the three helpers
+    // found anywhere in ThemeProvider's span must sit inside an arrow/
+    // function expression passed directly to useEffect or useCallback — the
+    // two hooks ADR-0005 sanctions for browser-only work — never directly in
+    // the render body.
+    it('calls the module-scope helpers (applyScheme/readStoredScheme/persistScheme) only from inside useEffect/useCallback, never from the render body', () => {
+      const code = providerText()
+      const sourceFile = ts.createSourceFile(
+        THEME_PROVIDER_PATH,
+        code,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TSX,
+      )
+
+      let providerFn: ts.FunctionDeclaration | undefined
+      ts.forEachChild(sourceFile, (node) => {
+        if (ts.isFunctionDeclaration(node) && node.name?.text === 'ThemeProvider') {
+          providerFn = node
+        }
+      })
+      if (!providerFn) {
+        throw new Error(
+          `ssr-safety gate: could not find a function declaration named 'ThemeProvider' in ` +
+            `${THEME_PROVIDER_PATH}. The AST check has no anchor to search and cannot silently ` +
+            'pass — update this gate if the component was renamed or restructured.',
+        )
+      }
+      const rootFn = providerFn
+
+      const HELPER_NAMES = new Set(['applyScheme', 'readStoredScheme', 'persistScheme'])
+      const GUARDING_HOOKS = new Set(['useEffect', 'useCallback'])
+
+      // Walk up from a call site. True if the nearest enclosing arrow
+      // function / function expression is itself an argument of a
+      // useEffect(...) or useCallback(...) call — i.e. the call happens
+      // inside an effect or a memoised callback, not synchronously during
+      // render.
+      const isInsideGuardedCallback = (node: ts.Node): boolean => {
+        let current: ts.Node | undefined = node.parent
+        while (current && current !== rootFn) {
+          if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
+            const parent: ts.Node = current.parent
+            if (
+              ts.isCallExpression(parent) &&
+              (parent.arguments as readonly ts.Node[]).includes(current) &&
+              ts.isIdentifier(parent.expression) &&
+              GUARDING_HOOKS.has(parent.expression.text)
+            ) {
+              return true
+            }
+          }
+          current = current.parent
+        }
+        return false
+      }
+
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (
+          ts.isCallExpression(node) &&
+          ts.isIdentifier(node.expression) &&
+          HELPER_NAMES.has(node.expression.text) &&
+          !isInsideGuardedCallback(node)
+        ) {
+          const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+          hits.push(`${node.expression.text}() at line ${line + 1}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(providerFn)
+
+      expect(
+        hits,
+        `found a helper called outside useEffect/useCallback (i.e. from the render body): ${hits.join(', ')}`,
+      ).toEqual([])
     })
 
     it('document.documentElement is named exactly once, inside applyScheme', () => {

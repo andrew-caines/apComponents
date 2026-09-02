@@ -1,7 +1,8 @@
 import { createRequire } from 'node:module'
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { sourceFiles } from './sourceFiles.js'
 
 const SRC = join(import.meta.dirname, '..')
 const require = createRequire(import.meta.url)
@@ -71,14 +72,6 @@ function deriveForbiddenParts(exportKeys: string[]): string[] {
 const EXPORT_KEYS = readBaseUiExportKeys()
 const FORBIDDEN_PARTS = deriveForbiddenParts(EXPORT_KEYS)
 
-function sources(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-    const p = join(dir, e.name)
-    if (e.isDirectory()) return e.name === 'gates' ? [] : sources(p)
-    return e.name.endsWith('.ts') || e.name.endsWith('.tsx') ? [p] : []
-  })
-}
-
 describe('gate: the derived forbidden-part list is trustworthy', () => {
   // If Base UI ever renames or removes these subpaths, deriving from the
   // exports map could silently produce an empty FORBIDDEN_PARTS list — which
@@ -106,7 +99,16 @@ describe('gate: the derived forbidden-part list is trustworthy', () => {
 })
 
 describe('gate: no Base UI date part is imported', () => {
-  const files = sources(SRC)
+  // .ts and .tsx under all of src/, excluding gates/ (test infra, not
+  // shipped code). Test files ARE included (includeTests: true) — a banned
+  // import could land in a test file's fixture/mock code just as easily as
+  // in shipped source, and there is no reason to give tests a blind spot
+  // this gate doesn't give components.
+  const files = sourceFiles(SRC, {
+    extensions: ['.ts', '.tsx'],
+    excludeDirs: ['gates'],
+    includeTests: true,
+  })
 
   it('finds sources to check', () => {
     expect(files.length).toBeGreaterThan(0)
