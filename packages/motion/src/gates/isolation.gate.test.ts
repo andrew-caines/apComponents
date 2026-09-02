@@ -54,9 +54,24 @@ const whyFor = (spec: string): string => {
 /**
  * Every module specifier in `text`: static `import`/`export ... from`, bare
  * `import 'x'` side-effect imports, dynamic `import('x')` and `require('x')`.
+ *
+ * This is a textual scan, not a real parse, so it has a known false-positive:
+ * a bare specifier-shaped string sitting inside an unrelated string literal
+ * or a comment (e.g. `// see import('@ap/react')`) is flagged as if it were
+ * a real import. No current source in this package triggers it, and a real
+ * parser is out of scope for a test-only gate — recorded here so it's a
+ * known, accepted limitation rather than something the next contributor
+ * rediscovers and "fixes" into a bigger dependency.
  */
 function specifiers(text: string): string[] {
-  const re = /\b(?:from|import|require)\s*\(?\s*['"]([^'"]+)['"]/g
+  // The quote class includes the backtick: a template-literal specifier
+  // (`` import(`@ap/react`) ``) is still a real import and must not slip
+  // past just because it isn't wrapped in `'` or `"`. Between the optional
+  // call-paren and the specifier, `(?:\s|\/\*[\s\S]*?\*\/)*` accepts any mix
+  // of whitespace and block comments — otherwise `import(/* c */ '@ap/react')`
+  // slips past too, since the comment sits where the old pattern allowed only
+  // whitespace.
+  const re = /\b(?:from|import|require)\s*\(?(?:\s|\/\*[\s\S]*?\*\/)*[`'"]([^`'"]+)[`'"]/g
   const out: string[] = []
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) out.push(m[1]!)
