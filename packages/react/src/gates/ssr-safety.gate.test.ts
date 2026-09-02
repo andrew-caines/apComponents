@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -43,22 +43,50 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   // useIsomorphicLayoutEffect.ts is the one sanctioned place that names plain
   // `useLayoutEffect` — it exists to build the SSR-safe wrapper every other
   // module must use instead. The reference is evaluated once at module load
-  // (guarded by `typeof document`), never during render, so it does not
-  // trigger the hazard this rule exists to catch. Every other runtime file
-  // still gets the full check, including the same rule.
+  // (guarded by `typeof document`), never during render.
+  //
+  // The exemption covers REFERENCING the hook, never CALLING it. Exempting the
+  // whole rule for this file would make it the one place an unguarded
+  // `useLayoutEffect(() => {})` could be added with the gate still green —
+  // proven by doing exactly that and watching 10/10 pass. So the blanket
+  // exemption is paired with the narrower assertions below, and every other
+  // rule still applies to this file.
   const ISOMORPHIC_LAYOUT_EFFECT_PATH = join(SRC, 'hooks', 'useIsomorphicLayoutEffect.ts')
+  const LAYOUT_EFFECT_RULE = /\buseLayoutEffect\b/.source
 
   for (const file of files) {
     it(`${file.split('src')[1]} is clean`, () => {
       const text = readFileSync(file, 'utf8')
       const rules =
         file === ISOMORPHIC_LAYOUT_EFFECT_PATH
-          ? FORBIDDEN.filter((r) => r.pattern.source !== /\buseLayoutEffect\b/.source)
+          ? FORBIDDEN.filter((r) => r.pattern.source !== LAYOUT_EFFECT_RULE)
           : FORBIDDEN
       const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} — ${r.why}`)
       expect(hits, `${file}:\n  ${hits.join('\n  ')}`).toEqual([])
     })
   }
+
+  describe('the file exempted from the useLayoutEffect rule', () => {
+    const text = () => readFileSync(ISOMORPHIC_LAYOUT_EFFECT_PATH, 'utf8')
+
+    it('still exists, so the exemption is not stale config for a moved file', () => {
+      expect(existsSync(ISOMORPHIC_LAYOUT_EFFECT_PATH)).toBe(true)
+    })
+
+    it('references useLayoutEffect only behind the document guard', () => {
+      expect(text()).toMatch(/typeof document !== 'undefined' \? useLayoutEffect : useEffect/)
+    })
+
+    it('never CALLS useLayoutEffect, which the exemption does not cover', () => {
+      // A reference is a value; a call is the hazard. This is the assertion the
+      // blanket exemption was missing.
+      expect(
+        /\buseLayoutEffect\s*\(/.test(text()),
+        'useIsomorphicLayoutEffect.ts calls useLayoutEffect directly — the exemption ' +
+          'permits naming the hook to build the wrapper, never invoking it',
+      ).toBe(false)
+    })
+  })
 
   it('declares no react-router* dependency in packages/react/package.json (ADR-0001/0011)', () => {
     // The import-scan above only proves nothing in source *imports*
