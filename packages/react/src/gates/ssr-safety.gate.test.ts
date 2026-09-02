@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const SRC = join(import.meta.dirname, '..')
@@ -159,39 +160,64 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
     const stripComments = (code: string) =>
       code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
-    it("ThemeProvider's render path (its JSX return) never names document or localStorage", () => {
-      // The return statement is what runs on every render, server or client.
-      // If a document/localStorage read ever migrated there — the one place
-      // ADR-0005 actually forbids it — this is the assertion that would
-      // catch it; the blanket exemption above would not. Bounded to the end
-      // of the ThemeProvider function itself (the next top-level
-      // declaration), not the rest of the file — the file's other functions
-      // legitimately use these tokens and would otherwise false-positive.
-      const code = stripComments(providerText())
-      const returnIdx = code.indexOf('return <ThemeContext.Provider')
-      expect(returnIdx, 'expected to find the provider render path').toBeGreaterThan(-1)
-      const nextDeclIdx = code.indexOf('function readStoredScheme', returnIdx)
-      expect(nextDeclIdx, 'expected readStoredScheme to follow the component').toBeGreaterThan(returnIdx)
-      const renderPath = code.slice(returnIdx, nextDeclIdx)
-      expect(renderPath).not.toMatch(/\bdocument\.|\blocalStorage\b|\bsessionStorage\b/)
-    })
-
-    it('every localStorage occurrence in ThemeProvider sits inside a try/catch block', () => {
-      // Not "the file contains a try somewhere" — every individual
-      // occurrence must fall inside one. A stray unguarded
-      // `localStorage.getItem(...)` added outside try/catch anywhere in the
-      // file would raise totalMatches above matchesInsideTryBlocks and fail
-      // this specifically.
-      const code = stripComments(providerText())
-      const tryBlocks = [...code.matchAll(/try\s*\{[\s\S]*?\}\s*catch/g)].map((m) => m[0])
-      expect(tryBlocks.length, 'expected at least one try/catch block').toBeGreaterThan(0)
-      const totalMatches = (code.match(/\blocalStorage\b/g) ?? []).length
-      expect(totalMatches, 'expected ThemeProvider to touch localStorage at least once').toBeGreaterThan(0)
-      const matchesInsideTryBlocks = tryBlocks.reduce(
-        (sum, block) => sum + (block.match(/\blocalStorage\b/g) ?? []).length,
-        0,
+    // The two text-scan assertions this replaced — "the render path (its JSX
+    // return) never names document/localStorage" and "every localStorage
+    // occurrence sits inside a try/catch" — both went green against live
+    // bypasses: a `try { localStorage.getItem(x) } catch {}` planted directly
+    // in the component's render body (any try/catch satisfies the second
+    // rule, regardless of WHERE it runs), and `const d = document; void d`
+    // (the render-path rule only matched `document.` with a trailing dot).
+    // Every refinement of those regexes just traded one blind spot for
+    // another — optional chaining, aliasing, a missing dot.
+    //
+    // An AST check has no such blind spot: it asks the TypeScript parser,
+    // which already resolved the real grammar, "does any identifier named
+    // document/localStorage/sessionStorage/window appear anywhere inside the
+    // ThemeProvider function's span" — including its render body, its JSX,
+    // and every nested arrow function (effects, callbacks), since those are
+    // real descendants of the function node no matter how they are written.
+    // Comments and string contents are parser trivia, not identifiers, so
+    // they never contribute false positives either.
+    it('the ThemeProvider function names no document/localStorage/sessionStorage/window identifier anywhere in its body', () => {
+      const code = providerText()
+      const sourceFile = ts.createSourceFile(
+        THEME_PROVIDER_PATH,
+        code,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TSX,
       )
-      expect(matchesInsideTryBlocks).toBe(totalMatches)
+
+      let providerFn: ts.FunctionDeclaration | undefined
+      ts.forEachChild(sourceFile, (node) => {
+        if (ts.isFunctionDeclaration(node) && node.name?.text === 'ThemeProvider') {
+          providerFn = node
+        }
+      })
+      if (!providerFn) {
+        // Fail loudly, not silently: if a rename or refactor ever makes this
+        // query return nothing, an empty result must never read as "no
+        // offending identifiers found." That failure mode is what turns a
+        // gate into a no-op.
+        throw new Error(
+          `ssr-safety gate: could not find a function declaration named 'ThemeProvider' in ` +
+            `${THEME_PROVIDER_PATH}. The AST check has no anchor to search and cannot silently ` +
+            'pass — update this gate if the component was renamed or restructured.',
+        )
+      }
+
+      const FORBIDDEN_BROWSER_GLOBALS = new Set(['document', 'localStorage', 'sessionStorage', 'window'])
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (ts.isIdentifier(node) && FORBIDDEN_BROWSER_GLOBALS.has(node.text)) {
+          const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
+          hits.push(`'${node.text}' at line ${line + 1}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(providerFn)
+
+      expect(hits, `found browser-global identifiers inside ThemeProvider: ${hits.join(', ')}`).toEqual([])
     })
 
     it('document.documentElement is named exactly once, inside applyScheme', () => {

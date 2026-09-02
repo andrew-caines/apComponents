@@ -63,13 +63,7 @@ export function ThemeProvider({
 
   const setScheme = useCallback(
     (next: ColorScheme) => {
-      try {
-        if (next === 'system') localStorage.removeItem(storageKey)
-        else localStorage.setItem(storageKey, next)
-      } catch {
-        // Private mode, blocked storage, or no storage at all. The choice still
-        // applies to this page; only persistence is lost.
-      }
+      persistScheme(storageKey, next)
       if (controlled === undefined) setUncontrolled(next)
     },
     [controlled, storageKey],
@@ -78,6 +72,16 @@ export function ThemeProvider({
   const value = useMemo<ThemeContextValue>(() => ({ scheme, setScheme }), [scheme, setScheme])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+}
+
+function persistScheme(key: string, scheme: ColorScheme): void {
+  try {
+    if (scheme === 'system') localStorage.removeItem(key)
+    else localStorage.setItem(key, scheme)
+  } catch {
+    // Private mode, blocked storage, or none at all. The choice still applies
+    // to this page; only persistence is lost.
+  }
 }
 
 function readStoredScheme(key: string): ColorScheme | null {
