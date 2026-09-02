@@ -6,8 +6,24 @@ import { AP_PACKAGES, apComponents } from './index.js'
 const PKG_ROOT = join(import.meta.dirname, '..')
 const PACKAGES = join(PKG_ROOT, '..')
 
-const nameOf = (dir: string): string =>
-  (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { name: string }).name
+const nameOf = (dir: string): string => {
+  const pkgJson = join(dir, 'package.json')
+  let raw: string
+  try {
+    raw = readFileSync(pkgJson, 'utf8')
+  } catch (cause) {
+    // Every directory under `packages/` is expected to be an npm package, so
+    // a missing `package.json` is a real finding, not routine I/O noise.
+    // Without this, the bare `ENOENT` names the file it couldn't find but
+    // not which directory-under-`packages/` assumption failed, leaving the
+    // next person to work that out themselves.
+    throw new Error(
+      `expected ${dir} to be an npm package (found no package.json at ${pkgJson})`,
+      { cause },
+    )
+  }
+  return (JSON.parse(raw) as { name: string }).name
+}
 
 /**
  * Every workspace package a consumer's app imports, read off the filesystem
