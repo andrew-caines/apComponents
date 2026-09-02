@@ -102,4 +102,50 @@ describe('Icon', () => {
     const { container } = render(<Icon name="info" />)
     expect(container.querySelector('svg')).toBeTruthy()
   })
+
+  // F2: the override path must carry the same aria contract as the built-in.
+  // A product mapping its own icon library must not be able to ship an icon
+  // with a label and no accessible name, or an unlabelled icon that is not
+  // hidden from assistive technology.
+  it('gives a labelled override an accessible name', () => {
+    const Custom = (props: {
+      className?: string
+      width?: number
+      height?: number
+      role?: string
+      'aria-label'?: string
+      'aria-hidden'?: boolean
+      focusable?: boolean
+    }) => <svg data-testid="custom" {...props} />
+    const { getByTestId } = render(
+      <IconProvider icons={{ check: Custom }}>
+        <Icon name="check" label="Saved" />
+      </IconProvider>,
+    )
+    const svg = getByTestId('custom')
+    expect(svg.getAttribute('role')).toBe('img')
+    expect(svg.getAttribute('aria-label')).toBe('Saved')
+    expect(svg.hasAttribute('aria-hidden')).toBe(false)
+  })
+
+  it('hides an unlabelled override from assistive technology', () => {
+    const Custom = (props: {
+      className?: string
+      width?: number
+      height?: number
+      role?: string
+      'aria-label'?: string
+      'aria-hidden'?: boolean
+      focusable?: boolean
+    }) => <svg data-testid="custom" {...props} />
+    const { getByTestId } = render(
+      <IconProvider icons={{ check: Custom }}>
+        <Icon name="check" />
+      </IconProvider>,
+    )
+    const svg = getByTestId('custom')
+    expect(svg.getAttribute('aria-hidden')).toBe('true')
+    expect(svg.hasAttribute('aria-label')).toBe(false)
+    expect(svg.hasAttribute('role')).toBe(false)
+  })
 })

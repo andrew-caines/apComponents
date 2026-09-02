@@ -63,8 +63,15 @@ export function ThemeProvider({
 
   const setScheme = useCallback(
     (next: ColorScheme) => {
-      persistScheme(storageKey, next)
-      if (controlled === undefined) setUncontrolled(next)
+      // A controlled provider does not own the value: it must neither apply
+      // NOR persist it. Persisting anyway would plant a ghost choice in
+      // storage that the read-after-hydration effect resurrects the moment
+      // this provider is later rendered uncontrolled — a value the user
+      // never actually selected through this instance.
+      if (controlled === undefined) {
+        persistScheme(storageKey, next)
+        setUncontrolled(next)
+      }
     },
     [controlled, storageKey],
   )

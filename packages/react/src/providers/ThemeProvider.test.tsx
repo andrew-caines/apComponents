@@ -74,4 +74,22 @@ describe('ThemeProvider', () => {
   it('throws by name when useColorScheme is used with no provider', () => {
     expect(() => render(<Probe />)).toThrow(/ThemeProvider/)
   })
+
+  // F1: a controlled provider does not own the scheme, so an internal
+  // setScheme() call must be a complete no-op — it must not apply the value
+  // AND it must not persist it either. Persisting anyway plants a ghost
+  // choice in storage: the moment the app later renders this provider
+  // uncontrolled, the read-after-hydration effect resurrects a value the
+  // user never actually selected through this instance.
+  it('does not persist a scheme change it was not allowed to apply', async () => {
+    render(
+      <ThemeProvider scheme="light">
+        <Probe />
+      </ThemeProvider>,
+    )
+    await act(async () => {
+      screen.getByTestId('b').click()
+    })
+    expect(localStorage.getItem('ap-color-scheme')).toBeNull()
+  })
 })

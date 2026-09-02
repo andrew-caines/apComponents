@@ -3,7 +3,28 @@
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
 import type { IconName } from './paths.js'
 
-export type IconOverrides = Partial<Record<IconName, ComponentType<{ className?: string }>>>
+/**
+ * An override must accept exactly the props the built-in svg receives so the
+ * accessibility contract survives the swap: `className`/`width`/`height` for
+ * layout, and `role`/`aria-label`/`aria-hidden`/`focusable` so a labelled icon
+ * still gets an accessible name and an unlabelled one is still hidden from
+ * assistive technology (F2). All optional — `Icon` decides per render which
+ * of the aria props to pass, never both `aria-label` and `aria-hidden`.
+ */
+export type IconOverrides = Partial<
+  Record<
+    IconName,
+    ComponentType<{
+      className?: string
+      width?: number
+      height?: number
+      role?: string
+      'aria-label'?: string
+      'aria-hidden'?: boolean
+      focusable?: boolean
+    }>
+  >
+>
 
 const IconContext = createContext<IconOverrides>({})
 
