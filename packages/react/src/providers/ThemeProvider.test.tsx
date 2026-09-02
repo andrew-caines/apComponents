@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ThemeProvider, useColorScheme } from './ThemeProvider.js'
@@ -14,12 +14,10 @@ function Probe() {
 }
 
 afterEach(() => {
-  // This suite has no `globals: true` / setupFiles, so
-  // @testing-library/react's auto-cleanup-after-each never registers (it
-  // detects a global test framework, and vitest here is used un-global).
-  // Every Probe renders the same data-testid, so without an explicit
-  // unmount the second test's query finds this test's leftover button too.
-  cleanup()
+  // Unmounting is handled globally by vitest.setup.ts. What is left here is
+  // the state this suite writes OUTSIDE React's tree — the attribute on
+  // <html> and the persisted choice — which no unmount reverses and which
+  // would otherwise leak into the next test.
   document.documentElement.removeAttribute('data-ap-scheme')
   localStorage.clear()
 })

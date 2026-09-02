@@ -6,6 +6,9 @@ export default defineConfig({
   test: {
     // packages only — fixture e2e specs belong to Playwright, not Vitest
     include: ['packages/*/src/**/*.test.{ts,tsx}'],
+    // Unmounts React Testing Library trees between tests. Harmless for the
+    // node-environment specs, which never render into a document.
+    setupFiles: ['./vitest.setup.ts'],
     // These two gates build a fixture app and boot a server. They are driven by
     // their own scripts (test:ssr, test:consumer) and their own CI jobs, so they
     // must not run inside the default `npm test`. They run instead under
