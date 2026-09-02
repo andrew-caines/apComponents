@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
@@ -228,6 +228,47 @@ describe('gate: component styles follow the token and layout rules', () => {
     }, 0)
     expect(total).toBeGreaterThan(0)
   })
+
+  // The suite-wide count above only proves SOMETHING was extracted. It stays
+  // green if one new .css.ts contributes nothing — which is exactly what
+  // happens when a component reaches for a vanilla-extract API the extractor
+  // does not recognise (`styleVariants`, `globalStyle`, a helper that wraps
+  // `style`). That file would then be silently unchecked for @layer emission
+  // while the gate reported success, so the extractor's blind spot has to be
+  // asserted per file, not in aggregate.
+  // layers.css.ts declares the cascade layer itself via globalLayer() and
+  // contains no style rules at all — there is nothing for the extractor to
+  // find, and that is correct rather than a blind spot. Named individually
+  // (not exempted by pattern) so a second such file has to be justified.
+  const NO_STYLE_BLOCKS_EXPECTED = [join(SRC, 'theme', 'layers.css.ts')]
+
+  it('every file exempted from the extractor check still exists', () => {
+    // Otherwise the exemption rots into stale config for a moved file and
+    // quietly stops applying to anything.
+    for (const path of NO_STYLE_BLOCKS_EXPECTED) {
+      expect(existsSync(path), `${path} is exempted but no longer exists`).toBe(true)
+    }
+  })
+
+  for (const file of files.filter(
+    (f) => f.endsWith('.css.ts') && !NO_STYLE_BLOCKS_EXPECTED.includes(f),
+  )) {
+    it(`${file.split('src')[1]} contributes at least one style block the extractor understands`, () => {
+      const sourceFile = ts.createSourceFile(
+        file,
+        readFileSync(file, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS,
+      )
+      expect(
+        collectStyleBlocks(sourceFile).length,
+        `${file} declares styles the extractor did not recognise, so its @layer emission is ` +
+          'unchecked. Either express them with recipe()/style(), or teach collectStyleBlocks ' +
+          'the API it uses — do not leave the file silently unscanned.',
+      ).toBeGreaterThan(0)
+    })
+  }
 
   // Same "fail loudly, not vacuously" concern as above, scoped to the
   // :focus-visible/boxShadow check: if no file has a `:focus-visible` block
