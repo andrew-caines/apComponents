@@ -1,8 +1,21 @@
 // @vitest-environment jsdom
+import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { Button } from './Button.js'
 import { buttonRecipe } from './Button.css.js'
+
+// Local stand-in for a router Link (React Router's, specifically — the
+// component ADR-0011 §3 names by hand). Deliberately NOT imported from
+// react-router: @ap/react must not depend on it (enforced by the
+// ssr-safety gate's package.json check), and this component only needs to
+// reproduce the one thing that matters here — an opaque component that
+// accepts `to` and forwards it to a rendered `<a href>` — to prove the
+// render.props-based detection works through a component, not just a
+// literal anchor.
+function FakeLink({ to, ...rest }: { to: string; children?: ReactNode }) {
+  return <a href={to} {...rest} />
+}
 
 describe('Button', () => {
   it('renders a real <button> by default', () => {
@@ -102,6 +115,24 @@ describe('Button', () => {
     expect(el.tagName).toBe('A')
     expect(el.hasAttribute('role')).toBe(false)
     expect(el.hasAttribute('tabindex')).toBe(false)
+  })
+
+  // ADR-0011 §3's own canonical example uses a router `<Link>`, not a
+  // literal `<a>` — the tag-only detection this replaces would still emit
+  // `role="button"` here, because `<Link>` is opaque and its rendered tag
+  // is unknowable ahead of render. Detection now keys off `render.props`
+  // (a non-empty `to`, here) instead, so this must resolve to the `link`
+  // role with no `role`/`tabindex` attributes, exactly like a literal
+  // anchor. `getByRole('link', …)` is the real proof: if the fix regressed
+  // to tag-only detection, this element would carry `role="button"` and no
+  // `link` role would exist to find.
+  it('gives a Link-style render element (to prop) the implicit link role, no override needed', () => {
+    render(<Button render={<FakeLink to="/x" />}>View</Button>)
+    const el = screen.getByRole('link', { name: 'View' })
+    expect(el.tagName).toBe('A')
+    expect(el.hasAttribute('role') && el.getAttribute('role') !== 'link').toBe(false)
+    expect(el.hasAttribute('tabindex')).toBe(false)
+    expect(el.getAttribute('href')).toBe('/x')
   })
 
   // The counterpart to the anchor case: Base UI's forced role/tabindex is

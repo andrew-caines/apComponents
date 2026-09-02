@@ -83,29 +83,48 @@ function deriveNativeButton(render: ButtonProps['render']): boolean {
  * through an opaque wrapping component (e.g. a router `Link`) that forwards
  * unknown props to its own rendered `<a>`.
  *
- * What this cannot do: decide *whether* to apply the override for a
- * `render` element whose tag is not visible to us ahead of render. A
- * literal `<a href="…" />` tells us its tag and its `href` synchronously,
- * so detecting it is exact and risk-free. A custom component such as
- * `<Link to="…" />` does not — its `to` prop says nothing about what tag it
- * will render, and finding out would mean either invoking it outside
- * React's render cycle (unsafe: it may use hooks) or inspecting the
- * committed DOM node after the fact (which would leave incorrect
- * server-rendered markup until hydration runs, undermining exactly the
- * progressive-enhancement case ADR-0011 §4 exists for). So only the literal
- * anchor case is auto-detected. A `<Link>` (or any other component) that
- * renders to an anchor gets the same fix by adding the override on the
- * `render` element itself — `<Button render={<Link to="/x" role={undefined}
- * tabIndex={undefined} />}>` — which works for the same reason: that
+ * Deciding *whether* to apply the override cannot key off the `render`
+ * element's tag: ADR-0011 §3's own canonical example is
+ * `<Button render={<Link to="/employees/42" />}>`, and `<Link>` is an
+ * opaque component — its rendered tag is unknowable before it runs.
+ * Invoking it early to peek would be unsafe (it may use hooks, breaking the
+ * Rules of Hooks); waiting for the committed DOM node would require a
+ * ref/effect, leaving incorrect server-rendered markup until hydration ran,
+ * undermining exactly the progressive-enhancement case ADR-0011 §4 exists
+ * for. Both are rejected for the same reason: they need the element to be
+ * invoked or mounted first.
+ *
+ * The fix is to key off the `render` element's PROPS instead of its tag.
+ * `render.props` is inspectable synchronously with no invocation, whatever
+ * component `render` names. A `render` element carrying a non-empty `href`
+ * or `to` prop is a navigation target regardless of what tag it eventually
+ * produces: `href` covers a literal `<a href>` (and any router whose `Link`
+ * forwards that name straight through), `to` covers React Router's `Link`
+ * specifically, since that is the component ADR-0011 names by hand. This is
+ * a prop-name heuristic, not a router dependency — `@ap/react` still
+ * imports nothing from `react-router` (enforced by the ssr-safety gate).
+ *
+ * **The residual gap.** A router whose link component uses neither `href`
+ * nor `to` (an unusual choice) won't be auto-detected. That consumer uses
+ * the same escape hatch documented for the general case: add the override
+ * directly on their own `render` element —
+ * `<Button render={<Link go="/x" role={undefined} tabIndex={undefined} />}>`
+ * — which works for the same reason the wrapper's own fix does: that
  * element's own props are the rightmost argument to the final
  * `mergeProps(props, render.props)` Base UI runs in `useRenderElement.mjs`
  * before cloning it.
  */
-function isAnchorWithHref(render: ButtonProps['render']): boolean {
+function isNavigationRenderElement(render: ButtonProps['render']): boolean {
   if (render === undefined || typeof render === 'function') return false
-  if (render.type !== 'a') return false
-  const href: unknown = (render.props as { href?: unknown }).href
-  return typeof href === 'string' && href.length > 0
+  // A literal `<a href>` is the type==='a'-with-href case; anything else
+  // (including an opaque component like `<Link to="…">`) is caught by the
+  // same href/to prop check, since a plain anchor's `href` is itself just a
+  // prop. One check covers both: the tag never needs inspecting.
+  const props = render.props as { href?: unknown; to?: unknown }
+  return (
+    (typeof props.href === 'string' && props.href.length > 0) ||
+    (typeof props.to === 'string' && props.to.length > 0)
+  )
 }
 
 export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
@@ -113,7 +132,7 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
   ref,
 ) {
   const isNative = nativeButton ?? deriveNativeButton(render)
-  const isLinkElement = !isNative && isAnchorWithHref(render)
+  const isLinkElement = !isNative && isNavigationRenderElement(render)
   return (
     <BaseButton
       {...rest}

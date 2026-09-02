@@ -172,23 +172,39 @@ result: `<Button render={<a href="/x" />}>` now emits a plain `<a href="/x">`
 with no `role` and no `tabindex` attribute at all — implicit link semantics,
 exactly as if the anchor had been written by hand.
 
-**What this does not cover.** Detecting the literal `<a href>` case is exact
-and risk-free, because the tag and the `href` are visible on the `render`
-element synchronously. A custom component passed to `render` — most
-notably a router `<Link to="…">` — is opaque: its props say nothing about
-what tag it will ultimately render, and there is no safe way to find out
-ahead of time. Executing the component early to peek at its output would
-run its hooks outside React's render cycle; inspecting the committed DOM
-node after mount would require a ref/effect, and until that runs, an
+**Detection is prop-based, not tag-based.** A `render` element's tag is not
+knowable ahead of time when `render` is a component rather than a host
+element — ADR-0011 §3's own canonical example,
+`<Button render={<Link to="/employees/42" />}>`, names exactly this case,
+since `<Link>` is opaque: its `to` prop says nothing about what tag it will
+ultimately render. Executing the component early to peek at its output
+would run its hooks outside React's render cycle; inspecting the committed
+DOM node after mount would require a ref/effect, and until that runs, an
 SSR'd page would still carry the wrong role — which is precisely the class
 of failure progressive enhancement (see "Uncontrolled-first forms" in
-[ADR-0011](adr/0011-component-api-conventions.md) §4) exists to avoid. So
-`Button.tsx` only auto-detects a literal anchor. A `<Link>` (or any other
-component) that renders to an anchor gets the identical fix by adding the
-same override directly on the `render` element itself:
+[ADR-0011](adr/0011-component-api-conventions.md) §4) exists to avoid.
+
+So `Button.tsx` inspects `render.props` instead of `render.type`: a
+non-empty `href` or `to` prop marks the element as a navigation target,
+whatever component produced it. `href` catches a literal `<a href>` and any
+router `Link` that forwards that name straight through; `to` catches React
+Router's `Link` by name, since that is the component ADR-0011 uses in its
+own example. Both `<Button render={<a href="/employees/42" />}>` and
+`<Button render={<Link to="/employees/42" />}>` are now automatic — no
+override needed on the consumer's own element for either.
+
+This is a prop-name heuristic, not a dependency on react-router: `@ap/react`
+still imports nothing from `react-router`, and the ssr-safety gate
+(`packages/react/src/gates/ssr-safety.gate.test.ts`) fails the build if that
+ever changes.
+
+**The residual escape hatch.** A router whose link component names its
+destination prop something other than `href` or `to` won't be
+auto-detected. That consumer adds the same `role`/`tabIndex` override
+directly on their own `render` element:
 
 ```tsx
-<Button render={<Link to="/employees/42" role={undefined} tabIndex={undefined} />}>
+<Button render={<Link go="/employees/42" role={undefined} tabIndex={undefined} />}>
   View employee
 </Button>
 ```
@@ -197,6 +213,8 @@ This works for the same reason the wrapper's own fix does: an element's own
 props are the rightmost argument to the final `mergeProps(props,
 render.props)` Base UI runs in `useRenderElement.mjs` right before cloning
 it, regardless of whether that element's type is a host tag or a component.
+In short: `href`/`to` props are handled automatically; any other
+destination-prop name needs this manual override.
 
 **For future components.** Any Base UI part that accepts `render` and has
 its own notion of a forced role or tabindex (`Toolbar.Button`,
