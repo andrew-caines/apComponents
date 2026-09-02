@@ -137,7 +137,7 @@ describe('parseMotionCss: composite declarations', () => {
     expect(composites[0]!.fill).toBe('forwards')
   })
 
-  it('reports a redeclaration that wins the cascade, wherever in the sheet it sits', () => {
+  it('reports every --ap-motion-* declaration in source order, wherever in the sheet it sits', () => {
     const css = [
       sheet(composite('--ap-motion-foo', 'ap-foo')),
       '@layer ap.tokens {',

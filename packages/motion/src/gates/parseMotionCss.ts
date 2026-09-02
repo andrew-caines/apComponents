@@ -29,11 +29,12 @@ export interface ParsedComposite {
   name: string
   /**
    * The duration term, verbatim (e.g. `var(--ap-duration-slow)`).
-   * Deliberately NOT reduced to the bare token name here — `varRe` accepts
-   * any value in this position so a hardcoded duration still parses instead
-   * of failing collection with a misleading "no composite property" error.
-   * Callers assert the `var(--ap-duration-*)` shape themselves and compare
-   * the extracted token against the record.
+   * Deliberately NOT reduced to the bare token name here — the composite
+   * value is split into terms without validating any single term's shape,
+   * so a hardcoded duration still parses instead of failing collection with
+   * a misleading "no composite property" error. Callers assert the
+   * `var(--ap-duration-*)` shape themselves and compare the extracted token
+   * against the record.
    */
   duration: string
   /** The easing term, verbatim. See `duration`. */
@@ -53,11 +54,16 @@ export interface ParsedCss {
   /**
    * EVERY `--ap-motion-*` declaration in the sheet, wherever it sits — inside
    * the token layer, after it, unlayered, or inside the reduced-motion block
-   * — in source order, duplicates included. Scanning only the text before the
-   * media block, or only the first `@layer ap.tokens` block, would leave a
-   * later redeclaration that wins the cascade completely unseen. The parser
-   * reports what is there; the gate asserts there are exactly twelve, one per
-   * motion.
+   * — in SOURCE order, duplicates included. This is NOT cascade order: layer
+   * beats source position, and specificity beats both, so the declaration
+   * that appears last here is not necessarily the one a browser applies —
+   * the parser makes no claim about which one wins. Scanning only the text
+   * before the media block, or only the first `@layer ap.tokens` block, would
+   * leave a redeclaration completely unseen regardless of which one wins.
+   * The parser reports what is there, in the order it appears; the gate
+   * asserts there are exactly twelve, one per motion. That count is what
+   * actually proves there is exactly one declaration per motion — which is
+   * precisely why cascade order never has to be modelled here.
    */
   composites: ParsedComposite[]
 }
@@ -145,33 +151,69 @@ export function parseMotionCss(css: string): ParsedCss {
   const before = css.slice(0, reducedAt)
   const reducedBody = css.slice(openBrace + 1, closeBrace)
 
-  // Every term after the property name is captured as an opaque `\S+` token
-  // rather than as the shape it is supposed to have (`var(--ap-duration-...)`,
-  // `both`, and so on). Requiring those shapes here means a perturbed value
-  // (a duration replaced with `320ms`, a fill mode changed to `forwards`)
-  // fails the WHOLE composite-property match, and collection throws "no
-  // --ap-motion-* composite property" — naming the wrong seam, since the
-  // keyframe is fine and the disagreement is in one term. Accepting any token
-  // lets the perturbed value parse through to the gate, which asserts each
-  // term's shape and fails there instead, naming the term directly.
+  // Matched by NAME, capturing the value opaquely up to the terminating
+  // `;`, rather than by a FIXED-ARITY pattern (property name, then exactly
+  // five `\S+` terms, then `;`). A composite carrying a legal SIXTH
+  // `animation` shorthand term (a delay, an explicit direction, a
+  // play-state) simply does not match a fixed-arity pattern at all — the
+  // declaration never enters `composites`, so it is invisible to every
+  // assertion here, including the count. That is exactly how a
+  // redeclaration carrying one extra term could win the cascade in the
+  // browser while going completely undetected: the parser never saw it to
+  // begin with, so the count assertion kept seeing twelve (the original,
+  // well-formed declarations) with the extra, malformed one hiding in plain
+  // sight. Matching by name means ANY declaration for a given property is
+  // captured, right arity or not, so a redeclaration is always visible to
+  // the count/duplicate assertion, and a wrong term count is reported below
+  // instead of silently skipped.
   //
-  // Scanned over the WHOLE sheet, not just the text before the media block:
-  // a `--ap-motion-*` declaration after the token layer, or inside the
-  // reduced-motion block, wins the cascade and is exactly the drift worth
-  // catching. The gate asserts the count.
-  const varRe = /(--ap-motion-([a-z0-9-]+)):\s*(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+);/g
+  // Scanned over the WHOLE sheet, in SOURCE order — not just the text before
+  // the media block. See the `composites` field doc: source order is not
+  // cascade order, and the parser doesn't claim otherwise. A `--ap-motion-*`
+  // declaration after the token layer, or inside the reduced-motion block,
+  // is exactly the kind of drift worth catching, and the gate asserts the
+  // count.
+  const compositeRe = /(--ap-motion-([a-z0-9-]+)):\s*([^;]+);/g
   const composites: ParsedComposite[] = []
   const composite = new Map<string, ParsedComposite>()
   let v: RegExpExecArray | null
-  while ((v = varRe.exec(css)) !== null) {
+  while ((v = compositeRe.exec(css)) !== null) {
+    const property = v[1]!
+    // Every term after the property name is captured as an opaque string
+    // rather than validated against the shape it is supposed to have
+    // (`var(--ap-duration-...)`, `both`, and so on) — see the field docs on
+    // `duration`/`fill` for why that validation belongs in the gate, not
+    // here. Term COUNT is different: positional assignment (name, duration,
+    // ease, iterations, fill) is only well-defined for exactly five terms.
+    // A sixth term makes every later position ambiguous — shifting it in
+    // would silently mislabel a delay as an iteration count and an
+    // iteration count as a fill mode, which is worse than not parsing it at
+    // all. So a wrong term count is reported HERE, naming the property and
+    // every term actually found, rather than let a malformed or over-long
+    // composite parse into a plausible-looking (wrong) shape that some
+    // later assertion might pass by accident.
+    const terms = v[3]!.trim().split(/\s+/)
+    if (terms.length !== 5) {
+      throw new Error(
+        `${property}: expected 5 terms (name, duration, ease, iterations, fill), ` +
+          `found ${terms.length}: ${JSON.stringify(terms)}`,
+      )
+    }
+    const [name, duration, ease, iterations, fill] = terms as [
+      string,
+      string,
+      string,
+      string,
+      string,
+    ]
     const parsed: ParsedComposite = {
-      property: v[1]!,
+      property,
       key: `ap-${v[2]!}`,
-      name: v[3]!,
-      duration: v[4]!,
-      ease: v[5]!,
-      iterations: v[6]!,
-      fill: v[7]!,
+      name,
+      duration,
+      ease,
+      iterations,
+      fill,
     }
     composites.push(parsed)
     composite.set(parsed.key, parsed)
