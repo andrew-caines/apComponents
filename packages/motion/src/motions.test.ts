@@ -49,4 +49,37 @@ describe('MOTIONS record', () => {
   it('is frozen', () => {
     expect(Object.isFrozen(MOTIONS)).toBe(true)
   })
+
+  // Neither emitter implements the carry-forward that Step's docblock used to
+  // (falsely) claim: emitCss.ts lets native CSS keyframe interpolation ramp
+  // across whatever properties a step declares, and emitVariants.ts reads
+  // each step's value directly. If one step in a motion omitted a property
+  // that another step declared, the two emitters would render visibly
+  // different animations from the same MOTIONS record — the exact drift this
+  // package exists to prevent. Rather than teach either emitter a
+  // carry-forward semantics, sparse steps are outlawed outright: every step
+  // of a motion must declare exactly the same set of animatable properties.
+  it('declares the same set of animatable properties at every step, so the CSS and JS emitters cannot diverge', () => {
+    for (const [name, spec] of entries) {
+      const keysOf = (step: (typeof spec.steps)[number]): Set<string> =>
+        new Set(
+          Object.keys(step).filter(
+            (k) => k !== 'at' && (step as Record<string, unknown>)[k] !== undefined,
+          ),
+        )
+
+      const expected = keysOf(spec.steps[0]!)
+      for (let i = 1; i < spec.steps.length; i++) {
+        const actual = keysOf(spec.steps[i]!)
+        const describe = (s: Set<string>) => `{${[...s].sort().join(', ')}}`
+        expect(
+          actual,
+          `${name}: step ${i} declares ${describe(actual)} but step 0 declares ` +
+            `${describe(expected)}. Every step of a motion must declare the same ` +
+            'properties — sparse steps are outlawed because neither emitter implements ' +
+            "carry-forward (see Step's docblock in types.ts).",
+        ).toEqual(expected)
+      }
+    }
+  })
 })

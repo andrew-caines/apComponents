@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toMotionVariants } from './emitVariants.js'
+import { ease, seconds, toMotionVariants } from './emitVariants.js'
 
 const v = toMotionVariants()
 
@@ -38,8 +38,9 @@ describe('toMotionVariants', () => {
     expect(v['toast.slide-in']!.keyframes['x']).toEqual(['100%', '0px'])
   })
 
-  it('carries a value forward when a step omits a property', () => {
-    // success.check's opacity reaches 1 at 0.6 and is unchanged at 1.
+  it('reads each declared step value straight into the keyframe array', () => {
+    // success.check's opacity is declared at every step (0, 1, 1) — no
+    // carry-forward is involved; the emitter reads what's on each step.
     expect(v['success.check']!.keyframes['opacity']).toEqual([0, 1, 1])
   })
 
@@ -54,5 +55,43 @@ describe('toMotionVariants', () => {
 
   it('is deterministic', () => {
     expect(toMotionVariants()).toEqual(v)
+  })
+})
+
+describe('seconds', () => {
+  it('throws on a duration token that is not in the scale', () => {
+    expect(() => seconds('nonexistent')).toThrow(
+      "Duration token 'nonexistent' is not in the DURATION scale.",
+    )
+  })
+
+  it('throws when a duration value is not an `Nms` string', () => {
+    // Injected scale, not a mutation of the real (frozen) DURATION singleton.
+    expect(() => seconds('bad', { bad: '1s' })).toThrow(
+      "Duration token 'bad' is not a millisecond value: 1s",
+    )
+  })
+})
+
+describe('ease', () => {
+  it('throws on an easing token that is not in the scale', () => {
+    expect(() => ease('nonexistent')).toThrow(
+      "Easing token 'nonexistent' is not in the EASE scale.",
+    )
+  })
+
+  it('throws when an easing value is not a cubic-bezier or `linear`', () => {
+    expect(() => ease('bad', { bad: 'ease-in-out' })).toThrow(
+      "Easing token 'bad' is not a cubic-bezier: ease-in-out",
+    )
+  })
+
+  it('throws when a cubic-bezier does not parse to exactly four finite numbers', () => {
+    expect(() => ease('bad', { bad: 'cubic-bezier(0.1, 0.2, 0.3)' })).toThrow(
+      "Easing token 'bad' did not parse to four control points: cubic-bezier(0.1, 0.2, 0.3)",
+    )
+    expect(() => ease('nan', { nan: 'cubic-bezier(0.1, x, 0.3, 1)' })).toThrow(
+      "Easing token 'nan' did not parse to four control points",
+    )
   })
 })

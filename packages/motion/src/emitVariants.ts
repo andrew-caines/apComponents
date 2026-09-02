@@ -2,29 +2,38 @@ import { DURATION, EASE } from '@ap/tokens'
 import { MOTIONS } from './motions.js'
 import type { MotionSpec, MotionVariant, Step } from './types.js'
 
-/** Our step property names → Motion's keyframe keys. */
+/**
+ * Our step property names → Motion's keyframe keys. Only properties whose
+ * Motion key differs from our own need an entry — lookups fall back to the
+ * raw property name (see `KEY_MAP[prop] ?? prop` below).
+ */
 const KEY_MAP: Record<string, string> = {
-  opacity: 'opacity',
   translateX: 'x',
   translateY: 'y',
-  scale: 'scale',
-  rotate: 'rotate',
-  height: 'height',
-  strokeDashoffset: 'strokeDashoffset',
 }
 
-/** '320ms' → 0.32. Motion expresses duration in seconds. */
-function seconds(token: string): number {
-  const raw = DURATION[token]
+/**
+ * '320ms' → 0.32. Motion expresses duration in seconds.
+ *
+ * `scale` defaults to the real DURATION scale and exists only so tests can
+ * exercise the error paths with a throwaway scale, without mutating the
+ * frozen singleton every other consumer shares.
+ */
+export function seconds(token: string, scale: Record<string, string> = DURATION): number {
+  const raw = scale[token]
   if (raw === undefined) throw new Error(`Duration token '${token}' is not in the DURATION scale.`)
   const m = /^(\d+(?:\.\d+)?)ms$/.exec(raw)
   if (!m) throw new Error(`Duration token '${token}' is not a millisecond value: ${raw}`)
   return Number(m[1]) / 1000
 }
 
-/** 'cubic-bezier(0.16, 1, 0.30, 1)' → [0.16, 1, 0.3, 1]; 'linear' → 'linear'. */
-function ease(token: string): number[] | 'linear' {
-  const value = EASE[token]
+/**
+ * 'cubic-bezier(0.16, 1, 0.30, 1)' → [0.16, 1, 0.3, 1]; 'linear' → 'linear'.
+ *
+ * `scale` defaults to the real EASE scale, for the same reason as `seconds`.
+ */
+export function ease(token: string, scale: Record<string, string> = EASE): number[] | 'linear' {
+  const value = scale[token]
   if (value === undefined) throw new Error(`Easing token '${token}' is not in the EASE scale.`)
   if (value === 'linear') return 'linear'
   const m = /^cubic-bezier\(([^)]+)\)$/.exec(value)
@@ -36,25 +45,7 @@ function ease(token: string): number[] | 'linear' {
   return points
 }
 
-/**
- * Motion needs one value per step for every animated property, but a step may
- * omit a property it does not change. The previous value is carried forward;
- * for a leading gap the first defined value is carried backward, so the
- * property starts where it will first be set rather than jumping.
- */
-function track(steps: readonly Step[], prop: keyof Step): (string | number)[] {
-  const raw = steps.map((s) => s[prop] as string | number | undefined)
-  const firstDefined = raw.find((x) => x !== undefined)!
-  const out: (string | number)[] = []
-  let carried: string | number = firstDefined
-  for (const value of raw) {
-    if (value !== undefined) carried = value
-    out.push(carried)
-  }
-  return out
-}
-
-function variant(spec: MotionSpec): MotionVariant {
+function variant(name: string, spec: MotionSpec): MotionVariant {
   const animated = new Set<string>()
   for (const step of spec.steps) {
     for (const key of Object.keys(step)) {
@@ -64,7 +55,19 @@ function variant(spec: MotionSpec): MotionVariant {
 
   const keyframes: Record<string, (string | number)[]> = {}
   for (const prop of animated) {
-    keyframes[KEY_MAP[prop] ?? prop] = track(spec.steps, prop as keyof Step)
+    keyframes[KEY_MAP[prop] ?? prop] = spec.steps.map((step, i) => {
+      const value = step[prop as keyof Step] as string | number | undefined
+      // Unreachable given the "same properties at every step" invariant
+      // enforced in motions.test.ts — this is defence in depth. It must never
+      // silently emit a wrong keyframe array by falling back to some default.
+      if (value === undefined) {
+        throw new Error(
+          `Motion '${name}' step ${i} does not declare '${prop}', but another step of ` +
+            `this motion does. Every step of a motion must declare the same properties.`,
+        )
+      }
+      return value
+    })
   }
 
   return {
@@ -83,5 +86,5 @@ function variant(spec: MotionSpec): MotionVariant {
 export function toMotionVariants(
   motions: Readonly<Record<string, MotionSpec>> = MOTIONS,
 ): Record<string, MotionVariant> {
-  return Object.fromEntries(Object.entries(motions).map(([n, s]) => [n, variant(s)]))
+  return Object.fromEntries(Object.entries(motions).map(([n, s]) => [n, variant(n, s)]))
 }

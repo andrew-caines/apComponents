@@ -5,8 +5,19 @@ export type EaseToken = 'out' | 'in' | 'in-out' | 'linear'
 export type ReducedBehaviour = 'opacity' | 'none'
 
 /**
- * One keyframe stop. `at` is a 0–1 offset. Properties left undefined are not
- * animated at that stop; the emitters carry the previous value forward.
+ * One keyframe stop. `at` is a 0–1 offset. Every step of a given motion MUST
+ * declare the same set of animatable properties (all keys except `at`) — this
+ * is enforced by the "declares the same set of animatable properties at every
+ * step, so the CSS and JS emitters cannot diverge" test in motions.test.ts.
+ *
+ * Sparse steps (a property present at some steps but not others) are outlawed
+ * rather than reconciled: emitCss.ts relies on native CSS keyframe
+ * interpolation across the properties a step declares, while emitVariants.ts
+ * reads each step's value directly. A sparse step would make the CSS emitter
+ * interpolate smoothly across the gap while the JS emitter froze the last
+ * value and then jumped — the same input producing two different animations.
+ * If a genuinely sparse motion is ever needed, pick a carry-forward semantics
+ * deliberately and change both emitters together; don't just drop a property.
  */
 export interface Step {
   at: number
