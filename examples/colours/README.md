@@ -43,7 +43,7 @@ described the wrong mode. Check 4 below exists for precisely that.
 ## The verification pass
 
 `gen:colour-demo` does not just write a file. It loads the page in Chromium in both
-schemes and checks four things, failing the build on any of them:
+schemes and checks five things, failing the build on any of them:
 
 1. **Completeness** — every `--ap-color-*` declared in `theme.css` appears on the
    page. Enumerated from the stylesheet, not from a hand-written list, so a token
@@ -55,11 +55,17 @@ schemes and checks four things, failing the build on any of them:
 4. **The toggle moves both the colour and the labels**, in both directions, against a
    light OS and a dark OS — so neither direction passes by agreeing with the system
    preference — and **System** restores the OS value.
+5. **The pinned hover specimen equals what `:hover` actually paints**, for every role,
+   and both equal the `-bg-hover` token. A swatch labelled "hover" that does not match
+   the real hover is worse than no swatch — a wrong answer wearing a proof's clothing.
+   This check earned its place immediately: it found that live hover never moved at all,
+   because an inline `background` beats any stylesheet `:hover` rule. Backgrounds now
+   travel as `--rest-bg` / `--hover-bg` custom properties so the stylesheet governs them.
 
 Each check was confirmed to fail under its own perturbation (drop a token from the
 palette; paint a swatch red; hide a gate row; stop the toggle setting the attribute;
-remove the label-switching CSS so the colours follow but the numbers do not) and to pass
-once restored. A check that
+remove the label-switching CSS so the colours follow but the numbers do not; point the
+pinned hover swatch at the resting colour) and to pass once restored. A check that
 has never been seen to fail is not evidence of anything.
 
 If playwright is not installed (`npm run fixture:install`), the page is still written

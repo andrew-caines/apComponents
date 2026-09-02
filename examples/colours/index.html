@@ -62,6 +62,16 @@
     padding: var(--ap-space-2) var(--ap-space-4);
     font-family: inherit; font-size: var(--ap-text-md-size); cursor: pointer;
   }
+  /* Live hover, so the pinned specimen beside it can be checked against the
+     real thing rather than taken on trust. --hover-bg is set per button; a
+     button without one simply does not move. */
+  .btn { background: var(--rest-bg, transparent); }
+  .btn:hover { background: var(--hover-bg, var(--rest-bg, transparent)); }
+  .btn.pinned { position: relative; }
+  .btn.pinned::after {
+    content: ''; position: absolute; inset: -3px; border-radius: inherit;
+    border: 1px dashed var(--ap-color-border-interactive); pointer-events: none;
+  }
   /* An explicit choice sets data-ap-scheme, exactly as ThemeProvider does, so
      color-scheme has to be pinned too or form controls and scrollbars keep
      following the OS. */
@@ -549,42 +559,52 @@
       </div>
 </section>
 
-<section>
+<section id="buttons">
   <h2>In context — buttons per role</h2>
+  <p class="note">The dashed button in each row is <code>-bg-hover</code> held open, so the
+     hover shift is visible without a cursor on it. Hovering any Solid or Outline button
+     applies the same value live — the pinned specimen is there to be checked against the
+     real thing, not taken on trust. Note that only solid fills have a hover token:
+     <code>Subtle</code> has none and does not move.</p>
   <div class="stack"><div class="cell">
       <span class="tag mono">action</span>
       <span class="row center" style="gap:var(--ap-space-3)">
-        <button class="btn" style="background:var(--ap-color-action-bg);color:var(--ap-color-action-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
-        <button class="btn" style="background:var(--ap-color-action-bg-subtle);color:var(--ap-color-action-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
-        <button class="btn" style="background:transparent;color:var(--ap-color-action-text);border-color:var(--ap-color-border-interactive)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-action-bg);color:var(--ap-color-action-on-solid);border-color:transparent;--hover-bg:var(--ap-color-action-bg-hover)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
+        <button class="btn pinned" data-token="color-action-bg-hover" style="--rest-bg:var(--ap-color-action-bg-hover);color:var(--ap-color-action-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid · hover</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-action-bg-subtle);color:var(--ap-color-action-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
+        <button class="btn" style="--rest-bg:transparent;color:var(--ap-color-action-text);border-color:var(--ap-color-border-interactive);--hover-bg:var(--ap-color-action-bg-subtle)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
       </span>
     </div><div class="cell">
       <span class="tag mono">danger</span>
       <span class="row center" style="gap:var(--ap-space-3)">
-        <button class="btn" style="background:var(--ap-color-danger-bg);color:var(--ap-color-danger-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
-        <button class="btn" style="background:var(--ap-color-danger-bg-subtle);color:var(--ap-color-danger-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
-        <button class="btn" style="background:transparent;color:var(--ap-color-danger-text);border-color:var(--ap-color-border-interactive)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-danger-bg);color:var(--ap-color-danger-on-solid);border-color:transparent;--hover-bg:var(--ap-color-danger-bg-hover)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
+        <button class="btn pinned" data-token="color-danger-bg-hover" style="--rest-bg:var(--ap-color-danger-bg-hover);color:var(--ap-color-danger-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid · hover</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-danger-bg-subtle);color:var(--ap-color-danger-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
+        <button class="btn" style="--rest-bg:transparent;color:var(--ap-color-danger-text);border-color:var(--ap-color-border-interactive);--hover-bg:var(--ap-color-danger-bg-subtle)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
       </span>
     </div><div class="cell">
       <span class="tag mono">warning</span>
       <span class="row center" style="gap:var(--ap-space-3)">
-        <button class="btn" style="background:var(--ap-color-warning-bg);color:var(--ap-color-warning-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
-        <button class="btn" style="background:var(--ap-color-warning-bg-subtle);color:var(--ap-color-warning-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
-        <button class="btn" style="background:transparent;color:var(--ap-color-warning-text);border-color:var(--ap-color-border-interactive)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-warning-bg);color:var(--ap-color-warning-on-solid);border-color:transparent;--hover-bg:var(--ap-color-warning-bg-hover)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
+        <button class="btn pinned" data-token="color-warning-bg-hover" style="--rest-bg:var(--ap-color-warning-bg-hover);color:var(--ap-color-warning-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid · hover</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-warning-bg-subtle);color:var(--ap-color-warning-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
+        <button class="btn" style="--rest-bg:transparent;color:var(--ap-color-warning-text);border-color:var(--ap-color-border-interactive);--hover-bg:var(--ap-color-warning-bg-subtle)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
       </span>
     </div><div class="cell">
       <span class="tag mono">success</span>
       <span class="row center" style="gap:var(--ap-space-3)">
-        <button class="btn" style="background:var(--ap-color-success-bg);color:var(--ap-color-success-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
-        <button class="btn" style="background:var(--ap-color-success-bg-subtle);color:var(--ap-color-success-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
-        <button class="btn" style="background:transparent;color:var(--ap-color-success-text);border-color:var(--ap-color-border-interactive)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-success-bg);color:var(--ap-color-success-on-solid);border-color:transparent;--hover-bg:var(--ap-color-success-bg-hover)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
+        <button class="btn pinned" data-token="color-success-bg-hover" style="--rest-bg:var(--ap-color-success-bg-hover);color:var(--ap-color-success-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid · hover</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-success-bg-subtle);color:var(--ap-color-success-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
+        <button class="btn" style="--rest-bg:transparent;color:var(--ap-color-success-text);border-color:var(--ap-color-border-interactive);--hover-bg:var(--ap-color-success-bg-subtle)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
       </span>
     </div><div class="cell">
       <span class="tag mono">info</span>
       <span class="row center" style="gap:var(--ap-space-3)">
-        <button class="btn" style="background:var(--ap-color-info-bg);color:var(--ap-color-info-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
-        <button class="btn" style="background:var(--ap-color-info-bg-subtle);color:var(--ap-color-info-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
-        <button class="btn" style="background:transparent;color:var(--ap-color-info-text);border-color:var(--ap-color-border-interactive)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-info-bg);color:var(--ap-color-info-on-solid);border-color:transparent;--hover-bg:var(--ap-color-info-bg-hover)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid</button>
+        <button class="btn pinned" data-token="color-info-bg-hover" style="--rest-bg:var(--ap-color-info-bg-hover);color:var(--ap-color-info-on-solid);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Solid · hover</button>
+        <button class="btn" style="--rest-bg:var(--ap-color-info-bg-subtle);color:var(--ap-color-info-text);border-color:transparent"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Subtle</button>
+        <button class="btn" style="--rest-bg:transparent;color:var(--ap-color-info-text);border-color:var(--ap-color-border-interactive);--hover-bg:var(--ap-color-info-bg-subtle)"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md);flex:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg> Outline</button>
       </span>
     </div></div>
 </section>
@@ -605,7 +625,7 @@
         <span class="only-light"><span class="badge mid" title="#888b8e on #fdfdfd">3.37:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#9c9ea2 on #111111">7.04:1 <b>gated</b></span></span>
       </div><div class="cell" data-token="color-focus-ring" style="align-items:center">
       <span class="tag mono">focus-ring</span>
-      <button class="btn" style="background:var(--ap-color-action-bg);color:var(--ap-color-action-on-solid);
+      <button class="btn" style="--rest-bg:var(--ap-color-action-bg);color:var(--ap-color-action-on-solid);
         border-color:transparent;outline:3px solid var(--ap-color-focus-ring);outline-offset:2px">Focused</button>
       <span class="only-light"><span class="badge mid" title="#5a87e9 on #fdfdfd">3.40:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#6c9afe on #111111">6.92:1 <b>gated</b></span></span>
     </div></div>

@@ -185,15 +185,24 @@ function banners(): string {
 
 function buttons(): string {
   const kinds = ROLES.map((role) => {
-    const solid = `background:${v(`color-${role}-bg`)};color:${v(`color-${role}-on-solid`)};border-color:transparent`
-    const subtle = `background:${v(`color-${role}-bg-subtle`)};color:${v(`color-${role}-text`)};border-color:transparent`
-    const outline = `background:transparent;color:${v(`color-${role}-text`)};border-color:${v('color-border-interactive')}`
+    const onSolid = v(`color-${role}-on-solid`)
+    // Backgrounds travel as --rest-bg / --hover-bg, never as an inline
+    // `background`: an inline declaration beats every stylesheet rule, so a
+    // :hover rule could never win against one. The verification pass caught
+    // exactly that — live hover sat on the resting colour and never moved.
+    const solid = `--rest-bg:${v(`color-${role}-bg`)};color:${onSolid};border-color:transparent`
+    // The pinned specimen: the value :hover resolves to, held open so the shift
+    // is visible side by side instead of only under a cursor.
+    const solidHover = `--rest-bg:${v(`color-${role}-bg-hover`)};color:${onSolid};border-color:transparent`
+    const subtle = `--rest-bg:${v(`color-${role}-bg-subtle`)};color:${v(`color-${role}-text`)};border-color:transparent`
+    const outline = `--rest-bg:transparent;color:${v(`color-${role}-text`)};border-color:${v('color-border-interactive')}`
     return `<div class="cell">
       <span class="tag mono">${esc(role)}</span>
       <span class="row center" style="gap:var(--ap-space-3)">
-        <button class="btn" style="${solid}">${icon('check')} Solid</button>
+        <button class="btn" style="${solid};--hover-bg:${v(`color-${role}-bg-hover`)}">${icon('check')} Solid</button>
+        <button class="btn pinned" data-token="color-${role}-bg-hover" style="${solidHover}">${icon('check')} Solid · hover</button>
         <button class="btn" style="${subtle}">${icon('check')} Subtle</button>
-        <button class="btn" style="${outline}">${icon('check')} Outline</button>
+        <button class="btn" style="${outline};--hover-bg:${v(`color-${role}-bg-subtle`)}">${icon('check')} Outline</button>
       </span>
     </div>`
   }).join('')
@@ -212,7 +221,7 @@ function bordersAndFocus(): string {
     .join('')
   const focus = `<div class="cell" data-token="color-focus-ring" style="align-items:center">
       <span class="tag mono">focus-ring</span>
-      <button class="btn" style="background:var(--ap-color-action-bg);color:var(--ap-color-action-on-solid);
+      <button class="btn" style="--rest-bg:var(--ap-color-action-bg);color:var(--ap-color-action-on-solid);
         border-color:transparent;outline:3px solid ${v('color-focus-ring')};outline-offset:2px">Focused</button>
       ${ratioBadge('color-focus-ring', 'color-bg-canvas')}
     </div>`
@@ -303,6 +312,16 @@ const STYLE = `
     border: 1px solid; border-radius: var(--ap-radius-md);
     padding: var(--ap-space-2) var(--ap-space-4);
     font-family: inherit; font-size: var(--ap-text-md-size); cursor: pointer;
+  }
+  /* Live hover, so the pinned specimen beside it can be checked against the
+     real thing rather than taken on trust. --hover-bg is set per button; a
+     button without one simply does not move. */
+  .btn { background: var(--rest-bg, transparent); }
+  .btn:hover { background: var(--hover-bg, var(--rest-bg, transparent)); }
+  .btn.pinned { position: relative; }
+  .btn.pinned::after {
+    content: ''; position: absolute; inset: -3px; border-radius: inherit;
+    border: 1px dashed var(--ap-color-border-interactive); pointer-events: none;
   }
   /* An explicit choice sets data-ap-scheme, exactly as ThemeProvider does, so
      color-scheme has to be pinned too or form controls and scrollbars keep
@@ -402,8 +421,13 @@ const html = `<meta charset="utf-8">
   ${banners()}
 </section>
 
-<section>
+<section id="buttons">
   <h2>In context — buttons per role</h2>
+  <p class="note">The dashed button in each row is <code>-bg-hover</code> held open, so the
+     hover shift is visible without a cursor on it. Hovering any Solid or Outline button
+     applies the same value live — the pinned specimen is there to be checked against the
+     real thing, not taken on trust. Note that only solid fills have a hover token:
+     <code>Subtle</code> has none and does not move.</p>
   ${buttons()}
 </section>
 
@@ -544,6 +568,39 @@ try {
 } finally {
   await browser.close()
 }
+// 5. The pinned hover specimen must equal what :hover actually paints. A
+// swatch labelled "hover" that does not match the real hover is worse than no
+// swatch: it is a wrong answer wearing a proof's clothing.
+{
+  const browser3 = await chromium.launch()
+  try {
+    const page = await browser3.newPage({ colorScheme: 'light' })
+    await page.goto(PAGE, { waitUntil: 'networkidle' })
+    const rows = await page.$$eval('#buttons .cell', (cells) =>
+      cells.map((c) => ({
+        role: c.querySelector('.tag')!.textContent!.trim(),
+        pinned: getComputedStyle(c.querySelector('.btn.pinned')!).backgroundColor,
+      })),
+    )
+    for (const [i, row] of rows.entries()) {
+      const solid = page.locator('#buttons .cell').nth(i).locator('.btn').first()
+      await solid.hover()
+      const live = await solid.evaluate((el) => getComputedStyle(el).backgroundColor)
+      const want = hexToRgb(hex('light', `color-${row.role}-bg-hover`))
+      if (live !== row.pinned || live !== want) {
+        problems += 1
+        console.log(
+          `[hover] ${row.role}: live ${live}, pinned ${row.pinned}, token says ${want}`,
+        )
+      }
+    }
+    console.log(`[hover] ${rows.length} roles: pinned specimen == live :hover == -bg-hover token`)
+    await page.close()
+  } finally {
+    await browser3.close()
+  }
+}
+
 // 4. The toggle. It has to move BOTH the painted colour and the per-mode
 // labels, and it has to override the OS preference in either direction — a
 // toggle that only works when it agrees with the OS is not a toggle. Run
