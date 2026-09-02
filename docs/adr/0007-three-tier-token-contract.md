@@ -38,7 +38,9 @@ What a value *means*. This is the theming contract, and the only tier a product 
 --ap-color-text-secondary:     var(--ap-neutral-11);
 --ap-color-action-bg:          var(--ap-brand-9);
 --ap-color-action-bg-hover:    var(--ap-brand-10);
---ap-color-action-text:        var(--ap-brand-contrast);
+--ap-color-action-on-solid:    var(--ap-brand-contrast);
+--ap-color-action-text:        var(--ap-brand-11);
+--ap-color-action-bg-subtle:   var(--ap-brand-3);
 --ap-color-danger-bg:          var(--ap-danger-9);
 --ap-color-focus-ring:         var(--ap-brand-8);
 ```
