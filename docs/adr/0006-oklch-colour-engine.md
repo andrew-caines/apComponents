@@ -46,6 +46,16 @@ From one brand colour the engine derives:
 
 Every derived value is overridable, but the zero-config path produces a complete, coherent theme.
 
+#### Minimum hue separation from the brand
+
+The harmony nudge above needs a floor, because the brand is supplied by the product and can land anywhere. The default brand is a blue at 264°; info's base is 250°; the nudge closed that 14.2° gap to **4.2°**, and `action-bg-subtle` (#e9f0ff) came out against `info-bg-subtle` (#e8f1ff) at 1.00:1 — the same colour. A red brand collides with danger identically.
+
+So a status ramp is never brought within **35°** of the brand. When the nudge would breach that, the status is pushed back out to exactly 35°, on **the side its base already sits on** — info stays on the cyan side of blue rather than flipping to violet — crossing to the far side only when the near one would land within 25° of another status's base. Identity first, collision as the tie-break: choosing instead by "farthest from everything else" sends info to 299° violet for the default brand, winning 2° of clearance and losing the meaning.
+
+Contrast gating cannot catch this. Two ramps can each pass AA against the page and still be indistinguishable from *each other* — every contrast gate stayed green the whole time this bug existed. Gate 4 therefore asserts hue separation directly across the 135-seed sweep: ≥35° between the brand and every status, and ≥20° between any two statuses (the observed minimum is 23.9°). Reinstating the unfloored derivation fails it with 123 collisions.
+
+One limit this does not fix: at step 3 the chroma fraction is small enough that *any* two ramps look alike, so `-bg-subtle` backgrounds stay close (ΔE 0.015 for action vs info, up from 0.006). Subtle surfaces should not be the only thing distinguishing two states — let the border, icon and label carry it.
+
 ### Modes
 
 **Light and dark are generated from the same seed against mode-specific lightness targets. Dark mode is not inversion.** The rules that make dark mode work:
