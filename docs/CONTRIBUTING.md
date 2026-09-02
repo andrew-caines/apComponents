@@ -53,9 +53,12 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
   guarantee the whole layering strategy exists to provide.
 - Motion is defined once, in `packages/motion/src/motions.ts` (ADR-0010), and emitted
   twice — to `motion.css` and to Motion-shaped variant objects — from that single
-  record; never hand-edit `motion.css`. The equivalence gate reads both emissions back
-  as artifacts (never trusting either emitter's in-memory state) and checks they agree
-  on names, offsets, per-step values, duration and easing.
+  record; never hand-edit `motion.css`. The equivalence gate reads the CSS side back
+  out of the committed `motion.css` artifact — never `toMotionCss()`'s in-memory
+  output, so a stale or hand-edited file is caught — and compares it against
+  `toMotionVariants()`'s output directly, which is the JS emission itself and has no
+  artifact to read. They must agree on names, offsets, per-step values, duration,
+  easing, iteration counts, and which keyframes each composite property drives.
 - Every step of a motion must declare the same set of animatable properties. Sparse
   steps (a property present at some steps but not others) are outlawed rather than
   reconciled: `emitCss.ts` lets native CSS keyframe interpolation ramp across whatever
