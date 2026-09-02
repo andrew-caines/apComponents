@@ -13,6 +13,10 @@ function Probe() {
 
 describe('useHydrated (server)', () => {
   it('renders false when rendered to a string on the server', () => {
+    // F8: the file-level comment says this must run under node, but nothing
+    // asserted it — the test passed identically under jsdom, where `window`
+    // exists and the proof is worthless. Assert the environment directly.
+    expect(typeof window).toBe('undefined')
     const html = renderToString(<Probe />)
     expect(html).toContain('false')
   })

@@ -38,6 +38,11 @@ describe('the provider stack renders on the server', () => {
       </ApProvider>,
     )
     expect(html).toContain('ok')
+    // F9: the name of this test promises no scheme attribute in the markup,
+    // but nothing checked for it — a provider that DID emit
+    // data-ap-scheme="..." into the server HTML would still pass. Assert
+    // what the name claims.
+    expect(html).not.toContain('data-ap-scheme')
   })
 
   it('ThemeScript serialises to an inline script with the storage key escaped', () => {

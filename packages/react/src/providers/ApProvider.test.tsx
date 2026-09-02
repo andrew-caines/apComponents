@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act } from 'react'
+import { afterEach, describe, expect, it } from 'vitest'
 import { ApProvider } from './ApProvider.js'
-import { useLocale } from './LocaleProvider.js'
-import { useColorScheme } from './ThemeProvider.js'
+import { useLocale, useMessages } from './LocaleProvider.js'
+import { DEFAULT_SCHEME_STORAGE_KEY, useColorScheme } from './ThemeProvider.js'
 import { Icon } from '../icons/index.js'
 
 function Probe() {
@@ -11,6 +12,29 @@ function Probe() {
   const { locale } = useLocale()
   return <span data-testid="v">{`${scheme}|${locale}`}</span>
 }
+
+function SchemeButton() {
+  const [scheme, setScheme] = useColorScheme()
+  return (
+    <button onClick={() => setScheme('dark')} data-testid="scheme-btn">
+      {scheme}
+    </button>
+  )
+}
+
+function LocaleProbe() {
+  const { timeZone, currency } = useLocale()
+  const m = useMessages()
+  return <span data-testid="locale-v">{`${timeZone}|${currency}|${m.close}`}</span>
+}
+
+afterEach(() => {
+  // Mirrors ThemeProvider.test.tsx: the scheme click test writes state
+  // outside React's tree (the <html> attribute and localStorage) that no
+  // unmount reverses.
+  document.documentElement.removeAttribute('data-ap-scheme')
+  localStorage.clear()
+})
 
 describe('ApProvider', () => {
   it('supplies theme and locale in one component', () => {
@@ -58,5 +82,55 @@ describe('ApProvider', () => {
       </ApProvider>,
     )
     expect(screen.getByTestId('v').textContent).toBe('system|en-US')
+  })
+
+  // F10: 5 of ApProvider's 8 conditional spreads (defaultScheme, storageKey,
+  // timeZone, currency, messages) had no coverage at all. All eight forward
+  // correctly today, so this is a coverage gap rather than a live bug — but a
+  // dropped spread (e.g. `{...(x !== undefined ? { x } : {})}` silently
+  // deleted in a refactor) would be invisible without an assertion that only
+  // a correctly-forwarded prop can satisfy.
+
+  it('forwards defaultScheme to ThemeProvider as the uncontrolled starting scheme', () => {
+    render(
+      <ApProvider defaultScheme="dark">
+        <Probe />
+      </ApProvider>,
+    )
+    expect(screen.getByTestId('v').textContent).toBe('dark|en-US')
+  })
+
+  it('forwards storageKey to ThemeProvider, so an explicit choice persists under that key', async () => {
+    render(
+      <ApProvider storageKey="custom-scheme-key">
+        <SchemeButton />
+      </ApProvider>,
+    )
+    await act(async () => {
+      screen.getByTestId('scheme-btn').click()
+    })
+    // Persisted under the CUSTOM key, and not under the library default —
+    // proves storageKey reached ThemeProvider rather than being dropped
+    // (which would leave the choice under the default key instead).
+    expect(localStorage.getItem('custom-scheme-key')).toBe('dark')
+    expect(localStorage.getItem(DEFAULT_SCHEME_STORAGE_KEY)).toBeNull()
+  })
+
+  it('forwards timeZone and currency to LocaleProvider', () => {
+    render(
+      <ApProvider timeZone="Europe/Paris" currency="EUR">
+        <LocaleProbe />
+      </ApProvider>,
+    )
+    expect(screen.getByTestId('locale-v').textContent).toBe('Europe/Paris|EUR|Close')
+  })
+
+  it('forwards messages to LocaleProvider, overriding the default registry', () => {
+    render(
+      <ApProvider messages={{ close: 'Fermer' }}>
+        <LocaleProbe />
+      </ApProvider>,
+    )
+    expect(screen.getByTestId('locale-v').textContent).toBe('undefined|USD|Fermer')
   })
 })
