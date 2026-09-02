@@ -209,7 +209,17 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       const FORBIDDEN_BROWSER_GLOBALS = new Set(['document', 'localStorage', 'sessionStorage', 'window'])
       const hits: string[] = []
       const visit = (node: ts.Node) => {
-        if (ts.isIdentifier(node) && FORBIDDEN_BROWSER_GLOBALS.has(node.text)) {
+        // Identifiers cover every ordinary form: a bare reference, a property
+        // access, an alias, an optional call. String literals cover the one
+        // form they miss — `globalThis['localStorage']`, where the property
+        // name is a string, not an identifier. There is no legitimate reason
+        // for the text 'localStorage' to appear as a literal inside this
+        // component, so treating both node kinds the same closes the bracket-
+        // access escape without needing to model member expressions.
+        const named =
+          (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) &&
+          FORBIDDEN_BROWSER_GLOBALS.has(node.text)
+        if (named) {
           const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
           hits.push(`'${node.text}' at line ${line + 1}`)
         }
