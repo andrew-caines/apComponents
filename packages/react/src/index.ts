@@ -11,3 +11,7 @@ export {
 } from './providers/ThemeProvider.js'
 export type { ColorScheme, ThemeContextValue, ThemeProviderProps } from './providers/ThemeProvider.js'
 export { ThemeScript } from './providers/ThemeScript.js'
+export { LocaleProvider, useLocale, useMessages } from './providers/LocaleProvider.js'
+export type { LocaleContextValue, LocaleProviderProps } from './providers/LocaleProvider.js'
+export { DEFAULT_MESSAGES } from './providers/messages.js'
+export type { MessageKey, Messages } from './providers/messages.js'
