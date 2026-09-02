@@ -40,12 +40,22 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
     expect(files.length).toBeGreaterThan(0)
   })
 
+  // useIsomorphicLayoutEffect.ts is the one sanctioned place that names plain
+  // `useLayoutEffect` — it exists to build the SSR-safe wrapper every other
+  // module must use instead. The reference is evaluated once at module load
+  // (guarded by `typeof document`), never during render, so it does not
+  // trigger the hazard this rule exists to catch. Every other runtime file
+  // still gets the full check, including the same rule.
+  const ISOMORPHIC_LAYOUT_EFFECT_PATH = join(SRC, 'hooks', 'useIsomorphicLayoutEffect.ts')
+
   for (const file of files) {
     it(`${file.split('src')[1]} is clean`, () => {
       const text = readFileSync(file, 'utf8')
-      const hits = FORBIDDEN.filter((r) => r.pattern.test(text)).map(
-        (r) => `${r.pattern} — ${r.why}`,
-      )
+      const rules =
+        file === ISOMORPHIC_LAYOUT_EFFECT_PATH
+          ? FORBIDDEN.filter((r) => r.pattern.source !== /\buseLayoutEffect\b/.source)
+          : FORBIDDEN
+      const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} — ${r.why}`)
       expect(hits, `${file}:\n  ${hits.join('\n  ')}`).toEqual([])
     })
   }
