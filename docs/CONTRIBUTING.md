@@ -17,7 +17,9 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 |---|---|
 | `npm test` | Full Vitest suite |
 | `npm run typecheck` | `tsc -b` across all packages |
-| `npm run test:gates` | Token, contrast, gamut, sweep, freshness, guard and contract gates |
+| `npm run test:gates` | Token, contrast, gamut, sweep, freshness, guard, contract and motion gates |
+| `npm run test:motion` | `@ap/motion`'s own suite: unit tests plus its equivalence, reduced-motion, freshness and isolation gates |
+| `npm run gen:motion-css` | Regenerates `packages/motion/src/motion.css` from `motions.ts` |
 | `npm run test:ssr` | Builds and serves the RR8 fixture, asserts SSR markup and streaming |
 | `npm run test:hydration` | Playwright: zero hydration warnings, tokens resolve, no third-party requests |
 | `npm run test:consumer` | Builds the `file:`-protocol consumer fixture |
@@ -33,6 +35,7 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
 | `packages/react/src/theme/contract.css.ts` | `npm run gen:theme-contract` |
 | `packages/react/src/theme/theme.css` | `npm run gen:theme-css` |
 | `packages/react/src/theme/fonts.css` + `packages/react/fonts/*.woff2` | `npm run gen:fonts` |
+| `packages/motion/src/motion.css` | `npm run gen:motion-css` |
 
 ## Rules the gates enforce
 
@@ -48,6 +51,32 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
   (ADR-0016) — never unlayered. Layered CSS always loses to unlayered CSS, so a
   component style that isn't in the layer breaks the "consumer overrides always win"
   guarantee the whole layering strategy exists to provide.
+- Motion is defined once, in `packages/motion/src/motions.ts` (ADR-0010), and emitted
+  twice — to `motion.css` and to Motion-shaped variant objects — from that single
+  record; never hand-edit `motion.css`. The equivalence gate reads both emissions back
+  as artifacts (never trusting either emitter's in-memory state) and checks they agree
+  on names, offsets, per-step values, duration and easing.
+- Every step of a motion must declare the same set of animatable properties. Sparse
+  steps (a property present at some steps but not others) are outlawed rather than
+  reconciled: `emitCss.ts` lets native CSS keyframe interpolation ramp across whatever
+  properties a step declares, while `emitVariants.ts` reads each step's value directly
+  with no interpolation semantics of its own. Neither emitter implements carry-forward,
+  so a sparse step would make the two emitters render visibly different animations from
+  the same record — exactly the drift this package exists to prevent.
+- Every motion has a `prefers-reduced-motion` definition, and only `skeleton.shimmer`
+  and `spinner.rotate` may loop — perpetual motion is a vestibular hazard (ADR-0010).
+  A motion that degrades to `'none'` still gets a present-but-empty keyframe block
+  (`0%, 100% { }`), not a deleted one: the animation still runs and still fires
+  `animationend`, so a component that unmounts or advances state on that event behaves
+  identically for a reduced-motion user. The reduced-motion gate checks this at the
+  value level, not just by property name — a stray hardcoded opacity across every
+  reduced stop still declares only `opacity`, so a set-only check can't see it; the
+  gate compares each reduced step's offset and value against what `motions.ts` actually
+  declares.
+- `@ap/motion` imports nothing but `@ap/tokens` (ADR-0001) — no React, no Motion, no
+  Node built-ins, no DOM access. Its output is consumed by build tooling and the
+  browser, never by Node at runtime, and nothing in Phase 3 imports the package itself;
+  its gates are its only consumers.
 
 ## Adding a component
 
@@ -61,6 +90,19 @@ wrap every style object (base, each variant, each compound variant) in
 declare a new layer per component — every component must emit into the same
 `ap.components` layer that `theme.css`'s `@layer ap.tokens, ap.components;` order
 statement names, or the cascade guarantee silently breaks.
+
+## Motion
+
+`@ap/motion/motion.css` is opt-in — nothing in `@ap/react` imports it, and no
+component in this repo consumes `@ap/motion` yet. A consumer that wants it must
+import it **after** `@ap/react/theme.css`, because `theme.css` carries the
+`@layer ap.tokens, ap.components;` order statement that `motion.css`'s own
+`ap.tokens`-layered custom properties rely on for cascade position.
+
+`collapse` and `expand` reference `var(--panel-height)`, which is supplied by
+Base UI's primitives in Phase 4. Both motions emit correctly today — the
+equivalence and reduced-motion gates cover them like any other motion — but
+they cannot be demonstrated end to end until that dependency exists.
 
 ## Known gaps in Phase 2's gates
 
