@@ -15,28 +15,25 @@ export const TEXT = Object.freeze({
   xs: Object.freeze({ size: '12px', lineHeight: '16px' }),
   sm: Object.freeze({ size: '14px', lineHeight: '20px' }),
   md: Object.freeze({ size: '16px', lineHeight: '24px' }),
-  lg: Object.freeze({ size: '18px', lineHeight: '28px' }),
-  xl: Object.freeze({ size: '20px', lineHeight: '28px' }),
-  '2xl': Object.freeze({ size: '24px', lineHeight: '32px' }),
+  lg: Object.freeze({ size: '20px', lineHeight: '28px' }),
+  xl: Object.freeze({ size: '24px', lineHeight: '32px' }),
+  '2xl': Object.freeze({ size: '32px', lineHeight: '40px' }),
 } as Record<string, Readonly<{ size: string; lineHeight: string }>>)
 
 export const RADIUS = Object.freeze({
   sm: '4px', md: '6px', lg: '10px', xl: '16px', full: '9999px',
 } as Record<string, string>)
 
-// `em`, deliberately, not px: an icon sized in `em` tracks the font size of its
-// context, so an icon inside a small button shrinks with the button's text
-// automatically, with no per-call-site coordination.
+// `em`, deliberately, not px: an icon sized in `em` tracks the font size of
+// its context (not the root), so an icon inside a small button shrinks with
+// the button's text automatically, with no per-call-site coordination.
 //
-// The bottom three steps track the TEXT scale at the 16px base (0.75em is
-// text-xs's 12px, 0.875em is text-sm's 14px, 1em is text-md's 16px), so an
-// icon at one of those sizes sits correctly alongside text of the same size.
-// The top three deliberately climb faster than TEXT — 1.25em/1.5em/2em (20px/
-// 24px/32px) against text-lg/xl/2xl's 18px/20px/24px — so a large icon reads
-// as a graphic in its own right for standalone use, not as something sized to
-// sit inline with a line of text. All six are literals, not derived from TEXT
-// at runtime, so a future change to the type scale cannot silently resize
-// every icon in the library.
+// ICON *is* TEXT expressed in `em` at the 16px base — 0.75em is text-xs's
+// 12px, 1.25em is text-lg's 20px, 2em is text-2xl's 32px, and so on for every
+// step. A named size therefore means the same thing in both scales: an icon
+// at `lg` optically matches text at `lg`. The values are literals here rather
+// than derived from TEXT at runtime so the two scales cannot silently
+// diverge — see the note in CONTRIBUTING.md: change them together.
 export const ICON = Object.freeze({
   xs: '0.75em', sm: '0.875em', md: '1em', lg: '1.25em', xl: '1.5em', '2xl': '2em',
 } as Record<string, string>)

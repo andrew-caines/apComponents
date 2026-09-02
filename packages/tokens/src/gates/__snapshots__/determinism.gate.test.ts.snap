@@ -728,12 +728,12 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
     },
     "text": {
       "2xl": {
-        "lineHeight": "32px",
-        "size": "24px",
+        "lineHeight": "40px",
+        "size": "32px",
       },
       "lg": {
         "lineHeight": "28px",
-        "size": "18px",
+        "size": "20px",
       },
       "md": {
         "lineHeight": "24px",
@@ -744,8 +744,8 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
         "size": "14px",
       },
       "xl": {
-        "lineHeight": "28px",
-        "size": "20px",
+        "lineHeight": "32px",
+        "size": "24px",
       },
       "xs": {
         "lineHeight": "16px",

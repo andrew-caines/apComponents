@@ -137,12 +137,12 @@ exports[`toCssText > matches the committed snapshot 1`] = `
     --ap-text-sm-lh: 20px;
     --ap-text-md-size: 16px;
     --ap-text-md-lh: 24px;
-    --ap-text-lg-size: 18px;
+    --ap-text-lg-size: 20px;
     --ap-text-lg-lh: 28px;
-    --ap-text-xl-size: 20px;
-    --ap-text-xl-lh: 28px;
-    --ap-text-2xl-size: 24px;
-    --ap-text-2xl-lh: 32px;
+    --ap-text-xl-size: 24px;
+    --ap-text-xl-lh: 32px;
+    --ap-text-2xl-size: 32px;
+    --ap-text-2xl-lh: 40px;
     --ap-radius-sm: 4px;
     --ap-radius-md: 6px;
     --ap-radius-lg: 10px;
