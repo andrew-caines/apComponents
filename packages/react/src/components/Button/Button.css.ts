@@ -22,7 +22,8 @@ export const buttonRecipe = recipe({
           // Focus ring uses `outline`, never `boxShadow`: an outline survives
           // forced-colors mode (Windows High Contrast), where box-shadow is
           // dropped entirely, and it never overlaps the border-box the way a
-          // shadow can.
+          // shadow can. The style-rules gate enforces this — a `boxShadow`
+          // key inside a `:focus-visible` block fails it.
           '&:focus-visible': {
             outlineWidth: vars.misc.focusRingWidth,
             outlineStyle: 'solid',
