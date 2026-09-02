@@ -116,6 +116,68 @@ Base UI's primitives in Phase 4. Both motions emit correctly today — the
 equivalence and reduced-motion gates cover them like any other motion — but
 they cannot be demonstrated end to end until that dependency exists.
 
+## Swapping the icon set for a product's own
+
+`IconProvider` maps our icon names onto a product's own library in one place
+(ADR-0012). A product standardised on `react-icons`, Lucide or Phosphor maps
+once at the root and never thinks about it again:
+
+```tsx
+import { ApProvider } from '@ap/react'
+import { FiCheck, FiX, FiChevronDown, FiAlertCircle, FiInfo } from 'react-icons/fi'
+
+<ApProvider icons={{
+  check: FiCheck,
+  close: FiX,
+  'chevron-down': FiChevronDown,
+  'alert-circle': FiAlertCircle,
+  info: FiInfo,
+}}>
+  <App />
+</ApProvider>
+```
+
+Every `<Icon name="check" />` beneath it — including the ones our own
+components render internally — now draws the product's icon. The
+accessibility contract survives the swap: `Icon` computes `role="img"` +
+`aria-label` for a labelled icon and `aria-hidden` + `focusable={false}` for a
+decorative one, and passes the same block to an override that it applies to
+the built-in. Verified against `react-icons@5.7.0`.
+
+**The `size` trap, if the library sizes through its own prop.** The mapping
+above renders, and its ARIA is correct, but `size` is silently ignored — every
+icon comes out at `width="1em" height="1em"` regardless of what you pass.
+`react-icons`' `IconBase` applies its own `height`/`width` **after** spreading
+the caller's props, computed from *its* `size` prop, which `Icon` does not
+send. Nothing errors; the icons are just the wrong size.
+
+`Icon` deliberately passes `width`/`height` rather than `size`, because `size`
+is not an SVG attribute and would produce an unknown-prop warning for any
+override that spreads its props straight onto an `<svg>`. So the translation
+belongs in a per-library adapter:
+
+```tsx
+import type { IconType } from 'react-icons'
+import type { IconOverrides } from '@ap/react'
+
+const ri = (RI: IconType): NonNullable<IconOverrides['check']> =>
+  ({ width, ...rest }) => <RI size={width} {...rest} />
+
+<ApProvider icons={{ check: ri(FiCheck), close: ri(FiX) }}>
+```
+
+Any library whose sizing prop is not `width`/`height` needs the same
+three-line treatment. One whose components already accept SVG attributes
+directly needs no adapter at all.
+
+**Overriding is not the same as adding.** `IconOverrides` is keyed by
+`IconName`, a closed union — a product can replace any icon we ship but cannot
+introduce a new name through `IconProvider`. Adding `search` means extending
+`ICON_PATHS` in `packages/react/src/icons/paths.ts`, because the names are the
+contract our own components call by. Phase 4 ships five on purpose; ADR-0012's
+fuller set arrives as components need them, since an icon nothing renders is a
+permanent maintenance obligation bought for nothing.
+
 ## Known gaps in Phase 2's gates
 
 Phase 2's fixture gates (`test:ssr`, `test:hydration`, `test:consumer`) prove a
