@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import * as ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const COMPONENTS = join(import.meta.dirname, '..', 'components')
@@ -13,51 +14,104 @@ const COMPONENTS = join(import.meta.dirname, '..', 'components')
  * those are the ones that must be translatable. Class names, data attributes and
  * token names are not user-facing and are not flagged.
  */
-const USER_FACING_ATTRS = ['aria-label', 'aria-description', 'title', 'placeholder', 'alt'] as const
+const USER_FACING_ATTRS = [
+  'aria-label',
+  'aria-description',
+  'aria-placeholder',
+  'aria-valuetext',
+  'aria-roledescription',
+  'title',
+  'placeholder',
+  'alt',
+  'abbr',
+] as const
 
 /**
- * A single quoted string, capturing its contents.
+ * True if `node` (or any descendant) is a `StringLiteral` or a
+ * `NoSubstitutionTemplateLiteral`. The subtree search — rather than checking
+ * only the immediate initializer — is what catches `cond ? 'Close' :
+ * 'Dismiss'` and `'Cl' + 'ose'`: both bury a hardcoded string a level or two
+ * below the `JsxExpression`, not at its root.
+ *
+ * `NoSubstitutionTemplateLiteral` (`` `Close` ``) is exactly as hardcoded as a
+ * quoted string. `TemplateExpression` (`` `${prefix} close` ``) is not: its
+ * children are `TemplateHead`/`TemplateSpan` nodes, never a `StringLiteral` or
+ * `NoSubstitutionTemplateLiteral`, so an interpolated template never matches
+ * here — that is the registry path working, not an evasion.
  */
-const SINGLE_OR_DOUBLE_QUOTED = `(?:"([^"]*)"|'([^']*)')`
-
-/**
- * A backtick template literal that contains NO `${...}` interpolation. A
- * template literal that interpolates a variable is the registry path working
- * (or at least not a bare hardcoded string); one that never interpolates
- * anything is exactly as hardcoded as a plain quoted string and must not
- * escape detection just because it uses backticks.
- */
-const PLAIN_TEMPLATE_LITERAL = '`([^`$]*)`'
-
-const STRING_LITERAL = `(?:${SINGLE_OR_DOUBLE_QUOTED}|${PLAIN_TEMPLATE_LITERAL})`
-
-/**
- * Matches `attr="literal"`, `attr='literal'`, and `` attr=`literal` `` directly,
- * AND the same three forms wrapped in a JSX expression container —
- * `attr={"literal"}`, `attr={'literal'}`, `` attr={`literal`} `` — because JSX
- * happily accepts either form and a hardcoded string does not become
- * translatable by adding braces around it. A braced reference to a variable or
- * call expression (`attr={label}`, `attr={t('close')}`) matches neither
- * alternative and is correctly left alone — that is the registry path.
- */
-function buildAttrPattern(attr: string): RegExp {
-  return new RegExp(`${attr}\\s*=\\s*(?:\\{\\s*${STRING_LITERAL}\\s*\\}|${STRING_LITERAL})`, 'g')
+function findStringLiteral(
+  node: ts.Node,
+): ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | undefined {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return node
+  }
+  let found: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | undefined
+  ts.forEachChild(node, (child) => {
+    if (found) return
+    found = findStringLiteral(child)
+  })
+  return found
 }
 
 /**
- * Runs every USER_FACING_ATTRS pattern against `text` and returns one
- * human-readable hit per match, e.g. `aria-label="Close"`. Shared between the
- * real-file scan below and the evasion-battery tests, so both exercise the
- * exact same detection logic rather than two regexes that could drift apart.
+ * A letter, in any script — not just ASCII. Used to tell copy ("Close", a
+ * bullet's label) apart from formatting (whitespace/newlines between JSX
+ * elements) and from punctuation-only text (a bare "—" or "·" separator),
+ * which is why this is "contains a letter" rather than "is non-empty".
  */
-function findHardcodedAttrs(text: string): string[] {
+const HAS_LETTER = /\p{L}/u
+
+/**
+ * Parses `source` as TSX and returns one human-readable hit per user-facing
+ * hardcoded string found, covering both surfaces a component can leak
+ * English through:
+ *
+ *  1. A `JsxAttribute` in `USER_FACING_ATTRS` whose value is a string literal,
+ *     or whose expression container has a string literal anywhere in its
+ *     subtree (a ternary, a concatenation, a bare template literal).
+ *  2. A `JsxText` node whose trimmed content contains a letter — visible text
+ *     content like `<span>Close</span>`, which an attribute-only scan never
+ *     sees at all.
+ *
+ * Shared between the real-file scan below and the evasion-battery tests, so
+ * both exercise the exact same detection logic rather than two implementations
+ * that could drift apart.
+ */
+function findHardcodedLiterals(source: string): string[] {
+  const sourceFile = ts.createSourceFile(
+    'component.tsx',
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+
   const hits: string[] = []
-  for (const attr of USER_FACING_ATTRS) {
-    for (const m of text.matchAll(buildAttrPattern(attr))) {
-      const value = m.slice(1).find((g) => g !== undefined) ?? ''
-      hits.push(`${attr}="${value}"`)
+
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxAttribute(node)) {
+      const attrName = ts.isIdentifier(node.name) ? node.name.text : node.name.getText(sourceFile)
+      if ((USER_FACING_ATTRS as readonly string[]).includes(attrName)) {
+        const init = node.initializer
+        if (init && ts.isStringLiteral(init)) {
+          hits.push(`${attrName}="${init.text}"`)
+        } else if (init && ts.isJsxExpression(init) && init.expression) {
+          const literal = findStringLiteral(init.expression)
+          if (literal) {
+            hits.push(`${attrName}={...} contains hardcoded string "${literal.text}"`)
+          }
+        }
+      }
+    } else if (ts.isJsxText(node)) {
+      const trimmed = node.text.trim()
+      if (HAS_LETTER.test(trimmed)) {
+        hits.push(`JSX text "${trimmed}"`)
+      }
     }
+    ts.forEachChild(node, visit)
   }
+  visit(sourceFile)
+
   return hits
 }
 
@@ -73,6 +127,21 @@ function componentSources(dir: string): string[] {
 
 describe('gate: components take user-facing strings from the message registry', () => {
   const files = componentSources(COMPONENTS)
+
+  // Fail loudly, not silently: if the component directory is ever missing or
+  // moved, or every component source stops matching the `.tsx` filter, an
+  // empty file list must never read as "nothing hardcoded" — that is exactly
+  // how this gate would become a no-op. `readdirSync` on a missing directory
+  // already throws its own ENOENT naming the path; this guard covers the
+  // quieter failure mode where the directory exists but the walk finds
+  // nothing to scan.
+  if (files.length === 0) {
+    throw new Error(
+      `no-hardcoded-strings gate: found zero component sources under ${COMPONENTS} — the gate ` +
+        'has nothing to scan and must not pass vacuously. Check that the directory exists and ' +
+        'still contains .tsx component files.',
+    )
+  }
 
   it('finds component sources to check', () => {
     expect(files.length).toBeGreaterThan(0)
@@ -92,7 +161,7 @@ describe('gate: components take user-facing strings from the message registry', 
 
     it(`${rel} hardcodes no user-facing string`, () => {
       const text = readFileSync(file, 'utf8')
-      const hits = findHardcodedAttrs(text)
+      const hits = findHardcodedLiterals(text)
       expect(
         hits,
         `${rel} hardcodes ${hits[0]} — read it from useMessages() so it can be translated`,
@@ -101,13 +170,13 @@ describe('gate: components take user-facing strings from the message registry', 
   }
 })
 
-describe('gate: the detection regex itself catches known evasions', () => {
+describe('gate: the detection logic itself catches known evasions', () => {
   // Each of these is a way a component could carry a hardcoded, user-facing
-  // string while a naive `attr="literal"`-only scan reports clean. If any of
-  // these stop matching, the gate can be defeated by a one-character edit
-  // (switching quote style, adding braces, or switching to backticks) with no
-  // change in behavior — exactly the kind of assertion-that-passes-under-the-
-  // violation this project has burned time on before.
+  // string while a naive scan reports clean. If any of these stop matching,
+  // the gate can be defeated by a one-character edit (switching quote style,
+  // adding braces, moving the string into text content, or switching to
+  // backticks) with no change in behavior — exactly the kind of assertion-
+  // that-passes-under-the-violation this project has burned time on before.
   const evasions: Array<[string, string]> = [
     ['double-quoted (baseline)', '<button aria-label="Close">'],
     ['single-quoted', "<button aria-label='Close'>"],
@@ -119,26 +188,42 @@ describe('gate: the detection regex itself catches known evasions', () => {
     ['a different flagged attribute (placeholder)', '<input placeholder="Search" />'],
     ['a different flagged attribute (alt)', '<img alt="Company logo" />'],
     ['a different flagged attribute (aria-description)', '<div aria-description="Optional field">'],
+    ['a different flagged attribute (aria-placeholder)', '<input aria-placeholder="Search">'],
+    ['a different flagged attribute (aria-valuetext)', '<div aria-valuetext="50 percent">'],
+    [
+      'a different flagged attribute (aria-roledescription)',
+      '<div aria-roledescription="carousel">',
+    ],
+    ['a different flagged attribute (abbr)', '<abbr title="x" abbr="Kilometers">'],
+    ['a ternary between two hardcoded strings', "<button aria-label={cond ? 'Close' : 'Dismiss'}>"],
+    ['string concatenation', "<button aria-label={'Cl' + 'ose'}>"],
+    ['visible JSX text content', '<span>Close</span>'],
+    ['visible JSX text content, mixed with siblings', '<button>{icon}Close</button>'],
   ]
 
   for (const [label, snippet] of evasions) {
     it(`flags: ${label}`, () => {
-      expect(findHardcodedAttrs(snippet).length).toBeGreaterThan(0)
+      expect(findHardcodedLiterals(snippet).length).toBeGreaterThan(0)
     })
   }
 
   const legitimate: Array<[string, string]> = [
     ['a bare variable reference', '<button aria-label={label}>'],
     ['a registry lookup', '<button aria-label={messages.close}>'],
-    ['a function call', "<button aria-label={t('close')}>"],
     ['a template literal that interpolates', '<button aria-label={`${prefix} close`}>'],
     ['a non-user-facing attribute (className)', '<div className="Close">'],
-    ['a non-user-facing attribute (data-*)', '<div data-label="Close">'],
+    ['a non-user-facing attribute (data-*)', '<div data-title="x" data-alt="y" />'],
+    ['whitespace-only text between elements', '<div>\n  <span />\n  <span />\n</div>'],
+    ['punctuation-only text content', '<div>—</div>'],
+    ['children passthrough', '<div>{children}</div>'],
+    ['a message-registry expression as text', '<div>{messages.close}</div>'],
+    ['a translation-function call as text', "<div>{t('close')}</div>"],
+    ['an interpolated template as text', '<div>{`${prefix} close`}</div>'],
   ]
 
   for (const [label, snippet] of legitimate) {
     it(`does not flag: ${label}`, () => {
-      expect(findHardcodedAttrs(snippet)).toEqual([])
+      expect(findHardcodedLiterals(snippet)).toEqual([])
     })
   }
 })
