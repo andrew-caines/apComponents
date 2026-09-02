@@ -10,7 +10,16 @@ export interface ParsedStep {
 
 export interface ParsedMotion {
   steps: ParsedStep[]
+  /**
+   * The composite property's duration term, verbatim (e.g.
+   * `var(--ap-duration-slow)`). Deliberately NOT reduced to the bare token
+   * name here — `varRe` accepts any value in this position so a hardcoded
+   * duration still parses instead of failing collection with a misleading
+   * "no composite property" error. Callers assert the `var(--ap-duration-*)`
+   * shape themselves and compare the extracted token against the record.
+   */
   duration: string
+  /** The composite property's easing term, verbatim. See `duration`. */
   ease: string
   iterations: string
 }
@@ -85,14 +94,33 @@ export function parseMotionCss(css: string): ParsedCss {
   if (openBrace === -1) {
     throw new Error('prefers-reduced-motion block has no opening brace')
   }
+  // `indexOf` finds the first `{` anywhere after the opener, not necessarily
+  // one that belongs to it — if the opener text and that brace aren't
+  // adjacent but for whitespace, the brace belongs to something else
+  // entirely (e.g. a later @keyframes rule), and slicing from it would
+  // silently mis-slice that unrelated rule in as the reduced body.
+  const between = css.slice(reducedAt + OPENER.length, openBrace)
+  if (between.trim() !== '') {
+    throw new Error(
+      `prefers-reduced-motion block opener is not immediately followed by its opening brace: ${JSON.stringify(between)}`,
+    )
+  }
   const closeBrace = matchingClose(css, openBrace)
 
   const before = css.slice(0, reducedAt)
   const reducedBody = css.slice(openBrace + 1, closeBrace)
 
   const composite = new Map<string, { duration: string; ease: string; iterations: string }>()
-  const varRe =
-    /--ap-motion-([a-z0-9-]+):\s*\S+\s+var\(--ap-duration-([a-z]+)\)\s+var\(--ap-ease-([a-z-]+)\)\s+(\S+)\s+both;/g
+  // Duration and easing are captured as opaque `\S+` tokens rather than
+  // `var\(--ap-duration-...\)` / `var\(--ap-ease-...\)` shapes. Requiring
+  // those shapes here means a hardcoded value (e.g. a duration replaced with
+  // `320ms`) fails the WHOLE composite-property match, and collection throws
+  // "no --ap-motion-* composite property" — naming the wrong seam, since the
+  // keyframe is fine and the disagreement is in the duration/easing term.
+  // Accepting any token lets a hardcoded value parse through to the
+  // duration-and-easing test, which asserts the `var(...)` shape itself and
+  // fails there instead, naming duration or easing directly.
+  const varRe = /--ap-motion-([a-z0-9-]+):\s*\S+\s+(\S+)\s+(\S+)\s+(\S+)\s+both;/g
   let v: RegExpExecArray | null
   while ((v = varRe.exec(before)) !== null) {
     composite.set(`ap-${v[1]}`, { duration: v[2]!, ease: v[3]!, iterations: v[4]! })

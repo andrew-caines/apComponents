@@ -15,7 +15,6 @@ const variants = toMotionVariants()
 /** CSS declaration names → the Motion keyframe keys they correspond to. */
 const cssToJs: Record<string, string[]> = {
   opacity: ['opacity'],
-  translate: ['x', 'y'],
   scale: ['scale'],
   rotate: ['rotate'],
   height: ['height'],
@@ -42,9 +41,22 @@ describe('gate: the CSS and JS emissions are equivalent', () => {
       const parsed = normal[kf]!
       const spec = MOTIONS[name as keyof typeof MOTIONS]
 
+      // parseMotionCss captures the duration/easing terms verbatim rather
+      // than requiring a `var(--ap-duration-*)` / `var(--ap-ease-*)` shape at
+      // collection time — that's what lets a hardcoded value (e.g. a
+      // duration swapped for a literal `320ms`) parse at all instead of
+      // failing collection with a misleading "no composite property" error.
+      // The shape check belongs here instead, so that same perturbation
+      // fails THIS assertion, naming duration or easing directly.
+      const durationMatch = /^var\(--ap-duration-([a-z]+)\)$/.exec(parsed.duration)
+      expect(durationMatch, `${name} duration is a var(--ap-duration-*) reference`).not.toBeNull()
+
+      const easeMatch = /^var\(--ap-ease-([a-z-]+)\)$/.exec(parsed.ease)
+      expect(easeMatch, `${name} ease is a var(--ap-ease-*) reference`).not.toBeNull()
+
       // Three-way: CSS token name, source record, and resolved JS value.
-      expect(parsed.duration).toBe(spec.duration)
-      expect(parsed.ease).toBe(spec.ease)
+      expect(durationMatch![1]).toBe(spec.duration)
+      expect(easeMatch![1]).toBe(spec.ease)
 
       const ms = Number(DURATION[spec.duration]!.replace('ms', ''))
       expect(variants[name]!.transition.duration).toBeCloseTo(ms / 1000, 6)
@@ -94,6 +106,15 @@ describe('gate: the CSS and JS emissions are equivalent', () => {
       }
 
       const cssProps = new Set(parsed.steps.flatMap((s) => Object.keys(s.props)))
+
+      // The key-set comparison below derives the JS side of `translate` from
+      // `declaredAxes`, not from `cssProps` — so a `translate` declaration
+      // with no axis declared anywhere in the record would silently
+      // contribute nothing and go unnoticed. Assert presence directly: the
+      // CSS declares `translate` if and only if the record declares at least
+      // one axis.
+      expect(cssProps.has('translate'), `${name} translate presence`).toBe(declaredAxes.size > 0)
+
       const expectedJsKeys = new Set(
         [...cssProps].flatMap((p) => (p === 'translate' ? [...declaredAxes] : cssToJs[p] ?? [p])),
       )
