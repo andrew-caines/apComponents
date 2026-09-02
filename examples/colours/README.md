@@ -28,10 +28,22 @@ the linked `theme.css` at render time. Those are deliberately two different path
 if the generated stylesheet and the token source ever disagree, a swatch will
 disagree with its own printed hex, and the verification pass below fails.
 
+## The light/dark toggle
+
+The three-way control at the top sets `data-ap-scheme` on the root element — the same
+attribute `ThemeProvider` writes — so it exercises the real theming mechanism rather
+than a demo-only one. **System** removes the attribute and hands control back to the
+OS preference.
+
+Because the hex and ratio labels are baked in at generate time, both modes' labels are
+emitted and CSS shows one, using selectors that mirror `theme.css`'s exactly. That is
+the part most likely to rot: the colours would keep switching while the numbers quietly
+described the wrong mode. Check 4 below exists for precisely that.
+
 ## The verification pass
 
 `gen:colour-demo` does not just write a file. It loads the page in Chromium in both
-schemes and checks three things, failing the build on any of them:
+schemes and checks four things, failing the build on any of them:
 
 1. **Completeness** — every `--ap-color-*` declared in `theme.css` appears on the
    page. Enumerated from the stylesheet, not from a hand-written list, so a token
@@ -40,9 +52,14 @@ schemes and checks three things, failing the build on any of them:
    against the hex the token source says it should be, in both modes.
 3. **Page and gate agree** — the pairing table's row count matches
    `contrastPairings()`.
+4. **The toggle moves both the colour and the labels**, in both directions, against a
+   light OS and a dark OS — so neither direction passes by agreeing with the system
+   preference — and **System** restores the OS value.
 
 Each check was confirmed to fail under its own perturbation (drop a token from the
-palette; paint a swatch red; hide a gate row) and to pass once restored. A check that
+palette; paint a swatch red; hide a gate row; stop the toggle setting the attribute;
+remove the label-switching CSS so the colours follow but the numbers do not) and to pass
+once restored. A check that
 has never been seen to fail is not evidence of anything.
 
 If playwright is not installed (`npm run fixture:install`), the page is still written
