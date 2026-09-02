@@ -46,8 +46,43 @@ describe('MOTIONS record', () => {
     }
   })
 
-  it('is frozen', () => {
+  it('is frozen all the way down, not just at the top', () => {
     expect(Object.isFrozen(MOTIONS)).toBe(true)
+    for (const [name, spec] of entries) {
+      expect(Object.isFrozen(spec), `${name} spec`).toBe(true)
+      expect(Object.isFrozen(spec.steps), `${name} steps`).toBe(true)
+      for (const [i, step] of spec.steps.entries()) {
+        expect(Object.isFrozen(step), `${name} step ${i}`).toBe(true)
+      }
+    }
+  })
+
+  // These modules are ESM and therefore strict, so a write to a frozen object
+  // throws rather than failing silently. Cast away the `as const` readonly
+  // types deliberately: they are what a TypeScript caller is stopped by, and
+  // what a JavaScript caller never sees. The freeze is the only thing
+  // standing between a consumer and a mutated record that both emitters read.
+  it('throws rather than silently accepting a mutation, in strict mode', () => {
+    const shake = MOTIONS['error.shake'] as unknown as {
+      duration: string
+      steps: { translateX?: string }[]
+    }
+
+    expect(() => {
+      shake.steps[1]!.translateX = '-99px'
+    }).toThrow(TypeError)
+    expect(() => shake.steps.push({ translateX: '0px' })).toThrow(TypeError)
+    expect(() => {
+      shake.duration = 'instant'
+    }).toThrow(TypeError)
+    expect(() => {
+      ;(MOTIONS as unknown as Record<string, unknown>)['brand.new'] = {}
+    }).toThrow(TypeError)
+
+    // ...and nothing moved.
+    expect(MOTIONS['error.shake'].steps[1]!.translateX).toBe('-4px')
+    expect(MOTIONS['error.shake'].steps).toHaveLength(7)
+    expect(MOTIONS['error.shake'].duration).toBe('slow')
   })
 
   // Neither emitter implements the carry-forward that Step's docblock used to

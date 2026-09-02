@@ -1,13 +1,37 @@
 import type { MotionSpec } from './types.js'
 
 /**
+ * Freezes `value` and everything reachable from it, in place.
+ *
+ * `Object.freeze` is shallow. Frozen only at the top, `MOTIONS` still let
+ * `MOTIONS['error.shake'].steps[1].translateX = '-99px'` through silently,
+ * and `steps.push(...)` grow the array — mutating the single record BOTH
+ * emitters read, so a consumer could change what every later emission
+ * produces. `as const` rules that out for TypeScript callers only; `MOTIONS`
+ * is publicly exported and reaches JavaScript ones too.
+ *
+ * `packages/tokens/src/scales/scales.ts` sets the precedent (its `TEXT` entries are
+ * frozen individually for exactly this reason); a recursive helper is used
+ * here because the nesting is three deep across twelve motions.
+ *
+ * The `isFrozen` early return doubles as the cycle guard: each object is
+ * frozen before its children are visited, so a cycle's back-edge stops.
+ */
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
+  Object.freeze(value)
+  for (const child of Object.values(value)) deepFreeze(child)
+  return value
+}
+
+/**
  * The twelve named semantic motions (ADR-0010). This record is the single
  * source of truth: both the CSS and the JavaScript emissions derive from it,
  * which is what keeps them from drifting.
  *
  * `duration` and `ease` are token names, resolved against @ap/tokens' scales.
  */
-export const MOTIONS = Object.freeze({
+export const MOTIONS = deepFreeze({
   'error.shake': {
     duration: 'slow', ease: 'in-out', iterations: 1, reduced: 'none',
     steps: [
