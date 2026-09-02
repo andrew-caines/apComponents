@@ -44,6 +44,15 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
   imports (including subpath and dynamic imports) in `@ap/react` runtime source, and no
   `react-router*` dependency in `packages/react/package.json` (ADR-0001/0011).
 - Component styles reference Tier 2/3 tokens only — never a Tier 1 ramp step.
+- **`-on-solid` and `-text` are different roles, and the difference is easy to
+  invert.** `color-<ramp>-on-solid` is text drawn **on** that ramp's solid
+  background; `color-<ramp>-text` is that ramp's colour used **as** text on a
+  neutral surface. Brand originally used `-text` for the on-solid role, so the
+  same suffix meant opposite things depending on which ramp you were reading —
+  renamed in Phase 4b, while no component consumed it yet and the change was
+  still cheap. If you add a colour role, add its pairing to `PAIRINGS` in
+  `packages/tokens/src/emit/contrastReport.ts` in the same commit: a role with
+  no pairing is ungated, free to drift to any value, and nothing will notice.
 - Logical properties only (`marginInlineStart`, not `marginLeft`; `insetInlineStart`, not `left`).
 - No literal `zIndex`; use `vars.z.*`.
 - Never `outline: 'none'` — style `:focus-visible` instead.
@@ -164,8 +173,9 @@ would otherwise prevent subsequently merged props from setting them")
 confirms this is the intended way to win the merge, even though nothing in
 Base UI's public API surfaces it as a documented feature. `Button.tsx`
 passes `role={undefined}` and `tabIndex={undefined}` alongside
-`nativeButton={false}` whenever the `render` element is a literal `<a>`
-with a non-empty `href` — that lands in `otherExternalProps`, the rightmost
+`nativeButton={false}` whenever the `render` element carries a non-empty
+`href` or `to` prop — see the prop-based detection note below for why that
+is the test rather than the tag — and that lands in `otherExternalProps`, the rightmost
 argument to the internal `mergeProps` call, and wins before Base UI's
 `useRenderElement` ever merges in the `render` element's own props. The
 result: `<Button render={<a href="/x" />}>` now emits a plain `<a href="/x">`
