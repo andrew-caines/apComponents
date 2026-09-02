@@ -35,7 +35,7 @@ working, testable software and its own gate:
 | **4b** | `Button` | Recipe variants, `render` passthrough to a real `<a href>`, SSR assertion |
 | **4c** | `Field` + `Input` | ARIA relationships wired without hand-passed ids; uncontrolled submit works pre-hydration |
 | **4d** | `Dialog` | Portal absent from server HTML, focus trapped and returned, enter/exit motion driven by `@ap/motion` |
-| **4e** | Storybook harness, gates 4–7 wiring, fixture extension | Gates 4–7 green in CI over all four components |
+| **4e** | Storybook harness, gates 4–7 wiring, fixture extension, **`ThemeProvider`'s runtime override path (§4.2, deferred from 4a — see §9)** | Gates 4–7 green in CI over all four components, and a per-tenant theme rendered into the server HTML with no flash and no hydration mismatch |
 
 Ordering is dependency-forced: everything needs 4a; Dialog is last because it is the only
 component that consumes `@ap/motion`, and it should land on a provider stack already proven.
@@ -286,6 +286,7 @@ components under both SSR and SPA.
 
 | Deferred | Why |
 |---|---|
+| **`ThemeProvider`'s runtime override path (§4.2)** | Deferred to **4e**, added 2026-09-02 after plan 4a's review found it undelivered with no deferral recorded. No Phase 4 component consumes it, and ADR-0009 says the runtime path "is the one that can go wrong, so it gets the SSR integration test" — the honest place to prove it is 4e's fixture app, where a `<style>` rendered server-side for a request-known tenant can be asserted end to end. Shipping it in 4a would have been unproven code. **4a therefore delivers scoping-by-attribute only**: nested providers currently both write the global `<html>` attribute rather than re-scoping, so a dark panel inside a light page is not yet supported. |
 | `NotificationProvider` | Three of four surfaces need Toast (Phase 5); see §4.1 |
 | Formatters (`@ap/react/format`) | No Phase 4 component displays a formatted value |
 | The other ten hooks | No caller yet; a hook with no caller has no design pressure |
