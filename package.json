@@ -32,6 +32,7 @@
     "gen:theme-css": "tsx scripts/gen-theme-css.ts",
     "gen:motion-css": "tsx scripts/gen-motion-css.ts",
     "gen:scale-demo": "tsx scripts/gen-scale-demo.ts",
+    "gen:colour-demo": "tsx scripts/gen-colour-demo.ts",
     "test:motion": "vitest run packages/motion/src"
   },
   "devDependencies": {
