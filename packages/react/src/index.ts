@@ -2,6 +2,8 @@ export { vars } from './theme/contract.css.js'
 export { tier3 } from './theme/tier3.js'
 export { Surface, SURFACE_TOKENS } from './components/Surface/index.js'
 export type { SurfaceProps } from './components/Surface/index.js'
+export { Button, BUTTON_TOKENS } from './components/Button/index.js'
+export type { ButtonProps } from './components/Button/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,
