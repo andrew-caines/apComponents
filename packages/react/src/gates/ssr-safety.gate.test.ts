@@ -54,13 +54,44 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   const ISOMORPHIC_LAYOUT_EFFECT_PATH = join(SRC, 'hooks', 'useIsomorphicLayoutEffect.ts')
   const LAYOUT_EFFECT_RULE = /\buseLayoutEffect\b/.source
 
+  // ThemeProvider.tsx and ThemeScript.tsx (Task 3, ADR-0005/0009) are the
+  // first runtime sources with a legitimate reason to name `document` and
+  // `localStorage` at all:
+  //
+  // - ThemeProvider reads/writes storage and reflects the scheme onto
+  //   `<html>` — but only from inside effects and the `setScheme` callback,
+  //   never at module scope or synchronously during render. That is exactly
+  //   what ADR-0005's rule permits ("Browser-only state resolves after
+  //   hydration, never during render").
+  // - ThemeScript never touches these globals at all *in this module* — the
+  //   text "document." and "localStorage" are characters inside the payload
+  //   string of the inline anti-flash <script>, evaluated only by the
+  //   browser parsing the emitted tag, never by this module or by Node
+  //   during SSR.
+  //
+  // Exempting the whole rule for either file would let an actual
+  // module-scope or render-path read slip in with the gate still green —
+  // proven by adding one and watching the suite stay green — so the blanket
+  // exemption is paired with the narrower assertions below, and every other
+  // rule (including the react-router and Date.now/Math.random checks) still
+  // applies to both files.
+  const THEME_PROVIDER_PATH = join(SRC, 'providers', 'ThemeProvider.tsx')
+  const THEME_SCRIPT_PATH = join(SRC, 'providers', 'ThemeScript.tsx')
+  const DOCUMENT_RULE = /\bdocument\./.source
+  const STORAGE_RULE = /\blocalStorage\b|\bsessionStorage\b/.source
+
   for (const file of files) {
     it(`${file.split('src')[1]} is clean`, () => {
       const text = readFileSync(file, 'utf8')
-      const rules =
-        file === ISOMORPHIC_LAYOUT_EFFECT_PATH
-          ? FORBIDDEN.filter((r) => r.pattern.source !== LAYOUT_EFFECT_RULE)
-          : FORBIDDEN
+      let rules = FORBIDDEN
+      if (file === ISOMORPHIC_LAYOUT_EFFECT_PATH) {
+        rules = rules.filter((r) => r.pattern.source !== LAYOUT_EFFECT_RULE)
+      }
+      if (file === THEME_PROVIDER_PATH || file === THEME_SCRIPT_PATH) {
+        rules = rules.filter(
+          (r) => r.pattern.source !== DOCUMENT_RULE && r.pattern.source !== STORAGE_RULE,
+        )
+      }
       const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} — ${r.why}`)
       expect(hits, `${file}:\n  ${hits.join('\n  ')}`).toEqual([])
     })
@@ -110,6 +141,85 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
           '(optional chaining, an alias, assignment to a variable), means the hook is ' +
           'being invoked outside the guard the exemption exists to cover',
       ).toBe(2)
+    })
+  })
+
+  describe('the two files exempted from the document/localStorage rules (Task 3, ADR-0005/0009)', () => {
+    const providerText = () => readFileSync(THEME_PROVIDER_PATH, 'utf8')
+    const scriptText = () => readFileSync(THEME_SCRIPT_PATH, 'utf8')
+
+    it('both files still exist, so neither exemption is stale config for a moved file', () => {
+      expect(existsSync(THEME_PROVIDER_PATH)).toBe(true)
+      expect(existsSync(THEME_SCRIPT_PATH)).toBe(true)
+    })
+
+    // Comments stripped throughout this describe block: a JSDoc line like
+    // "localStorage key for persisting an explicit choice" names the word in
+    // prose, not code, and must not skew any of these counts.
+    const stripComments = (code: string) =>
+      code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+
+    it("ThemeProvider's render path (its JSX return) never names document or localStorage", () => {
+      // The return statement is what runs on every render, server or client.
+      // If a document/localStorage read ever migrated there — the one place
+      // ADR-0005 actually forbids it — this is the assertion that would
+      // catch it; the blanket exemption above would not. Bounded to the end
+      // of the ThemeProvider function itself (the next top-level
+      // declaration), not the rest of the file — the file's other functions
+      // legitimately use these tokens and would otherwise false-positive.
+      const code = stripComments(providerText())
+      const returnIdx = code.indexOf('return <ThemeContext.Provider')
+      expect(returnIdx, 'expected to find the provider render path').toBeGreaterThan(-1)
+      const nextDeclIdx = code.indexOf('function readStoredScheme', returnIdx)
+      expect(nextDeclIdx, 'expected readStoredScheme to follow the component').toBeGreaterThan(returnIdx)
+      const renderPath = code.slice(returnIdx, nextDeclIdx)
+      expect(renderPath).not.toMatch(/\bdocument\.|\blocalStorage\b|\bsessionStorage\b/)
+    })
+
+    it('every localStorage occurrence in ThemeProvider sits inside a try/catch block', () => {
+      // Not "the file contains a try somewhere" — every individual
+      // occurrence must fall inside one. A stray unguarded
+      // `localStorage.getItem(...)` added outside try/catch anywhere in the
+      // file would raise totalMatches above matchesInsideTryBlocks and fail
+      // this specifically.
+      const code = stripComments(providerText())
+      const tryBlocks = [...code.matchAll(/try\s*\{[\s\S]*?\}\s*catch/g)].map((m) => m[0])
+      expect(tryBlocks.length, 'expected at least one try/catch block').toBeGreaterThan(0)
+      const totalMatches = (code.match(/\blocalStorage\b/g) ?? []).length
+      expect(totalMatches, 'expected ThemeProvider to touch localStorage at least once').toBeGreaterThan(0)
+      const matchesInsideTryBlocks = tryBlocks.reduce(
+        (sum, block) => sum + (block.match(/\blocalStorage\b/g) ?? []).length,
+        0,
+      )
+      expect(matchesInsideTryBlocks).toBe(totalMatches)
+    })
+
+    it('document.documentElement is named exactly once, inside applyScheme', () => {
+      const code = stripComments(providerText())
+      const matches = [...code.matchAll(/\bdocument\./g)]
+      expect(
+        matches.length,
+        'expected exactly one `document.` reference — a second means the global is ' +
+          'being touched somewhere the exemption was not scoped to review',
+      ).toBe(1)
+      const idx = matches[0]!.index
+      const precedingContext = code.slice(Math.max(0, idx - 300), idx)
+      expect(precedingContext, 'expected the reference to live inside applyScheme').toContain(
+        'function applyScheme',
+      )
+    })
+
+    it("ThemeScript's document/localStorage text lives only inside the <script> payload string", () => {
+      const code = scriptText()
+      const match = code.match(/const source =\s*([\s\S]*?)\n\n\s*return/)
+      expect(match, 'expected to find the `source` template literal assignment').not.toBeNull()
+      const payload = match![1]!
+      // Confirm the payload actually contains what we expect to find there —
+      // otherwise this test would pass vacuously against an empty capture.
+      expect(payload).toMatch(/\blocalStorage\b/)
+      expect(payload).toMatch(/\bdocument\./)
+      const withoutPayload = code.replace(payload, '')
+      expect(withoutPayload).not.toMatch(/\bdocument\.|\blocalStorage\b|\bsessionStorage\b/)
     })
   })
 
