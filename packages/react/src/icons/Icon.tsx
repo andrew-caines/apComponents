@@ -18,7 +18,13 @@ export interface IconProps {
   /**
    * A named step reads `var(--ap-icon-<name>)` off the icon scale (all `em`,
    * so the icon tracks its context's font size). A number is an escape hatch
-   * for a one-off pixel size and resolves to `${n}px`. Defaults to `md`.
+   * for a one-off pixel size and resolves to `${n}px`.
+   *
+   * The steps are multipliers, not absolute sizes, so they do NOT correspond
+   * to the text step of the same name: `lg` inside `lg` text renders at
+   * 1.25 x 20px = 25px, because both scale. The default `md` is `1em` and so
+   * matches the text beside it at any size — name another step only when the
+   * icon should differ from that text on purpose. See examples/scales.
    */
   size?: IconSize | number
   className?: string

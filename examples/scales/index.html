@@ -1,0 +1,237 @@
+<meta charset="utf-8">
+<title>Scale demo</title>
+<link rel="stylesheet" href="../../packages/react/src/theme/fonts.css">
+<link rel="stylesheet" href="../../packages/react/src/theme/theme.css">
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    padding: var(--ap-space-7);
+    background: var(--ap-color-bg-canvas);
+    color: var(--ap-color-text-primary);
+    font-family: var(--ap-font-body);
+    font-size: var(--ap-text-md-size);
+    line-height: var(--ap-text-md-lh);
+  }
+  h1 {
+    font-size: var(--ap-text-2xl-size);
+    line-height: var(--ap-text-2xl-lh);
+    margin: 0 0 var(--ap-space-2);
+  }
+  .sub { color: var(--ap-color-text-secondary); margin: 0 0 var(--ap-space-7); }
+  section { margin-block-end: var(--ap-space-8); }
+  h2 {
+    font-size: var(--ap-text-sm-size);
+    line-height: var(--ap-text-sm-lh);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--ap-color-text-secondary);
+    margin: 0 0 var(--ap-space-4);
+    padding-block-end: var(--ap-space-2);
+    border-block-end: 1px solid var(--ap-color-border-subtle);
+  }
+  .row { display: flex; align-items: baseline; gap: var(--ap-space-7); flex-wrap: wrap; }
+  .row.center { align-items: center; }
+  .cell { display: flex; flex-direction: column; gap: var(--ap-space-2); }
+  .tag {
+    font-size: var(--ap-text-xs-size);
+    line-height: var(--ap-text-xs-lh);
+    color: var(--ap-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .swatch { background: var(--ap-color-action-bg-subtle); border: 1px solid var(--ap-color-border-subtle); }
+  .pair { display: inline-flex; align-items: center; gap: var(--ap-space-2); }
+  .note {
+    font-size: var(--ap-text-sm-size);
+    line-height: var(--ap-text-sm-lh);
+    color: var(--ap-color-text-secondary);
+    margin: 0 0 var(--ap-space-4);
+    max-width: 68ch;
+  }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { text-align: start; padding: var(--ap-space-3) var(--ap-space-4); vertical-align: middle; }
+  th {
+    font-size: var(--ap-text-xs-size);
+    color: var(--ap-color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    border-block-end: 1px solid var(--ap-color-border-normal);
+  }
+  tbody tr + tr td { border-block-start: 1px solid var(--ap-color-border-subtle); }
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--ap-space-2);
+    border: 1px solid transparent; border-radius: var(--ap-radius-md);
+    background: var(--ap-color-action-bg); color: var(--ap-color-action-on-solid);
+    font-family: inherit; cursor: pointer;
+  }
+  .btn.outline { background: transparent; border-color: var(--ap-color-border-interactive); color: var(--ap-color-action-text); }
+  .btn-sm { padding: var(--ap-space-1) var(--ap-space-3); font-size: var(--ap-text-sm-size); line-height: var(--ap-text-sm-lh); }
+  .btn-md { padding: var(--ap-space-2) var(--ap-space-4); font-size: var(--ap-text-md-size); line-height: var(--ap-text-md-lh); }
+  .btn-lg { padding: var(--ap-space-3) var(--ap-space-5); font-size: var(--ap-text-lg-size); line-height: var(--ap-text-lg-lh); }
+</style>
+
+<h1>Size scales</h1>
+<p class="sub">Open this file directly in a browser, or run <code>npm run gen:scale-demo</code>
+   to recapture the screenshots. Rendered from the generated <code>theme.css</code> — every value below is a live custom property, not a hardcoded number.</p>
+
+<section>
+  <h2>Text — xs to 2xl</h2>
+  <div class="row">
+    <div class="cell"><span class="tag">xs</span><span style="font-size:var(--ap-text-xs-size);line-height:var(--ap-text-xs-lh)">Handgloves</span></div>
+    <div class="cell"><span class="tag">sm</span><span style="font-size:var(--ap-text-sm-size);line-height:var(--ap-text-sm-lh)">Handgloves</span></div>
+    <div class="cell"><span class="tag">md</span><span style="font-size:var(--ap-text-md-size);line-height:var(--ap-text-md-lh)">Handgloves</span></div>
+    <div class="cell"><span class="tag">lg</span><span style="font-size:var(--ap-text-lg-size);line-height:var(--ap-text-lg-lh)">Handgloves</span></div>
+    <div class="cell"><span class="tag">xl</span><span style="font-size:var(--ap-text-xl-size);line-height:var(--ap-text-xl-lh)">Handgloves</span></div>
+    <div class="cell"><span class="tag">2xl</span><span style="font-size:var(--ap-text-2xl-size);line-height:var(--ap-text-2xl-lh)">Handgloves</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Icons — xs to 2xl, all at the body’s 16px context</h2>
+  <div class="row center" id="icon-row"></div>
+</section>
+
+<section>
+  <h2>Matching names do NOT match sizes — icon-{step} inside text-{step} compounds</h2>
+  <p class="note">Each row sets <code>font-size: text-{step}</code> and the icons to <code>icon-{step}</code>.
+     Because the icon scale is in <code>em</code>, the multiplier applies <em>on top of</em> the row’s
+     own size: <code>icon-2xl</code> (2em) inside <code>text-2xl</code> (32px) renders at 64px.
+     The two only agree at <code>md</code>, where the multiplier is 1.</p>
+  <table id="pair-table">
+    <thead><tr><th>Step</th><th>Icon + text</th><th>Text size</th><th>Icon, measured in this row</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>The pairing that does line up — icon-md inside any text step</h2>
+  <p class="note"><code>icon-md</code> is <code>1em</code>, so it always equals the surrounding text size.
+     This is the recipe for an icon that sits beside a label.</p>
+  <table id="match-table">
+    <thead><tr><th>Step</th><th>Icon + text</th><th>Text size</th><th>Icon, measured in this row</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Icons in running text — em means they track the line they sit in</h2>
+  <div id="inline-prose"></div>
+</section>
+
+<section>
+  <h2>Buttons — icon and label together at sm / md / lg</h2>
+  <div class="row center" id="btn-row"></div>
+</section>
+
+<section>
+  <h2>Radius — sm to full</h2>
+  <div class="row center" id="radius-row"></div>
+</section>
+
+<section>
+  <h2>Space — 0 to 9</h2>
+  <div class="row" id="space-row" style="align-items:flex-end"></div>
+</section>
+
+<section>
+  <h2>Elevation — 1 to 3</h2>
+  <div class="row center" id="shadow-row"></div>
+</section>
+
+<script>
+  const PATHS = {
+    check: 'M20 6 9 17l-5-5',
+    close: 'M18 6 6 18M6 6l12 12',
+    'chevron-down': 'm6 9 6 6 6-6',
+    'alert-circle': 'M12 8v5M12 16h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+    info: 'M12 16v-5M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+  }
+  const STEPS = ['xs', 'sm', 'md', 'lg', 'xl', '2xl']
+
+  // Mirrors Icon.tsx: sizing travels as `style`, never as a width/height
+  // attribute, because an SVG presentation attribute will not resolve var().
+  const icon = (name, step) =>
+    `<svg style="width:var(--ap-icon-${step});height:var(--ap-icon-${step})" viewBox="0 0 24 24"
+       fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+       stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${PATHS[name]}"/></svg>`
+
+  const px = (v) => {
+    const el = document.createElement('div')
+    el.style.cssText = `position:absolute;visibility:hidden;width:${v}`
+    document.body.append(el)
+    const w = getComputedStyle(el).width
+    el.remove()
+    return w
+  }
+
+  // One glyph across all six steps — mixing glyphs makes size comparison harder.
+  document.getElementById('icon-row').innerHTML = STEPS.map((s) =>
+    `<div class="cell" style="align-items:center">
+       <span class="tag">${s}</span>${icon('check', s)}
+       <span class="tag">${px(`var(--ap-icon-${s})`)}</span>
+     </div>`).join('')
+
+  document.querySelector('#pair-table tbody').innerHTML = STEPS.map((s) =>
+    `<tr>
+       <td class="tag">${s}</td>
+       <td><span class="pair" style="font-size:var(--ap-text-${s}-size);line-height:var(--ap-text-${s}-lh)">
+         ${icon('check', s)}<span>Approved by the reviewer</span>${icon('chevron-down', s)}
+       </span></td>
+       <td class="tag">${px(`var(--ap-text-${s}-size)`)}</td>
+       <td class="tag icon-measured"></td>
+     </tr>`).join('')
+
+  document.querySelector('#match-table tbody').innerHTML = STEPS.map((s) =>
+    `<tr>
+       <td class="tag">${s}</td>
+       <td><span class="pair" style="font-size:var(--ap-text-${s}-size);line-height:var(--ap-text-${s}-lh)">
+         ${icon('check', 'md')}<span>Approved by the reviewer</span>${icon('chevron-down', 'md')}
+       </span></td>
+       <td class="tag">${px(`var(--ap-text-${s}-size)`)}</td>
+       <td class="tag icon-measured"></td>
+     </tr>`).join('')
+
+  // Measure what actually rendered, in the row's own font-size context — not
+  // what the token resolves to at the 16px body default. The difference is the
+  // whole point of these two tables.
+  for (const td of document.querySelectorAll('.icon-measured')) {
+    const svg = td.closest('tr').querySelector('svg')
+    td.textContent = getComputedStyle(svg).width
+  }
+
+  document.getElementById('inline-prose').innerHTML = ['sm', 'md', 'lg'].map((s) =>
+    `<p style="font-size:var(--ap-text-${s}-size);line-height:var(--ap-text-${s}-lh);margin:0 0 var(--ap-space-3)">
+       Text at <b>${s}</b> with ${icon('info', 'md')} an <code>md</code> icon inline — note it is the
+       same token in all three rows, yet it scales with the surrounding text because the scale is in
+       <code>em</code>.
+     </p>`).join('')
+
+  document.getElementById('btn-row').innerHTML = ['sm', 'md', 'lg'].map((s) =>
+    `<div class="cell" style="align-items:flex-start">
+       <span class="tag">${s}</span>
+       <span style="display:flex;gap:var(--ap-space-3)">
+         <button class="btn btn-${s}">${icon('check', 'md')} Save changes</button>
+         <button class="btn outline btn-${s}">Cancel ${icon('close', 'md')}</button>
+       </span>
+     </div>`).join('')
+
+  document.getElementById('radius-row').innerHTML = ['sm', 'md', 'lg', 'xl', 'full'].map((s) =>
+    `<div class="cell" style="align-items:center">
+       <span class="tag">${s}</span>
+       <div class="swatch" style="width:64px;height:64px;border-radius:var(--ap-radius-${s})"></div>
+     </div>`).join('')
+
+  document.getElementById('space-row').innerHTML = [0,1,2,3,4,5,6,7,8,9].map((s) =>
+    `<div class="cell" style="align-items:center">
+       <span class="tag">${s}</span>
+       <div class="swatch" style="width:var(--ap-space-${s});height:32px;min-width:1px"></div>
+       <span class="tag">${px(`var(--ap-space-${s})`)}</span>
+     </div>`).join('')
+
+  document.getElementById('shadow-row').innerHTML = [1,2,3].map((s) =>
+    `<div class="cell" style="align-items:center">
+       <span class="tag">${s}</span>
+       <div style="width:96px;height:56px;border-radius:var(--ap-radius-md);
+                   background:var(--ap-color-bg-raised);box-shadow:var(--ap-shadow-${s})"></div>
+     </div>`).join('')
+</script>

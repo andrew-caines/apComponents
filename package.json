@@ -31,6 +31,7 @@
     "gen:theme-contract": "tsx scripts/gen-theme-contract.ts",
     "gen:theme-css": "tsx scripts/gen-theme-css.ts",
     "gen:motion-css": "tsx scripts/gen-motion-css.ts",
+    "gen:scale-demo": "tsx scripts/gen-scale-demo.ts",
     "test:motion": "vitest run packages/motion/src"
   },
   "devDependencies": {
