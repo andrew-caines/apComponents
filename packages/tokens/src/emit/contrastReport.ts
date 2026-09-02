@@ -23,10 +23,15 @@ const PAIRINGS: Array<[string, string, number]> = [
   ['color-text-primary', 'color-bg-raised', 4.5],
   ['color-text-secondary', 'color-bg-canvas', 4.5],
   ['color-text-secondary', 'color-bg-surface', 4.5],
-  ['color-action-text', 'color-action-bg', 4.5],
+  ['color-action-on-solid', 'color-action-bg', 4.5],
   // Ruling F guarantees the hover step moves away from the on-solid text
   // colour, so text on hover is never less legible than text on the solid.
-  ['color-action-text', 'color-action-bg-hover', 4.5],
+  ['color-action-on-solid', 'color-action-bg-hover', 4.5],
+  // The ghost/outline path: brand-coloured text on the neutral surfaces it
+  // can appear on, and on its own subtle hover surface.
+  ['color-action-text', 'color-bg-canvas', 4.5],
+  ['color-action-text', 'color-bg-surface', 4.5],
+  ['color-action-text', 'color-action-bg-subtle', 4.5],
   ['color-border-normal', 'color-bg-canvas', 3],
   ['color-border-normal', 'color-bg-surface', 3],
   ['color-text-secondary', 'color-bg-raised', 4.5],
@@ -37,6 +42,7 @@ const PAIRINGS: Array<[string, string, number]> = [
   ...(['danger', 'warning', 'success', 'info'] as const).flatMap(
     (name): Array<[string, string, number]> => [
       [`color-${name}-on-solid`, `color-${name}-bg`, 4.5],
+      [`color-${name}-on-solid`, `color-${name}-bg-hover`, 4.5],
       [`color-${name}-text`, 'color-bg-canvas', 4.5],
       [`color-${name}-text`, `color-${name}-bg-subtle`, 4.5],
       [`color-${name}-border`, 'color-bg-canvas', 3],

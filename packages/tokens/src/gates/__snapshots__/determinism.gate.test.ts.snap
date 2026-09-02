@@ -810,7 +810,17 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
     {
       "ramp": "brand",
       "step": "onSolid",
+      "token": "color-action-on-solid",
+    },
+    {
+      "ramp": "brand",
+      "step": 11,
       "token": "color-action-text",
+    },
+    {
+      "ramp": "brand",
+      "step": 3,
+      "token": "color-action-bg-subtle",
     },
     {
       "ramp": "brand",
@@ -843,6 +853,11 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
       "token": "color-danger-on-solid",
     },
     {
+      "ramp": "danger",
+      "step": 10,
+      "token": "color-danger-bg-hover",
+    },
+    {
       "ramp": "warning",
       "step": 9,
       "token": "color-warning-bg",
@@ -866,6 +881,11 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
       "ramp": "warning",
       "step": "onSolid",
       "token": "color-warning-on-solid",
+    },
+    {
+      "ramp": "warning",
+      "step": 10,
+      "token": "color-warning-bg-hover",
     },
     {
       "ramp": "success",
@@ -893,6 +913,11 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
       "token": "color-success-on-solid",
     },
     {
+      "ramp": "success",
+      "step": 10,
+      "token": "color-success-bg-hover",
+    },
+    {
       "ramp": "info",
       "step": 9,
       "token": "color-info-bg",
@@ -916,6 +941,11 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
       "ramp": "info",
       "step": "onSolid",
       "token": "color-info-on-solid",
+    },
+    {
+      "ramp": "info",
+      "step": 10,
+      "token": "color-info-bg-hover",
     },
   ],
 }
