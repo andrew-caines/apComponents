@@ -9,7 +9,7 @@ import type { Step } from '../types.js'
 import { parseMotionCss } from './parseMotionCss.js'
 
 const css = readFileSync(join(import.meta.dirname, '../motion.css'), 'utf8')
-const { normal } = parseMotionCss(css)
+const { normal, composites } = parseMotionCss(css)
 const variants = toMotionVariants()
 
 /** CSS declaration names → the Motion keyframe keys they correspond to. */
@@ -29,8 +29,43 @@ describe('gate: the CSS and JS emissions are equivalent', () => {
     expect(Object.keys(variants).sort()).toEqual(Object.keys(MOTIONS).sort())
   })
 
+  // The composite properties are what actually bind a motion's timing to its
+  // keyframes, and they are ordinary custom properties subject to the
+  // cascade: a second declaration anywhere later in the sheet — after the
+  // token layer, unlayered, or inside the reduced-motion block — silently
+  // wins. `parseMotionCss` therefore reports every `--ap-motion-*`
+  // declaration in the WHOLE file, and this counts them: exactly twelve,
+  // one per motion, no duplicates and no extras. Without it, a redeclaration
+  // that inverts a motion (worst case: `infinite` for reduced-motion users
+  // only) is invisible to every other assertion here.
+  it('declares each motion\'s composite property exactly once, and nothing else', () => {
+    const expected = Object.keys(MOTIONS)
+      .map((n) => `--ap-motion-${n.replace(/\./g, '-')}`)
+      .sort()
+
+    expect(
+      composites.map((c) => c.property).sort(),
+      'every --ap-motion-* declaration in motion.css, duplicates included',
+    ).toEqual(expected)
+  })
+
   for (const name of Object.keys(MOTIONS)) {
     const kf = cssKeyframeName(name)
+
+    // The composite property's animation-name term is independent of the
+    // property's own name: `--ap-motion-attention-nudge` naming
+    // `ap-exit-fade` is valid CSS that plays the wrong animation. Nothing
+    // else here can see it — every other assertion reaches the keyframes
+    // through the property name.
+    it(`${name}: composite drives its own keyframes, with fill-mode both`, () => {
+      const parsed = normal[kf]!
+      expect(parsed.name, `${name} composite animation-name`).toBe(kf)
+      // `both` so the element holds the motion's first frame before it starts
+      // and its last frame after it ends. Parsed rather than pattern-matched
+      // at collection time, so a changed fill mode fails HERE instead of
+      // throwing the misleading "has no --ap-motion-* composite property".
+      expect(parsed.fill, `${name} composite fill mode`).toBe('both')
+    })
 
     it(`${name}: step offsets agree`, () => {
       const cssAts = normal[kf]!.steps.map((s) => s.at)
@@ -135,7 +170,17 @@ describe('gate: the CSS and JS emissions are equivalent', () => {
               expect(y, `${name} undeclared y@${step.at} should default to 0px`).toBe('0px')
             }
           } else {
-            const key = cssToJs[prop]![0]!
+            // A CSS property with no entry in `cssToJs` is a real finding —
+            // emitCss.ts declares something emitVariants.ts has no counterpart
+            // for. Say so; `cssToJs[prop]![0]!` would throw a bare
+            // "Cannot read properties of undefined" naming nothing.
+            const mapped = cssToJs[prop]
+            expect(
+              mapped,
+              `${name}: CSS declares '${prop}', which has no entry in cssToJs — ` +
+                'add its Motion keyframe key there, or stop emitting it.',
+            ).toBeDefined()
+            const key = mapped![0]!
             expect(String(js[key]![i]), `${name} ${prop}@${step.at}`).toBe(value)
           }
         }

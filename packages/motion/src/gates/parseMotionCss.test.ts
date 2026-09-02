@@ -86,3 +86,97 @@ describe('parseMotionCss: reduced-block slicing', () => {
     expect(reduced['ap-should-not-appear']).toBeUndefined()
   })
 })
+
+describe('parseMotionCss: composite declarations', () => {
+  const composite = (
+    property: string,
+    name: string,
+    { iterations = '1', fill = 'both' }: { iterations?: string; fill?: string } = {},
+  ): string =>
+    `    ${property}: ${name} var(--ap-duration-slow) var(--ap-ease-in-out) ${iterations} ${fill};`
+
+  const sheet = (...declarations: string[]): string =>
+    [
+      '@keyframes ap-foo {',
+      '  0% { opacity: 0; }',
+      '  100% { opacity: 1; }',
+      '}',
+      '',
+      '@layer ap.tokens {',
+      '  :root {',
+      ...declarations,
+      '  }',
+      '}',
+      '',
+      '@media (prefers-reduced-motion: reduce) {',
+      '  @keyframes ap-foo {',
+      '    0%, 100% { }',
+      '  }',
+      '}',
+      '',
+    ].join('\n')
+
+  it('captures the animation-name and fill-mode terms, not only the property name', () => {
+    // The property says `foo`; the animation name points at other keyframes
+    // entirely. Keying only by property makes that invisible, so both terms
+    // are carried and the gate compares them.
+    const { composites } = parseMotionCss(sheet(composite('--ap-motion-foo', 'ap-elsewhere')))
+    expect(composites).toHaveLength(1)
+    expect(composites[0]!.property).toBe('--ap-motion-foo')
+    expect(composites[0]!.key).toBe('ap-foo')
+    expect(composites[0]!.name).toBe('ap-elsewhere')
+    expect(composites[0]!.fill).toBe('both')
+  })
+
+  it('parses a non-`both` fill mode instead of failing collection', () => {
+    // Hardcoding `both;` in the pattern makes a changed fill mode throw the
+    // misleading "@keyframes ... has no --ap-motion-* composite property".
+    const { composites } = parseMotionCss(
+      sheet(composite('--ap-motion-foo', 'ap-foo', { fill: 'forwards' })),
+    )
+    expect(composites[0]!.fill).toBe('forwards')
+  })
+
+  it('reports a redeclaration that wins the cascade, wherever in the sheet it sits', () => {
+    const css = [
+      sheet(composite('--ap-motion-foo', 'ap-foo')),
+      '@layer ap.tokens {',
+      '  :root {',
+      composite('--ap-motion-foo', 'ap-elsewhere'),
+      '  }',
+      '}',
+      '',
+    ].join('\n')
+    const { composites } = parseMotionCss(css)
+    expect(composites.map((c) => c.name)).toEqual(['ap-foo', 'ap-elsewhere'])
+  })
+
+  it('reports a composite hiding inside the reduced-motion block', () => {
+    // The worst case: unlayered, inside the media block, so it beats the
+    // layered declaration for reduced-motion users only.
+    const css = [
+      '@keyframes ap-foo {',
+      '  0% { opacity: 0; }',
+      '}',
+      '',
+      '@layer ap.tokens {',
+      '  :root {',
+      composite('--ap-motion-foo', 'ap-foo'),
+      '  }',
+      '}',
+      '',
+      '@media (prefers-reduced-motion: reduce) {',
+      '  :root {',
+      composite('--ap-motion-foo', 'ap-foo', { iterations: 'infinite' }),
+      '  }',
+      '  @keyframes ap-foo {',
+      '    0%, 100% { }',
+      '  }',
+      '}',
+      '',
+    ].join('\n')
+    const { composites } = parseMotionCss(css)
+    expect(composites).toHaveLength(2)
+    expect(composites[1]!.iterations).toBe('infinite')
+  })
+})

@@ -1,32 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { cssKeyframeName, toMotionCss } from './emitCss.js'
 import { MOTIONS } from './motions.js'
+import { matchingClose } from './gates/parseMotionCss.js'
 
 const css = toMotionCss()
-
-/**
- * Index of the `{` that closes the block opened by the `{` at `openIndex`,
- * found by counting nested braces. Pattern-matching (e.g. `lastIndexOf('}')`)
- * cannot prove containment when the outer block itself contains other
- * `{...}` blocks — it just finds *a* closing brace, not necessarily the one
- * that matches this opener.
- *
- * Deliberate copy of the identical helper in
- * `packages/tokens/src/emit/cssText.test.ts` — kept local rather than shared
- * because sharing it would mean exporting a test-only utility from
- * `@ap/tokens`'s public API.
- */
-function matchingClose(source: string, openIndex: number): number {
-  let depth = 0
-  for (let i = openIndex; i < source.length; i++) {
-    if (source[i] === '{') depth++
-    else if (source[i] === '}') {
-      depth--
-      if (depth === 0) return i
-    }
-  }
-  throw new Error(`no matching close brace found for opener at index ${openIndex}`)
-}
 
 /** The text strictly between `openerWithBrace`'s trailing `{` and its matching `}`. */
 function blockBody(openerWithBrace: string): string {
@@ -57,6 +34,10 @@ describe('toMotionCss', () => {
   })
 
   it('emits keyframes unlayered and composite properties inside the token layer', () => {
+    // Exactly one layer block, because `layerBody` (and every reader like it)
+    // inspects the FIRST one. A second `@layer ap.tokens` block later in the
+    // sheet would win the cascade and go entirely unexamined.
+    expect(css.match(/@layer ap\.tokens \{/g), 'exactly one ap.tokens layer block').toHaveLength(1)
     const layerStart = css.indexOf('@layer ap.tokens {')
     expect(layerStart).toBeGreaterThan(css.indexOf('@keyframes ap-error-shake'))
     expect(layerBody).toContain('--ap-motion-error-shake:')
@@ -96,6 +77,12 @@ describe('toMotionCss', () => {
       const kf = cssKeyframeName(n)
       expect(reducedBody, `${kf} missing a reduced definition`).toContain(`@keyframes ${kf} {`)
     }
+    // The reduced block re-declares KEYFRAMES only. A composite property in
+    // here is unlayered and inside a matching media query, so it beats the
+    // layered declaration for reduced-motion users alone — inverting the
+    // guarantee this block exists to make.
+    expect(reducedBody, 'no composite properties inside the reduced-motion block')
+      .not.toContain('--ap-motion-')
   })
 
   it('degrades opacity motions to the opacity track alone', () => {

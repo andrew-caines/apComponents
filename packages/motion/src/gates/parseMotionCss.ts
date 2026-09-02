@@ -1,32 +1,65 @@
 // Test-only. A focused extractor for the CSS this repo generates — not a
 // general CSS parser, and it should never become one. Its job is to read the
-// emitted artifact back so the equivalence gate compares two artifacts rather
-// than trusting one emitter's in-memory state.
+// committed `motion.css` back out, so the equivalence gate compares the
+// shipped artifact against the JS emitter's output rather than comparing the
+// CSS emitter with itself.
 
 export interface ParsedStep {
   at: number
   props: Record<string, string>
 }
 
-export interface ParsedMotion {
-  steps: ParsedStep[]
+/** One `--ap-motion-*: <name> <duration> <ease> <iterations> <fill>;` declaration. */
+export interface ParsedComposite {
+  /** The declaration name, verbatim (e.g. `--ap-motion-error-shake`). */
+  property: string
   /**
-   * The composite property's duration term, verbatim (e.g.
-   * `var(--ap-duration-slow)`). Deliberately NOT reduced to the bare token
-   * name here — `varRe` accepts any value in this position so a hardcoded
-   * duration still parses instead of failing collection with a misleading
-   * "no composite property" error. Callers assert the `var(--ap-duration-*)`
-   * shape themselves and compare the extracted token against the record.
+   * The key this composite is matched to a `@keyframes` block by: the
+   * property name with `--ap-motion-` swapped for `ap-` (so
+   * `--ap-motion-error-shake` → `ap-error-shake`). Derived from the PROPERTY,
+   * never from the animation-name term — see `name`.
+   */
+  key: string
+  /**
+   * The animation-name term, verbatim. The property name and this term are
+   * two independent things: a composite can name keyframes that belong to a
+   * different motion entirely, which is a real drift the gate has to catch,
+   * so both are carried and the gate asserts they agree.
+   */
+  name: string
+  /**
+   * The duration term, verbatim (e.g. `var(--ap-duration-slow)`).
+   * Deliberately NOT reduced to the bare token name here — `varRe` accepts
+   * any value in this position so a hardcoded duration still parses instead
+   * of failing collection with a misleading "no composite property" error.
+   * Callers assert the `var(--ap-duration-*)` shape themselves and compare
+   * the extracted token against the record.
    */
   duration: string
-  /** The composite property's easing term, verbatim. See `duration`. */
+  /** The easing term, verbatim. See `duration`. */
   ease: string
   iterations: string
+  /** The animation-fill-mode term, verbatim. See `duration`. */
+  fill: string
+}
+
+export interface ParsedMotion extends Omit<ParsedComposite, 'property' | 'key'> {
+  steps: ParsedStep[]
 }
 
 export interface ParsedCss {
   normal: Record<string, ParsedMotion>
   reduced: Record<string, ParsedStep[]>
+  /**
+   * EVERY `--ap-motion-*` declaration in the sheet, wherever it sits — inside
+   * the token layer, after it, unlayered, or inside the reduced-motion block
+   * — in source order, duplicates included. Scanning only the text before the
+   * media block, or only the first `@layer ap.tokens` block, would leave a
+   * later redeclaration that wins the cascade completely unseen. The parser
+   * reports what is there; the gate asserts there are exactly twelve, one per
+   * motion.
+   */
+  composites: ParsedComposite[]
 }
 
 /**
@@ -36,12 +69,14 @@ export interface ParsedCss {
  * `{...}` blocks — it just finds *a* closing brace, not necessarily the one
  * that matches this opener.
  *
- * Deliberate copy of the identical helper in `../emitCss.test.ts` and
- * `packages/tokens/src/emit/cssText.test.ts` — kept local rather than shared
- * because sharing it would mean exporting a test-only utility from a
- * package's public API.
+ * Exported for `../emitCss.test.ts`, which needs the same brace walk. This
+ * module is test-only and is NOT re-exported from `@ap/motion`'s public API,
+ * so sharing it within the package costs nothing. `packages/tokens/src/emit/
+ * cssText.test.ts` keeps its own copy: sharing across a package boundary
+ * would mean exporting a test-only utility from `@ap/tokens`, which costs
+ * more than the duplication saves.
  */
-function matchingClose(source: string, openIndex: number): number {
+export function matchingClose(source: string, openIndex: number): number {
   let depth = 0
   for (let i = openIndex; i < source.length; i++) {
     if (source[i] === '{') depth++
@@ -110,20 +145,36 @@ export function parseMotionCss(css: string): ParsedCss {
   const before = css.slice(0, reducedAt)
   const reducedBody = css.slice(openBrace + 1, closeBrace)
 
-  const composite = new Map<string, { duration: string; ease: string; iterations: string }>()
-  // Duration and easing are captured as opaque `\S+` tokens rather than
-  // `var\(--ap-duration-...\)` / `var\(--ap-ease-...\)` shapes. Requiring
-  // those shapes here means a hardcoded value (e.g. a duration replaced with
-  // `320ms`) fails the WHOLE composite-property match, and collection throws
-  // "no --ap-motion-* composite property" — naming the wrong seam, since the
-  // keyframe is fine and the disagreement is in the duration/easing term.
-  // Accepting any token lets a hardcoded value parse through to the
-  // duration-and-easing test, which asserts the `var(...)` shape itself and
-  // fails there instead, naming duration or easing directly.
-  const varRe = /--ap-motion-([a-z0-9-]+):\s*\S+\s+(\S+)\s+(\S+)\s+(\S+)\s+both;/g
+  // Every term after the property name is captured as an opaque `\S+` token
+  // rather than as the shape it is supposed to have (`var(--ap-duration-...)`,
+  // `both`, and so on). Requiring those shapes here means a perturbed value
+  // (a duration replaced with `320ms`, a fill mode changed to `forwards`)
+  // fails the WHOLE composite-property match, and collection throws "no
+  // --ap-motion-* composite property" — naming the wrong seam, since the
+  // keyframe is fine and the disagreement is in one term. Accepting any token
+  // lets the perturbed value parse through to the gate, which asserts each
+  // term's shape and fails there instead, naming the term directly.
+  //
+  // Scanned over the WHOLE sheet, not just the text before the media block:
+  // a `--ap-motion-*` declaration after the token layer, or inside the
+  // reduced-motion block, wins the cascade and is exactly the drift worth
+  // catching. The gate asserts the count.
+  const varRe = /(--ap-motion-([a-z0-9-]+)):\s*(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+);/g
+  const composites: ParsedComposite[] = []
+  const composite = new Map<string, ParsedComposite>()
   let v: RegExpExecArray | null
-  while ((v = varRe.exec(before)) !== null) {
-    composite.set(`ap-${v[1]}`, { duration: v[2]!, ease: v[3]!, iterations: v[4]! })
+  while ((v = varRe.exec(css)) !== null) {
+    const parsed: ParsedComposite = {
+      property: v[1]!,
+      key: `ap-${v[2]!}`,
+      name: v[3]!,
+      duration: v[4]!,
+      ease: v[5]!,
+      iterations: v[6]!,
+      fill: v[7]!,
+    }
+    composites.push(parsed)
+    composite.set(parsed.key, parsed)
   }
 
   const collect = (source: string): Record<string, ParsedStep[]> => {
@@ -139,8 +190,9 @@ export function parseMotionCss(css: string): ParsedCss {
   for (const [kf, steps] of Object.entries(normalSteps)) {
     const c = composite.get(kf)
     if (!c) throw new Error(`@keyframes ${kf} has no --ap-motion-* composite property`)
-    normal[kf] = { steps, ...c }
+    const { property: _property, key: _key, ...terms } = c
+    normal[kf] = { steps, ...terms }
   }
 
-  return { normal, reduced: collect(reducedBody) }
+  return { normal, reduced: collect(reducedBody), composites }
 }
