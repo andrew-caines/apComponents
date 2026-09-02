@@ -114,6 +114,22 @@
 </section>
 
 <section>
+  <h2>Icon colour — inherited via currentColor, never passed as a prop</h2>
+  <p class="note">The built-in svg is <code>stroke="currentColor"</code>, so it takes the CSS
+     <code>color</code> of whatever it sits in. Set a colour token on the parent and the icon
+     follows. There is no <code>color</code> prop on <code>&lt;Icon&gt;</code>.</p>
+  <div class="row center" id="colour-row"></div>
+</section>
+
+<section>
+  <h2>What inheritance buys — the icon is never told the colour</h2>
+  <p class="note">Each chip below sets only its own <code>color</code>. The icons inside are
+     identical markup with no colour of their own, including on the solid fills where the text
+     colour has to flip to <code>on-solid</code> to stay legible.</p>
+  <div class="row center" id="context-row"></div>
+</section>
+
+<section>
   <h2>Icons in running text — em means they track the line they sit in</h2>
   <div id="inline-prose"></div>
 </section>
@@ -198,6 +214,30 @@
     const svg = td.closest('tr').querySelector('svg')
     td.textContent = getComputedStyle(svg).width
   }
+
+  const TONES = ['text-primary', 'text-secondary', 'action-text', 'success-text',
+                 'warning-text', 'danger-text', 'info-text']
+
+  document.getElementById('colour-row').innerHTML = TONES.map((t) =>
+    `<div class="cell" style="align-items:center;color:var(--ap-color-${t})">
+       <span class="tag">${t}</span>${icon('alert-circle', 'xl')}
+     </div>`).join('')
+
+  const CONTEXTS = [
+    ['on canvas', 'background:transparent;color:var(--ap-color-text-primary)'],
+    ['subtle danger', 'background:var(--ap-color-danger-bg-subtle);color:var(--ap-color-danger-text)'],
+    ['subtle success', 'background:var(--ap-color-success-bg-subtle);color:var(--ap-color-success-text)'],
+    ['solid danger', 'background:var(--ap-color-danger-bg);color:var(--ap-color-danger-on-solid)'],
+    ['solid action', 'background:var(--ap-color-action-bg);color:var(--ap-color-action-on-solid)'],
+  ]
+  document.getElementById('context-row').innerHTML = CONTEXTS.map(([label, css]) =>
+    `<div class="cell" style="align-items:center">
+       <span class="tag">${label}</span>
+       <span style="${css};display:inline-flex;align-items:center;gap:var(--ap-space-2);
+                    padding:var(--ap-space-2) var(--ap-space-4);border-radius:var(--ap-radius-full)">
+         ${icon('alert-circle', 'md')}<span>Needs review</span>
+       </span>
+     </div>`).join('')
 
   document.getElementById('inline-prose').innerHTML = ['sm', 'md', 'lg'].map((s) =>
     `<p style="font-size:var(--ap-text-${s}-size);line-height:var(--ap-text-${s}-lh);margin:0 0 var(--ap-space-3)">
