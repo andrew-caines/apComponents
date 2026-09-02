@@ -51,16 +51,76 @@ function deriveNativeButton(render: ButtonProps['render']): boolean {
   return render.type === 'button'
 }
 
+/**
+ * Base UI's `useButton` (internals/use-button/useButton.mjs) forces
+ * `role="button"` whenever `nativeButton` is false — unconditionally, with
+ * no prop to opt out at the API level (`Button.mjs` reads no `role` prop of
+ * its own). It also forces `tabIndex={0}` via `useFocusableWhenDisabled`
+ * whenever the element isn't a composite item, again unconditionally.
+ *
+ * That is correct for Base UI's model (a Button that happens to render as a
+ * different tag is still semantically a button), and wrong for a `render`
+ * element that is already a real link: an `<a href>` already has an
+ * implicit `role="link"` and is already focusable, so both forced
+ * attributes are not just wrong but redundant.
+ *
+ * Base UI's own props merge (`merge-props/mergeProps.mjs`) resolves
+ * conflicts with `Object.assign` semantics — rightmost object wins — using
+ * `for...in`, which visits a key even when its value is `undefined`, as
+ * long as the key is explicitly present. `useFocusableWhenDisabled.mjs`
+ * relies on exactly this ("we can't explicitly assign `undefined` to any of
+ * these props because it would otherwise prevent subsequently merged props
+ * from setting them") to justify never emitting `undefined` itself — which
+ * is the confirmation that a caller doing so is the supported way to win a
+ * merge. Passing `role={undefined}` / `tabIndex={undefined}` alongside
+ * `nativeButton={false}` on `<BaseButton>` lands in `otherExternalProps`,
+ * the last (rightmost) argument to the `mergeProps` call inside
+ * `getButtonProps`, so it overrides both forced values before Base UI's
+ * `useRenderElement` ever merges in the `render` element's own props.
+ * Verified directly against `@base-ui/react/button`: with `nativeButton`
+ * false, `role={undefined}` and `tabIndex={undefined}` produce a plain
+ * `<a href="/x">`, no `role` or `tabindex` attribute at all — including
+ * through an opaque wrapping component (e.g. a router `Link`) that forwards
+ * unknown props to its own rendered `<a>`.
+ *
+ * What this cannot do: decide *whether* to apply the override for a
+ * `render` element whose tag is not visible to us ahead of render. A
+ * literal `<a href="…" />` tells us its tag and its `href` synchronously,
+ * so detecting it is exact and risk-free. A custom component such as
+ * `<Link to="…" />` does not — its `to` prop says nothing about what tag it
+ * will render, and finding out would mean either invoking it outside
+ * React's render cycle (unsafe: it may use hooks) or inspecting the
+ * committed DOM node after the fact (which would leave incorrect
+ * server-rendered markup until hydration runs, undermining exactly the
+ * progressive-enhancement case ADR-0011 §4 exists for). So only the literal
+ * anchor case is auto-detected. A `<Link>` (or any other component) that
+ * renders to an anchor gets the same fix by adding the override on the
+ * `render` element itself — `<Button render={<Link to="/x" role={undefined}
+ * tabIndex={undefined} />}>` — which works for the same reason: that
+ * element's own props are the rightmost argument to the final
+ * `mergeProps(props, render.props)` Base UI runs in `useRenderElement.mjs`
+ * before cloning it.
+ */
+function isAnchorWithHref(render: ButtonProps['render']): boolean {
+  if (render === undefined || typeof render === 'function') return false
+  if (render.type !== 'a') return false
+  const href: unknown = (render.props as { href?: unknown }).href
+  return typeof href === 'string' && href.length > 0
+}
+
 export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
   { variant = 'solid', size = 'md', tone = 'action', className, render, nativeButton, ...rest },
   ref,
 ) {
+  const isNative = nativeButton ?? deriveNativeButton(render)
+  const isLinkElement = !isNative && isAnchorWithHref(render)
   return (
     <BaseButton
       {...rest}
+      {...(isLinkElement ? { role: undefined, tabIndex: undefined } : null)}
       ref={ref}
       render={render}
-      nativeButton={nativeButton ?? deriveNativeButton(render)}
+      nativeButton={isNative}
       className={[buttonRecipe({ variant, size, tone }), className].filter(Boolean).join(' ')}
     />
   )

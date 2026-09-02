@@ -54,21 +54,20 @@ describe('Button', () => {
 
   // ADR-0011 §3: this is the whole routing story. A real <a href> means
   // middle-click, right-click-copy-link and browser history all work, none of
-  // which a click handler on a <button> can reproduce. Those behaviours come
-  // from the tag and the `href` attribute, not from the ARIA role — and
-  // @base-ui/react@1.7.0's Button always advertises `role="button"` once
-  // `nativeButton` is false (verified directly against BaseButton, not just
-  // this wrapper), regardless of the underlying tag. So this queries by
-  // role "button" (what the installed Base UI version actually produces),
-  // not "link" — `getByRole('link', ...)` would find nothing here and the
-  // test would fail for a reason unrelated to what it's trying to prove.
+  // which a click handler on a <button> can reproduce. @base-ui/react@1.7.0's
+  // Button always advertises `role="button"` once `nativeButton` is false
+  // (verified directly against BaseButton) *unless* the wrapper overrides it
+  // — which Button.tsx now does for exactly this case (a literal `<a href>`
+  // render element). So this queries by role "link", not "button": querying
+  // "button" here would mean the fix regressed and Base UI's forced role is
+  // back.
   it('becomes a real anchor through render, keeping its classes', () => {
     render(
       <Button render={<a href="/employees/42" />} variant="ghost">
         View
       </Button>,
     )
-    const el = screen.getByRole('button', { name: 'View' })
+    const el = screen.getByRole('link', { name: 'View' })
     expect(el.tagName).toBe('A')
     expect(el.getAttribute('href')).toBe('/employees/42')
     expect(el.className).not.toBe('')
@@ -79,16 +78,42 @@ describe('Button', () => {
     // when `render` supplies an element, `type`/`role` come only from
     // nativeButton, never from a tag-string default: nativeButton=true on
     // this same `<a href="/x" />` produces `type="button"` on the anchor;
-    // nativeButton=false produces `role="button"` and no `type` at all. So
-    // the absence of `type` here is a real, nativeButton-gated signal, not
-    // an assertion that would pass no matter what — perturbing
-    // deriveNativeButton to return `true` unconditionally makes this test
-    // fail (role reverts to the anchor's implicit "link", and
-    // getByRole('button', …) finds nothing).
+    // nativeButton=false produces no `type` at all. So the absence of
+    // `type` here is a real, nativeButton-gated signal, not an assertion
+    // that would pass no matter what — perturbing deriveNativeButton to
+    // return `true` unconditionally makes this test fail (the element
+    // gains `type="button"`).
     render(<Button render={<a href="/x" />}>View</Button>)
-    const el = screen.getByRole('button', { name: 'View' })
+    const el = screen.getByRole('link', { name: 'View' })
     expect(el.tagName).toBe('A')
     expect(el.hasAttribute('type')).toBe(false)
+  })
+
+  // WCAG 4.1.2 (name, role, value): a `<Button render={<a href>}>` must be
+  // announced as a link, since it navigates like one (middle-click,
+  // right-click-copy-link, browser history) rather than triggering an
+  // in-page action. Base UI forces `role="button"` and `tabIndex={0}` on any
+  // non-native-button element — correct for a genuinely-a-button element
+  // rendered as another tag, wrong for a real link. Button.tsx detects the
+  // literal anchor-with-href case and suppresses both.
+  it('gives an anchor render element the implicit link role and no redundant tabindex', () => {
+    render(<Button render={<a href="/x" />}>View</Button>)
+    const el = screen.getByRole('link', { name: 'View' })
+    expect(el.tagName).toBe('A')
+    expect(el.hasAttribute('role')).toBe(false)
+    expect(el.hasAttribute('tabindex')).toBe(false)
+  })
+
+  // The counterpart to the anchor case: Base UI's forced role/tabindex is
+  // *right* for a render element that is genuinely a button wearing a
+  // different tag (no href, no native interactivity of its own). Button.tsx
+  // must not suppress the override for this case.
+  it('keeps Base UI role="button" and tabindex="0" for a non-anchor render element', () => {
+    render(<Button render={<span />}>View</Button>)
+    const el = screen.getByRole('button', { name: 'View' })
+    expect(el.tagName).toBe('SPAN')
+    expect(el.getAttribute('role')).toBe('button')
+    expect(el.getAttribute('tabindex')).toBe('0')
   })
 
   it('keeps native button semantics when render is itself a button', () => {

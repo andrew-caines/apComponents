@@ -133,6 +133,80 @@ resolution would require installing a fixture outside this repository, which
 Phase 2 does not do. Until that exists, treat ADR-0002's transitive-resolution
 claim as architecturally intended and exercised manually, not as CI-enforced.
 
+## Base UI's `render` prop and the `nativeButton`/anchor-role trap
+
+`Button.tsx` wraps `@base-ui/react/button`. Base UI's `useButton` hook
+(`node_modules/@base-ui/react/internals/use-button/useButton.mjs:177-181`)
+forces `role="button"` onto whatever element it renders whenever
+`nativeButton` is false, and `useFocusableWhenDisabled`
+(`node_modules/@base-ui/react/utils/useFocusableWhenDisabled.mjs:26-27`)
+unconditionally forces `tabIndex={0}` on any non-composite item, native or
+not. Neither is configurable through a documented Base UI prop.
+
+That is the correct default for Base UI's model — a `Button` is
+semantically a button no matter what tag `render` swaps in, so a `<div>` or
+`<span>` standing in for one needs a synthesized role and explicit
+focusability. It is the wrong default for a `render` element that is
+already a real link (`<a href>`, or a router's `<Link>`): the element
+already carries an implicit `role="link"` and is already focusable, so both
+forced attributes are redundant at best and actively wrong under WCAG 4.1.2
+at worst — assistive tech announces "button" for something that navigates
+rather than acting in place, while a sighted user gets ordinary link
+behaviour (middle-click, right-click-copy-link, browser history).
+
+**The escape hatch.** Base UI's prop merge
+(`node_modules/@base-ui/react/merge-props/mergeProps.mjs:120-149`) resolves
+conflicting keys with `Object.assign` semantics — rightmost object wins —
+using `for...in`, which visits a key even when its value is `undefined`, so
+long as the key is present. `useFocusableWhenDisabled.mjs`'s own comment
+("we can't explicitly assign `undefined` to any of these props because it
+would otherwise prevent subsequently merged props from setting them")
+confirms this is the intended way to win the merge, even though nothing in
+Base UI's public API surfaces it as a documented feature. `Button.tsx`
+passes `role={undefined}` and `tabIndex={undefined}` alongside
+`nativeButton={false}` whenever the `render` element is a literal `<a>`
+with a non-empty `href` — that lands in `otherExternalProps`, the rightmost
+argument to the internal `mergeProps` call, and wins before Base UI's
+`useRenderElement` ever merges in the `render` element's own props. The
+result: `<Button render={<a href="/x" />}>` now emits a plain `<a href="/x">`
+with no `role` and no `tabindex` attribute at all — implicit link semantics,
+exactly as if the anchor had been written by hand.
+
+**What this does not cover.** Detecting the literal `<a href>` case is exact
+and risk-free, because the tag and the `href` are visible on the `render`
+element synchronously. A custom component passed to `render` — most
+notably a router `<Link to="…">` — is opaque: its props say nothing about
+what tag it will ultimately render, and there is no safe way to find out
+ahead of time. Executing the component early to peek at its output would
+run its hooks outside React's render cycle; inspecting the committed DOM
+node after mount would require a ref/effect, and until that runs, an
+SSR'd page would still carry the wrong role — which is precisely the class
+of failure progressive enhancement (see "Uncontrolled-first forms" in
+[ADR-0011](adr/0011-component-api-conventions.md) §4) exists to avoid. So
+`Button.tsx` only auto-detects a literal anchor. A `<Link>` (or any other
+component) that renders to an anchor gets the identical fix by adding the
+same override directly on the `render` element itself:
+
+```tsx
+<Button render={<Link to="/employees/42" role={undefined} tabIndex={undefined} />}>
+  View employee
+</Button>
+```
+
+This works for the same reason the wrapper's own fix does: an element's own
+props are the rightmost argument to the final `mergeProps(props,
+render.props)` Base UI runs in `useRenderElement.mjs` right before cloning
+it, regardless of whether that element's type is a host tag or a component.
+
+**For future components.** Any Base UI part that accepts `render` and has
+its own notion of a forced role or tabindex (`Toolbar.Button`,
+`Menu.Item`\* rendered through a different tag, etc.) can hit the same
+mismatch the moment `render` supplies a real navigational anchor. Check
+whether the part's underlying hook forces attributes unconditionally the
+way `useButton`/`useFocusableWhenDisabled` do, and if so, apply the same
+`{ role: undefined, tabIndex: undefined }` override for the literal-anchor
+case rather than assuming Base UI's default is always right.
+
 ## Known caveats
 
 ### Windows drive-letter casing breaks vanilla-extract silently
