@@ -42,6 +42,7 @@ jobs:
       - run: npm ci
       - run: npm run gen:theme-contract
       - run: npm run gen:theme-css
+      - run: npm run gen:motion-css
       - run: npm run gen:fonts
       - run: npm run gen:font-metrics
       - name: Fail if any generated file drifted from its generator

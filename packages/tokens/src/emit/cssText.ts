@@ -1,5 +1,6 @@
 import type { Mode } from '../colour/types.js'
 import type { RampName, Theme } from '../theme/generateTheme.js'
+import { REDUCED_MOTION_DURATION } from '../scales/motion.js'
 
 const RAMP_ORDER: RampName[] = ['brand', 'danger', 'info', 'neutral', 'success', 'warning']
 
@@ -22,7 +23,7 @@ function tier2Lines(theme: Theme): string[] {
 }
 
 function scaleLines(theme: Theme, mode: Mode): string[] {
-  const { space, text, radius, elevation, z, misc } = theme.scales
+  const { space, text, radius, elevation, z, misc, duration, ease } = theme.scales
   const lines: string[] = []
   for (const [k, v] of Object.entries(space)) lines.push(`--ap-space-${k}: ${v};`)
   for (const [k, v] of Object.entries(text)) {
@@ -31,6 +32,8 @@ function scaleLines(theme: Theme, mode: Mode): string[] {
   for (const [k, v] of Object.entries(radius)) lines.push(`--ap-radius-${k}: ${v};`)
   for (const [k, v] of Object.entries(elevation[mode])) lines.push(`--ap-shadow-${k}: ${v};`)
   for (const [k, v] of Object.entries(z)) lines.push(`--ap-z-${k}: ${v};`)
+  for (const [k, v] of Object.entries(duration)) lines.push(`--ap-duration-${k}: ${v};`)
+  for (const [k, v] of Object.entries(ease)) lines.push(`--ap-ease-${k}: ${v};`)
   lines.push(
     `--ap-font-body: ${theme.font.stack};`,
     `--ap-font-heading: var(--ap-font-body);`,
@@ -86,6 +89,19 @@ function darkP3Lines(theme: Theme): string[] {
     })
   }
   return lines
+}
+
+/**
+ * Under `prefers-reduced-motion: reduce` every non-zero duration collapses to
+ * 1ms. Already-zero durations are skipped — re-declaring `instant` as 1ms
+ * would make the reduced-motion sheet slower than the normal one.
+ *
+ * 1ms rather than 0ms is deliberate; see REDUCED_MOTION_DURATION.
+ */
+function reducedMotionLines(theme: Theme): string[] {
+  return Object.entries(theme.scales.duration)
+    .filter(([, v]) => v !== '0ms')
+    .map(([k]) => `--ap-duration-${k}: ${REDUCED_MOTION_DURATION};`)
 }
 
 const block = (selector: string, lines: string[], indent: string): string =>
@@ -149,6 +165,10 @@ export function toCssText(theme: Theme, options: CssTextOptions = {}): string {
     '',
     '  @media (pointer: coarse) {',
     block(root, [`--ap-hit-target: ${theme.scales.misc['hit-target-coarse']};`], '    '),
+    '  }',
+    '',
+    '  @media (prefers-reduced-motion: reduce) {',
+    block(root, reducedMotionLines(theme), '    '),
     '  }',
     '}',
     '',

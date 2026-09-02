@@ -108,6 +108,19 @@ export const vars = createGlobalThemeContract(
     "weightMedium": 'font-weight-medium',
     "weightSemibold": 'font-weight-semibold',
   },
+  duration: {
+    "instant": 'duration-instant',
+    "fast": 'duration-fast',
+    "base": 'duration-base',
+    "slow": 'duration-slow',
+    "slower": 'duration-slower',
+  },
+  ease: {
+    "out": 'ease-out',
+    "in": 'ease-in',
+    "inOut": 'ease-in-out',
+    "linear": 'ease-linear',
+  },
   misc: {
     "focusRingWidth": 'focus-ring-width',
     "focusRingOffset": 'focus-ring-offset',

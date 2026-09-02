@@ -19,6 +19,25 @@ function blockBodies(source: string, selector: string): string[] {
   return [...source.matchAll(re)].map((m) => m[2]!)
 }
 
+/**
+ * Index of the `{` that closes the block opened by the `{` at `openIndex`,
+ * found by counting nested braces. Pattern-matching (e.g. `lastIndexOf('}')`)
+ * cannot prove containment when the outer block itself contains other
+ * `{...}` blocks — it just finds *a* closing brace, not necessarily the one
+ * that matches this opener.
+ */
+function matchingClose(source: string, openIndex: number): number {
+  let depth = 0
+  for (let i = openIndex; i < source.length; i++) {
+    if (source[i] === '{') depth++
+    else if (source[i] === '}') {
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  throw new Error(`no matching close brace found for opener at index ${openIndex}`)
+}
+
 describe('toCssText', () => {
   it('declares layer order first', () => {
     expect(css.startsWith('@layer ap.tokens, ap.components;')).toBe(true)
@@ -166,6 +185,41 @@ describe('toCssText / scoped emission', () => {
     const decls = (s: string): string[] =>
       s.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('--ap-'))
     expect(decls(scoped)).toEqual(decls(css))
+  })
+})
+
+describe('motion primitives', () => {
+  it('emits every duration and easing custom property', () => {
+    for (const k of ['instant', 'fast', 'base', 'slow', 'slower']) {
+      expect(css).toContain(`--ap-duration-${k}:`)
+    }
+    for (const k of ['out', 'in', 'in-out', 'linear']) {
+      expect(css).toContain(`--ap-ease-${k}:`)
+    }
+  })
+
+  it('collapses every non-zero duration under prefers-reduced-motion', () => {
+    const block = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(block).toContain('--ap-duration-fast: 1ms;')
+    expect(block).toContain('--ap-duration-base: 1ms;')
+    expect(block).toContain('--ap-duration-slow: 1ms;')
+    expect(block).toContain('--ap-duration-slower: 1ms;')
+  })
+
+  it('leaves the already-zero duration alone', () => {
+    // `instant` is 0ms in both modes; re-declaring it as 1ms would make the
+    // reduced-motion sheet slower than the normal one.
+    const block = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(block).not.toContain('--ap-duration-instant')
+  })
+
+  it('emits the reduced-motion block inside the token layer', () => {
+    const layerOpener = '@layer ap.tokens {'
+    const openBrace = css.indexOf(layerOpener) + layerOpener.length - 1
+    const layerClose = matchingClose(css, openBrace)
+    const mediaIndex = css.indexOf('@media (prefers-reduced-motion: reduce)')
+    expect(mediaIndex).toBeGreaterThan(openBrace)
+    expect(mediaIndex).toBeLessThan(layerClose)
   })
 })
 

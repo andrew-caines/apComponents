@@ -4,9 +4,13 @@ import type { PluginOption } from 'vite'
 /**
  * Packages whose source the consumer compiles. They must be bundled rather
  * than externalised, or an SSR build never runs the vanilla-extract
- * transform over their `.css.ts` files. See ADR-0002.
+ * transform over their `.css.ts` files — and `@ap/motion`, whose `.` export
+ * is raw TypeScript, would not even parse. See ADR-0002.
+ *
+ * Every workspace package a consumer imports belongs here; `index.test.ts`
+ * enumerates `packages/` and fails if one is missing.
  */
-export const AP_PACKAGES = ['@ap/react', '@ap/tokens'] as const
+export const AP_PACKAGES = ['@ap/react', '@ap/motion', '@ap/tokens'] as const
 
 export interface ApComponentsOptions {
   /** Passed straight through to `vanillaExtractPlugin`. */

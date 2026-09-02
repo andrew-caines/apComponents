@@ -58,6 +58,14 @@ group('font', [
   ['weightSemibold', 'font-weight-semibold'],
 ])
 group(
+  'duration',
+  Object.keys(theme.scales.duration).map((k) => [toCamel(k), `duration-${k}`] as const),
+)
+group(
+  'ease',
+  Object.keys(theme.scales.ease).map((k) => [toCamel(k), `ease-${k}`] as const),
+)
+group(
   'misc',
   Object.keys(theme.scales.misc)
     .filter((k) => k !== 'hit-target-coarse') // only ever set inside the coarse media query

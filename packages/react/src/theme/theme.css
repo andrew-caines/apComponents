@@ -151,6 +151,15 @@
     --ap-z-popover: 1500;
     --ap-z-toast: 1600;
     --ap-z-tooltip: 1700;
+    --ap-duration-instant: 0ms;
+    --ap-duration-fast: 120ms;
+    --ap-duration-base: 200ms;
+    --ap-duration-slow: 320ms;
+    --ap-duration-slower: 480ms;
+    --ap-ease-out: cubic-bezier(0.16, 1, 0.30, 1);
+    --ap-ease-in: cubic-bezier(0.70, 0, 0.84, 0);
+    --ap-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ap-ease-linear: linear;
     --ap-font-body: 'Inter', 'Inter Fallback', system-ui, sans-serif;
     --ap-font-heading: var(--ap-font-body);
     --ap-font-mono: ui-monospace, 'Cascadia Code', Menlo, monospace;
@@ -381,6 +390,15 @@
   @media (pointer: coarse) {
     :root {
       --ap-hit-target: 44px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --ap-duration-fast: 1ms;
+      --ap-duration-base: 1ms;
+      --ap-duration-slow: 1ms;
+      --ap-duration-slower: 1ms;
     }
   }
 }
