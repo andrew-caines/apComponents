@@ -10,9 +10,20 @@ The requirement is that accessibility is baked in rather than bolted on. That me
 
 ## Decision
 
-**Base UI** (`@base-ui-components/react`) is the primitive layer for every interactive component.
+**Base UI** (`@base-ui/react`) is the primitive layer for every interactive component.
 
-Base UI reached **stable 1.7.0 on 2026-08-04** with 40+ components. Four properties make it the right fit:
+Base UI reached **stable 1.7.0 on 2026-08-04** with 40+ components.
+
+> **Package rename.** This ADR originally named the package `@base-ui-components/react`.
+> That name is deprecated — npm reports `Package was renamed to @base-ui/react` — and it
+> stalled at `1.0.0-rc.0` (2026-07-15). The stable 1.7.0 line cited above is published as
+> `@base-ui/react`. Corrected 2026-09-02 during Phase 4; installing the old name would pull
+> a deprecated release candidate.
+>
+> Note also that 1.7.0 declares `date-fns` and `@date-fns/tz` as **optional** peers, needed
+> only by its date components. Those are out of v1 scope and importing one would impose a
+> date dependency on every consuming product — which [ADR-0012](0012-cross-cutting-services.md)
+> rejected outright. A gate enforces that we never import them. Four properties make it the right fit:
 
 1. **Genuinely unstyled** — it ships no CSS and takes no position on styling, which is what lets [ADR-0003](0003-zero-runtime-styling.md) work.
 2. **Data-attribute state model** — `[data-open]`, `[data-checked]`, `[data-disabled]` are exactly the hook a zero-runtime CSS system needs to express dynamic state.
