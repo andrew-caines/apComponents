@@ -1,5 +1,5 @@
 export { Icon } from './Icon.js'
-export type { IconProps } from './Icon.js'
+export type { IconProps, IconSize } from './Icon.js'
 export { IconProvider, useIconOverrides } from './IconProvider.js'
 export type { IconOverrides } from './IconProvider.js'
 export { ICON_PATHS } from './paths.js'

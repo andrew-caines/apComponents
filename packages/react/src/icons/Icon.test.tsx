@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react'
+import type { CSSProperties } from 'react'
 import { describe, expect, it } from 'vitest'
-import { ICON_PATHS, Icon, IconProvider, type IconName } from './index.js'
+import { vars } from '../theme/contract.css.js'
+import { ICON_PATHS, Icon, IconProvider, type IconName, type IconSize } from './index.js'
 
 describe('Icon', () => {
   it('is decorative by default, so a screen reader skips it', () => {
@@ -110,8 +112,7 @@ describe('Icon', () => {
   it('gives a labelled override an accessible name', () => {
     const Custom = (props: {
       className?: string
-      width?: number
-      height?: number
+      style?: CSSProperties
       role?: string
       'aria-label'?: string
       'aria-hidden'?: boolean
@@ -131,8 +132,7 @@ describe('Icon', () => {
   it('hides an unlabelled override from assistive technology', () => {
     const Custom = (props: {
       className?: string
-      width?: number
-      height?: number
+      style?: CSSProperties
       role?: string
       'aria-label'?: string
       'aria-hidden'?: boolean
@@ -147,5 +147,61 @@ describe('Icon', () => {
     expect(svg.getAttribute('aria-hidden')).toBe('true')
     expect(svg.hasAttribute('aria-label')).toBe(false)
     expect(svg.hasAttribute('role')).toBe(false)
+  })
+
+  // Sizing must travel as a `style` declaration, never as a `width`/`height`
+  // attribute: a presentation attribute takes a length and does not resolve
+  // `var()`, so `<svg width="var(--ap-icon-md)">` would be invalid. Asserting
+  // `style.width`/`style.height` (not `getAttribute('width')`) is what forces
+  // the CSS-declaration path specifically, rather than merely a numeric match
+  // that an attribute-based implementation could also satisfy for the `size:
+  // number` branch.
+  describe('size', () => {
+    const NAMED_SIZES: readonly IconSize[] = ['xs', 'sm', 'md', 'lg', 'xl', '2xl']
+
+    it.each(NAMED_SIZES)('resolves named size %s to its token', (size) => {
+      const { container } = render(<Icon name="check" size={size} />)
+      const svg = container.querySelector('svg')!
+      expect(svg.style.width).toBe(vars.icon[size])
+      expect(svg.style.height).toBe(vars.icon[size])
+    })
+
+    it('accepts a number as an escape hatch, resolved to px', () => {
+      const { container } = render(<Icon name="check" size={32} />)
+      const svg = container.querySelector('svg')!
+      expect(svg.style.width).toBe('32px')
+      expect(svg.style.height).toBe('32px')
+    })
+
+    it('defaults to md when no size is given', () => {
+      const { container } = render(<Icon name="check" />)
+      const svg = container.querySelector('svg')!
+      expect(svg.style.width).toBe(vars.icon.md)
+      expect(svg.style.height).toBe(vars.icon.md)
+    })
+
+    it('passes the resolved size through to an override via style', () => {
+      const Custom = (props: { style?: CSSProperties }) => <svg data-testid="custom" {...props} />
+      const { getByTestId } = render(
+        <IconProvider icons={{ check: Custom }}>
+          <Icon name="check" size="lg" />
+        </IconProvider>,
+      )
+      const svg = getByTestId('custom')
+      expect(svg.style.width).toBe(vars.icon.lg)
+      expect(svg.style.height).toBe(vars.icon.lg)
+    })
+
+    it('passes a numeric override size through to an override via style, in px', () => {
+      const Custom = (props: { style?: CSSProperties }) => <svg data-testid="custom" {...props} />
+      const { getByTestId } = render(
+        <IconProvider icons={{ check: Custom }}>
+          <Icon name="check" size={24} />
+        </IconProvider>,
+      )
+      const svg = getByTestId('custom')
+      expect(svg.style.width).toBe('24px')
+      expect(svg.style.height).toBe('24px')
+    })
   })
 })

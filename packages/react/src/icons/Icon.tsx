@@ -1,7 +1,11 @@
 'use client'
 
+import type { CSSProperties } from 'react'
+import { vars } from '../theme/contract.css.js'
 import { useIconOverrides } from './IconProvider.js'
 import { ICON_PATHS, type IconName } from './paths.js'
+
+export type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 
 export interface IconProps {
   name: IconName
@@ -11,12 +15,20 @@ export interface IconProps {
    * adjacent text already says what it means.
    */
   label?: string
-  /** Rendered size in px. Defaults to 1em-equivalent at 16. */
-  size?: number
+  /**
+   * A named step reads `var(--ap-icon-<name>)` off the icon scale (all `em`,
+   * so the icon tracks its context's font size). A number is an escape hatch
+   * for a one-off pixel size and resolves to `${n}px`. Defaults to `md`.
+   */
+  size?: IconSize | number
   className?: string
 }
 
-export function Icon({ name, label, size = 16, className }: IconProps) {
+function resolveSize(size: IconSize | number): string {
+  return typeof size === 'number' ? `${size}px` : vars.icon[size]
+}
+
+export function Icon({ name, label, size = 'md', className }: IconProps) {
   const Override = useIconOverrides()[name]
   const meaningful = label !== undefined
   // Decorative by default (aria-hidden, no name), role="img" + aria-label
@@ -26,6 +38,17 @@ export function Icon({ name, label, size = 16, className }: IconProps) {
     ? { role: 'img', 'aria-label': label }
     : { 'aria-hidden': true, focusable: false }
 
+  // Sizing travels as a `style` declaration, never as a `width`/`height`
+  // presentation attribute: an attribute takes a length and does not resolve
+  // `var()` — `<svg width="var(--ap-icon-md)">` is simply invalid — while a
+  // CSS declaration does. `style` also wins the cascade over a presentation
+  // attribute, which is what lets an override component size correctly with
+  // no size-translating adapter (verified against react-icons@5.7.0, whose
+  // `IconBase` spreads `props.style` last into its own style object while
+  // setting `width`/`height` as attributes from its own `size` prop).
+  const dimension = resolveSize(size)
+  const style: CSSProperties = { width: dimension, height: dimension }
+
   if (Override) {
     // Spread conditionally rather than `className={className}`: under
     // exactOptionalPropertyTypes, `ComponentType<{ className?: string }>`
@@ -34,8 +57,7 @@ export function Icon({ name, label, size = 16, className }: IconProps) {
     return (
       <Override
         {...(className !== undefined ? { className } : {})}
-        width={size}
-        height={size}
+        style={style}
         {...ariaProps}
       />
     )
@@ -44,8 +66,7 @@ export function Icon({ name, label, size = 16, className }: IconProps) {
   return (
     <svg
       className={className}
-      width={size}
-      height={size}
+      style={style}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

@@ -154,31 +154,38 @@ accessibility contract survives the swap: `Icon` computes `role="img"` +
 decorative one, and passes the same block to an override that it applies to
 the built-in. Verified against `react-icons@5.7.0`.
 
-**The `size` trap, if the library sizes through its own prop.** The mapping
-above renders, and its ARIA is correct, but `size` is silently ignored — every
-icon comes out at `width="1em" height="1em"` regardless of what you pass.
-`react-icons`' `IconBase` applies its own `height`/`width` **after** spreading
-the caller's props, computed from *its* `size` prop, which `Icon` does not
-send. Nothing errors; the icons are just the wrong size.
+**Sizing needs no adapter, even when the library sizes through its own prop.**
+`Icon` never passes `size` as a prop — a named size (`'xs'`…`'2xl'`) resolves
+to `var(--ap-icon-<name>)` and a number resolves to `${n}px`, and either way
+the result is applied through `style={{ width, height }}`, not a `width`/
+`height` attribute. That distinction is what makes the override case work
+with zero translation: `<svg width="var(--ap-icon-lg)">` is simply invalid —
+an SVG presentation attribute takes a length and never resolves `var()` — so
+sizing has to travel as a CSS declaration regardless, and a `style` attribute
+always wins the cascade over a presentation attribute set by the same element.
 
-`Icon` deliberately passes `width`/`height` rather than `size`, because `size`
-is not an SVG attribute and would produce an unknown-prop warning for any
-override that spreads its props straight onto an `<svg>`. So the translation
-belongs in a per-library adapter:
+That still holds once the element in question is `react-icons`' own
+`<svg>`. Its `IconBase` sets `width`/`height` **attributes** from its own
+`size` prop (default `'1em'`), which `Icon` never sends and is silently
+ignored — but it also spreads the caller's `style` last into the style object
+it builds, so our `style` lands on the rendered `<svg>` either way. Confirmed
+by rendering `<Icon name="check" size="lg" />` through an `IconProvider`
+mapping `check` to `FiCheck` (`react-icons@5.7.0`) and inspecting the emitted
+markup:
 
-```tsx
-import type { IconType } from 'react-icons'
-import type { IconOverrides } from '@ap/react'
-
-const ri = (RI: IconType): NonNullable<IconOverrides['check']> =>
-  ({ width, ...rest }) => <RI size={width} {...rest} />
-
-<ApProvider icons={{ check: ri(FiCheck), close: ri(FiX) }}>
+```html
+<svg ... width="1em" height="1em" style="width: var(--ap-icon-lg); height: var(--ap-icon-lg);" ...>
 ```
 
-Any library whose sizing prop is not `width`/`height` needs the same
-three-line treatment. One whose components already accept SVG attributes
-directly needs no adapter at all.
+The `width`/`height` attributes are there, inert, and the `style` attribute —
+carrying the real token — is what the browser actually uses. No per-library
+adapter, no unknown-prop warning (`style` is a real SVG/DOM prop, unlike
+`size`), and nothing to write when adding a new icon library: any override
+component that accepts `style` sizes correctly by construction.
+
+`IconOverrides`' component type reflects this: it declares `style` (and
+`className`, and the aria props), not `width`/`height` — `Icon` never sends
+those, so the type doesn't promise them.
 
 **Overriding is not the same as adding.** `IconOverrides` is keyed by
 `IconName`, a closed union — a product can replace any icon we ship but cannot

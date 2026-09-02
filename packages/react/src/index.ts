@@ -18,7 +18,7 @@ export type { LocaleContextValue, LocaleProviderProps } from './providers/Locale
 export { DEFAULT_MESSAGES } from './providers/messages.js'
 export type { MessageKey, Messages } from './providers/messages.js'
 export { Icon } from './icons/Icon.js'
-export type { IconProps } from './icons/Icon.js'
+export type { IconProps, IconSize } from './icons/Icon.js'
 export { IconProvider, useIconOverrides } from './icons/IconProvider.js'
 export type { IconOverrides } from './icons/IconProvider.js'
 export { ICON_PATHS } from './icons/paths.js'
