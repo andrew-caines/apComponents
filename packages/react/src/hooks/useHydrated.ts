@@ -16,6 +16,3 @@ export function useHydrated(): boolean {
   useEffect(() => setHydrated(true), [])
   return hydrated
 }
-
-/** The initial value, exposed so a test can assert the contract directly. */
-useHydrated.INITIAL = false as const

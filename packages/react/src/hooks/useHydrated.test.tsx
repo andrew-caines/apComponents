@@ -1,22 +1,36 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render } from '@testing-library/react'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { useHydrated } from './useHydrated.js'
 
+// Record the value returned on every render pass (not just the final,
+// post-effect DOM), so the first entry captures what the hook returned
+// before any effect ran — the value that must match the server's render.
+let seen: boolean[] = []
+
 function Probe() {
-  return <span data-testid="v">{String(useHydrated())}</span>
+  seen.push(useHydrated())
+  return null
 }
 
 describe('useHydrated', () => {
-  it('reports true once mounted in a browser-like environment', async () => {
-    render(<Probe />)
-    expect(await screen.findByText('true')).toBeTruthy()
+  beforeEach(() => {
+    seen = []
   })
 
-  it('is false on the very first render, so server and client agree', () => {
-    // Testing Library flushes effects, so assert the pre-effect value by
-    // rendering without act's effect flush would be brittle. Instead assert the
-    // contract that matters: the initial state literal is false.
-    expect(useHydrated.INITIAL).toBe(false)
+  it('returns false on the first render and true after the hydration effect runs', () => {
+    render(<Probe />)
+
+    expect(
+      seen[0],
+      'the first render must return false — this is the render that has to match ' +
+        "the server's output, and returning true here IS the hydration mismatch " +
+        'this hook exists to prevent',
+    ).toBe(false)
+
+    expect(
+      seen.at(-1),
+      'after the hydration effect has flushed, the hook must have flipped to true',
+    ).toBe(true)
   })
 })
