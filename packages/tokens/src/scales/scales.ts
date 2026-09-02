@@ -24,6 +24,23 @@ export const RADIUS = Object.freeze({
   sm: '4px', md: '6px', lg: '10px', xl: '16px', full: '9999px',
 } as Record<string, string>)
 
+// `em`, deliberately, not px: an icon sized in `em` tracks the font size of its
+// context, so an icon inside a small button shrinks with the button's text
+// automatically, with no per-call-site coordination.
+//
+// The bottom three steps track the TEXT scale at the 16px base (0.75em is
+// text-xs's 12px, 0.875em is text-sm's 14px, 1em is text-md's 16px), so an
+// icon at one of those sizes sits correctly alongside text of the same size.
+// The top three deliberately climb faster than TEXT — 1.25em/1.5em/2em (20px/
+// 24px/32px) against text-lg/xl/2xl's 18px/20px/24px — so a large icon reads
+// as a graphic in its own right for standalone use, not as something sized to
+// sit inline with a line of text. All six are literals, not derived from TEXT
+// at runtime, so a future change to the type scale cannot silently resize
+// every icon in the library.
+export const ICON = Object.freeze({
+  xs: '0.75em', sm: '0.875em', md: '1em', lg: '1.25em', xl: '1.5em', '2xl': '2em',
+} as Record<string, string>)
+
 export const Z = Object.freeze({
   sticky: 1100, backdrop: 1300, dialog: 1400, popover: 1500, toast: 1600, tooltip: 1700,
 } as Record<string, number>)

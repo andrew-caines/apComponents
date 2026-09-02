@@ -42,6 +42,10 @@ group(
   Object.keys(theme.scales.radius).map((k) => [k, `radius-${k}`] as const),
 )
 group(
+  'icon',
+  Object.keys(theme.scales.icon).map((k) => [toCamel(k), `icon-${k}`] as const),
+)
+group(
   'shadow',
   Object.keys(theme.scales.elevation.light).map((k) => [k, `shadow-${k}`] as const),
 )

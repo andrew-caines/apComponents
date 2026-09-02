@@ -93,6 +93,14 @@ export const vars = createGlobalThemeContract(
     "xl": 'radius-xl',
     "full": 'radius-full',
   },
+  icon: {
+    "xs": 'icon-xs',
+    "sm": 'icon-sm',
+    "md": 'icon-md',
+    "lg": 'icon-lg',
+    "xl": 'icon-xl',
+    "2xl": 'icon-2xl',
+  },
   shadow: {
     "1": 'shadow-1',
     "2": 'shadow-2',
