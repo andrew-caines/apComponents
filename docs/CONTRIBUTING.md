@@ -89,16 +89,18 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
   Node built-ins, no DOM access. Its output is consumed by build tooling and the
   browser, never by Node at runtime, and nothing in Phase 3 imports the package itself;
   its gates are its only consumers.
-- **A named step (`xs`…`2xl`) means the same size across every scale that shares those
-  names.** `ICON` is `TEXT`'s `size` expressed in `em` at the 16px base (`0.75em` is
-  `text-xs`'s 12px, `1.25em` is `text-lg`'s 20px, and so on) — deliberately `em`, not a
-  literal px copy, so an icon tracks the font size of its own context rather than the
-  root. This means an icon at `lg` optically matches text at `lg`, everywhere, with no
-  per-call-site coordination. `ICON`'s values are still literals rather than derived
-  from `TEXT` at runtime — freezing `TEXT` doesn't stop `TEXT` itself from changing — so
-  the two scales are related by convention, not by code, and nothing catches them
-  silently drifting apart. If you change `TEXT`'s sizes, or add a scale that names its
-  steps `xs`…`2xl`, update `ICON` (or the new scale) in the same commit.
+- **`ICON`'s named steps are multipliers, not sizes.** `ICON` is in `em`, so a step
+  scales against the font size of its own context — which is what makes an icon inside a
+  small button shrink with the button's text, with no per-call-site coordination. The
+  cost is that `icon-{step}` and `text-{step}` are *not* interchangeable: an `lg` icon
+  inside `lg` text renders at 1.25 × 20px = 25px, because both scale. **To pair an icon
+  with a label, use `md`** — `1em` equals the surrounding text at every step. Reach for
+  another step only when the icon should deliberately differ from the text beside it.
+  The numbers are `TEXT` read at the 16px base (`0.75em` is `text-xs`'s 12px, `1.25em`
+  is `text-lg`'s 20px), so the two scales stay proportional — but they are literals,
+  related by convention rather than by code, and nothing catches them drifting apart.
+  If you change `TEXT`'s sizes, or add a scale that names its steps `xs`…`2xl`, update
+  `ICON` (or the new scale) in the same commit.
 
 ## Adding a component
 

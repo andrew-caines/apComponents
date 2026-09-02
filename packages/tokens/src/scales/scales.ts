@@ -28,12 +28,18 @@ export const RADIUS = Object.freeze({
 // its context (not the root), so an icon inside a small button shrinks with
 // the button's text automatically, with no per-call-site coordination.
 //
-// ICON *is* TEXT expressed in `em` at the 16px base — 0.75em is text-xs's
-// 12px, 1.25em is text-lg's 20px, 2em is text-2xl's 32px, and so on for every
-// step. A named size therefore means the same thing in both scales: an icon
-// at `lg` optically matches text at `lg`. The values are literals here rather
-// than derived from TEXT at runtime so the two scales cannot silently
-// diverge — see the note in CONTRIBUTING.md: change them together.
+// These steps are multipliers, NOT absolute sizes, so a named ICON step and
+// the TEXT step of the same name are not interchangeable: `icon-lg` inside
+// `text-lg` renders at 1.25 x 20px = 25px, because both scale. To match an
+// icon to the text beside it, use `md` (1em) at any text step; reach for
+// another step only to make an icon deliberately smaller or larger than its
+// neighbouring text.
+//
+// The numbers are TEXT read at the 16px base — 0.75em is text-xs's 12px,
+// 1.25em is text-lg's 20px, 2em is text-2xl's 32px — so the two scales stay
+// proportional. They are literals here rather than derived from TEXT at
+// runtime, so nothing catches them drifting: change them together. See the
+// note in CONTRIBUTING.md.
 export const ICON = Object.freeze({
   xs: '0.75em', sm: '0.875em', md: '1em', lg: '1.25em', xl: '1.5em', '2xl': '2em',
 } as Record<string, string>)
