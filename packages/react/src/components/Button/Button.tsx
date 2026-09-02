@@ -133,10 +133,25 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
 ) {
   const isNative = nativeButton ?? deriveNativeButton(render)
   const isLinkElement = !isNative && isNavigationRenderElement(render)
+  // Only clear Base UI's *forced* role/tabIndex — never a value the consumer
+  // supplied themselves. `{...rest}` already wins over BaseButton's own
+  // internal defaults by prop-merge order, but `rest.role`/`rest.tabIndex`
+  // being `undefined` (not "absent") is exactly the case that a plain
+  // `{...rest, role: undefined}` cannot distinguish from "consumer explicitly
+  // asked for no role" — that unconditional spread is what previously
+  // clobbered `<Button role="menuitem" render={<a href="/x" />}>` down to no
+  // role at all, dropping the exact ARIA Tabs/menu items/toolbars rely on.
+  // Keying the override off whether `rest.role`/`rest.tabIndex` is already
+  // present preserves any consumer-supplied value while still suppressing
+  // Base UI's forced default for the navigation-render-element case this
+  // override exists for.
+  const override: { role?: undefined; tabIndex?: undefined } = {}
+  if (isLinkElement && rest.role === undefined) override.role = undefined
+  if (isLinkElement && rest.tabIndex === undefined) override.tabIndex = undefined
   return (
     <BaseButton
       {...rest}
-      {...(isLinkElement ? { role: undefined, tabIndex: undefined } : null)}
+      {...override}
       ref={ref}
       render={render}
       nativeButton={isNative}

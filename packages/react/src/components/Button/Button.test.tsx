@@ -190,4 +190,39 @@ describe('Button', () => {
     const el = screen.getByTestId('x')
     expect(el.getAttribute('aria-describedby')).toBe('hint')
   })
+
+  // F2: the navigation-render-element override must clear only Base UI's
+  // *forced* role/tabIndex, never a value the consumer supplied themselves.
+  // Before the fix, `{...rest}` was spread BEFORE the unconditional
+  // `{ role: undefined, tabIndex: undefined }`, so a consumer's own `role`
+  // (needed by every Tabs/menu-item/toolbar composite that pairs an explicit
+  // ARIA role with a roving tabIndex — ADR-0011 §6) was silently dropped the
+  // moment the render element was a navigation target.
+  it('keeps a consumer-supplied role on a navigation render element', () => {
+    render(
+      <Button role="menuitem" render={<a href="/x" />}>
+        View
+      </Button>,
+    )
+    const el = screen.getByRole('menuitem', { name: 'View' })
+    expect(el.tagName).toBe('A')
+    expect(el.getAttribute('role')).toBe('menuitem')
+  })
+
+  it('keeps a consumer-supplied tabIndex on a navigation render element', () => {
+    render(
+      <Button tabIndex={-1} render={<a href="/x" />}>
+        View
+      </Button>,
+    )
+    const el = screen.getByRole('link', { name: 'View' })
+    expect(el.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('still emits neither role nor tabindex on a plain navigation render element', () => {
+    render(<Button render={<a href="/x" />}>View</Button>)
+    const el = screen.getByRole('link', { name: 'View' })
+    expect(el.hasAttribute('role')).toBe(false)
+    expect(el.hasAttribute('tabindex')).toBe(false)
+  })
 })
