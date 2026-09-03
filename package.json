@@ -22,7 +22,7 @@
     "test:gates": "npm run test:tokens && npm run test:contrast && npm run test:gamut && npm run test:sweep && npm run test:contract && npm run test:freshness && npm run test:fonts && npm run test:guards && npm run test:motion",
     "fixture:install": "npm --prefix fixtures/ssr-app install && npm --prefix fixtures/consumer install",
     "showcase:install": "npm --prefix showcase install",
-    "showcase": "npm --prefix showcase run dev",
+    "showcase": "npm --prefix showcase run serve",
     "showcase:build": "npm --prefix showcase run build",
     "showcase:test": "npm --prefix showcase run test:e2e",
     "test:ssr": "vitest run --config vitest.gates.config.ts packages/react/src/gates/ssr-render.gate.test.ts",

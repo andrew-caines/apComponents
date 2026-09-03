@@ -2,11 +2,13 @@
   "name": "ap-showcase",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.22.0" },
+  "engines": {
+    "node": ">=22.22.0"
+  },
   "scripts": {
-    "dev": "react-router dev",
     "build": "react-router build",
     "start": "react-router-serve ./build/server/index.js",
+    "serve": "npm run build && npm run start",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test"
   },
