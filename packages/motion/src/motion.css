@@ -36,6 +36,16 @@
   100% { opacity: 0 }
 }
 
+@keyframes ap-enter-slide-up {
+  0% { opacity: 0; translate: 0px 100% }
+  100% { opacity: 1; translate: 0px 0px }
+}
+
+@keyframes ap-exit-slide-down {
+  0% { opacity: 1; translate: 0px 0px }
+  100% { opacity: 0; translate: 0px 100% }
+}
+
 @keyframes ap-collapse {
   0% { height: var(--panel-height) }
   100% { height: 0px }
@@ -80,6 +90,8 @@
     --ap-motion-success-check: ap-success-check var(--ap-duration-slower) var(--ap-ease-out) 1 both;
     --ap-motion-enter-fade-rise: ap-enter-fade-rise var(--ap-duration-base) var(--ap-ease-out) 1 both;
     --ap-motion-exit-fade: ap-exit-fade var(--ap-duration-fast) var(--ap-ease-in) 1 both;
+    --ap-motion-enter-slide-up: ap-enter-slide-up var(--ap-duration-base) var(--ap-ease-out) 1 both;
+    --ap-motion-exit-slide-down: ap-exit-slide-down var(--ap-duration-fast) var(--ap-ease-in) 1 both;
     --ap-motion-collapse: ap-collapse var(--ap-duration-fast) var(--ap-ease-in) 1 both;
     --ap-motion-expand: ap-expand var(--ap-duration-base) var(--ap-ease-out) 1 both;
     --ap-motion-toast-slide-in: ap-toast-slide-in var(--ap-duration-base) var(--ap-ease-out) 1 both;
@@ -111,6 +123,16 @@
   }
 
   @keyframes ap-exit-fade {
+    0% { opacity: 1 }
+    100% { opacity: 0 }
+  }
+
+  @keyframes ap-enter-slide-up {
+    0% { opacity: 0 }
+    100% { opacity: 1 }
+  }
+
+  @keyframes ap-exit-slide-down {
     0% { opacity: 1 }
     100% { opacity: 0 }
   }

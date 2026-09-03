@@ -8,6 +8,21 @@ export { Input, INPUT_TOKENS } from './components/Input/index.js'
 export type { InputProps } from './components/Input/index.js'
 export { Spinner, SPINNER_TOKENS } from './components/Spinner/index.js'
 export type { SpinnerProps } from './components/Spinner/index.js'
+export { Dialog, DIALOG_TOKENS } from './components/Dialog/index.js'
+export type {
+  DialogProps,
+  DialogBackdropProps,
+  DialogCloseProps,
+  DialogDescriptionProps,
+  DialogLayout,
+  DialogPopupProps,
+  DialogPortalProps,
+  DialogRootProps,
+  DialogSize,
+  DialogTitleProps,
+  DialogTriggerProps,
+  DialogViewportProps,
+} from './components/Dialog/index.js'
 export { Field, FIELD_TOKENS } from './components/Field/index.js'
 export type {
   FieldProps,

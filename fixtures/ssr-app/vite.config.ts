@@ -40,5 +40,20 @@ export default defineConfig({
   // so bundling `@base-ui/react` alone still leaves `@base-ui/utils` as its
   // own external import, reintroducing the identical duplicate-React
   // problem one hop further down the dependency chain.
-  ssr: { noExternal: ['@base-ui/react', '@base-ui/utils'] },
+  // `use-sync-external-store` is the THIRD package to need this, found when
+  // Dialog became the first component with a Base UI store: the built server
+  // file imported `use-sync-external-store/shim` as its own external, that
+  // package `require`s `react` and resolves it from the ROOT node_modules, and
+  // the resulting second React reports a null hook dispatcher —
+  // `Cannot read properties of null (reading 'useSyncExternalStore')`, thrown
+  // only on the dialog route while `/form` kept working, because Field and
+  // Input reach Base UI through `useId` (already bundled) and never touch a
+  // store.
+  //
+  // The pattern, now three for three: every package in Base UI's own
+  // dependency chain that imports React must be bundled into the same chunk,
+  // or it re-introduces the duplicate one hop further down. Adding a Base UI
+  // component that pulls in a new React-importing transitive dependency will
+  // need a fourth entry here — the symptom is always a null dispatcher.
+  ssr: { noExternal: ['@base-ui/react', '@base-ui/utils', 'use-sync-external-store'] },
 })

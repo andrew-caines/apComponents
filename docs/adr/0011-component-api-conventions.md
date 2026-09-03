@@ -176,6 +176,28 @@ two announcements for one state is noise rather than redundancy. A spinner
 carries its own label only where it is the *sole* indication that something is
 happening.
 
+### 6.6 `size` means control height on a control, width cap on a container
+
+`Input`'s `size` steps padding and type; `Dialog`'s caps inline size. Same prop
+name, different axis — which is conventional, and is stated here so a reader
+does not have to infer it from two component docs that never mention each other.
+
+The rule: for a control, `size` is the ergonomic step (height, padding, type).
+For a container, `size` is the **maximum inline size**, never a fixed width, so
+the surface stays fluid below its cap and can never exceed its viewport.
+
+Containers additionally take a `fit` step — shrink-to-fit, bounded at both ends
+— and it is deliberately not the default. `fit-content` resolves against the
+content's *max-content* width, and a percentage-width child contributes nothing
+to max-content, so a `fit` container wrapping a form collapses to the width of
+its longest label and renders the inputs as slivers. `fit` is for content with
+intrinsic width (alerts, confirmations); the floor is what keeps the failure
+impossible rather than merely unlikely.
+
+Height is not a prop on a container at all. It grows to content, stops at the
+viewport, and scrolls internally with header and footer pinned. A height
+override is a way to push a dialog's own close control off-screen.
+
 ### 7. Every component ships with
 
 - A `.stories.tsx` (gallery entry, controls, axe run)

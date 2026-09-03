@@ -86,12 +86,38 @@ describe('gate 8: a file:-protocol consumer builds against our source', () => {
     expect(css).toMatch(/animation:\s*var\(--ap-motion-spinner-rotate\)/)
   })
 
-  it('ships the reduced-motion override alongside it (ADR-0010)', () => {
-    // The half a consumer never sees in testing. Under `prefers-reduced-motion`
-    // the variable is re-pointed at an opacity-only variant; if that block were
-    // dropped from the bundle the spinner would keep rotating for a user who
-    // asked it not to, and nothing in a default-context build would say so.
-    expect(css).toMatch(/@media[^{]*prefers-reduced-motion[^{]*\{[\s\S]*?--ap-motion-spinner-rotate:/)
+  it('ships the reduced-motion keyframes, not just a reduced-motion media query', () => {
+    // This assertion replaces one that could not fail. The original was
+    //   /@media[^{]*prefers-reduced-motion[^{]*\{[\s\S]*?--ap-motion-spinner-rotate:/
+    // whose `[\s\S]*?` happily spans the whole stylesheet, so it matched
+    // theme.css's unrelated `@media (prefers-reduced-motion: reduce){:root{
+    // --ap-duration-*:1ms}}` followed, thousands of characters later, by the
+    // `--ap-motion-spinner-rotate:` declaration in the ordinary `:root` block.
+    // Deleting motion.css's reduced section entirely would have left it green.
+    //
+    // How the degradation actually works: motion.css REDEFINES each
+    // `@keyframes` by name inside the reduced-motion media query, and the later
+    // definition wins while the query matches. So the thing to assert is that
+    // two definitions ship and that the second one has had the movement taken
+    // out of it — which is the property a consumer's bundler could plausibly
+    // break by deduplicating same-named keyframes.
+    const parts = css.split('@keyframes ap-spinner-rotate')
+    expect(
+      parts.length - 1,
+      'expected two @keyframes ap-spinner-rotate definitions (full motion, then the reduced override)',
+    ).toBe(2)
+
+    const [, fullMotion, reduced] = parts
+    expect(fullMotion, 'the full-motion keyframes should rotate').toContain('rotate:')
+    expect(reduced, 'the reduced keyframes should still fade, so the state stays perceivable').toContain(
+      'opacity',
+    )
+    // The whole point: no rotation left in the reduced variant. `slice` bounds
+    // the search to this keyframes block rather than the rest of the sheet.
+    expect(
+      reduced!.slice(0, reduced!.indexOf('}}') + 2),
+      'the reduced keyframes still rotate — a bundler probably deduplicated them',
+    ).not.toContain('rotate:')
   })
 
   it('inlines the vendored font faces and no remote font URL', () => {

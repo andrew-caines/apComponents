@@ -292,7 +292,7 @@ contract our own components call by. Phase 4 ships five on purpose; ADR-0012's
 fuller set arrives as components need them, since an icon nothing renders is a
 permanent maintenance obligation bought for nothing.
 
-## Known gap: `style-rules` scans raw text, comments included
+## Known gap: several gates scan raw text, comments included
 
 `style-rules.gate.test.ts` checks its physical-property and focus-removal rules
 with substring and regex matches over the whole file, with no comment
@@ -306,9 +306,15 @@ It fails closed, so nothing unsafe ships — but it pushes the reasoning out of
 exactly the files that need it, which is the opposite of what this codebase
 wants. The workaround is to hyphenate: `margin-top`, `outline-style: none`.
 
-The fix is to strip comments before the text scan, or to move these two checks
-onto the TypeScript AST walk that `collectStyleBlocks` already builds for the
-`@layer` rule. Neither has been done yet.
+`ssr-safety` has the same shape, and Phase 4d hit it a third time: a doc comment
+in `DialogParts.tsx` explaining that a focus trap of our own would compete over
+`document.activeElement` failed the `/document\./` rule. The workaround there
+is to spell the property access out in prose rather than as code.
+
+The fix is to strip comments before the text scan, or to move these checks onto
+the TypeScript AST walk that `collectStyleBlocks` already builds for the `@layer`
+rule. Neither has been done yet. Three occurrences across two gates is probably
+the point at which it stops being a curiosity and becomes worth doing.
 
 ## Known gaps in Phase 2's gates
 
@@ -518,11 +524,30 @@ the root `node_modules` and finds the root's `react`. Every other external
 `Field`, `Input` or `Button` — reads a null dispatcher from whichever one is
 not currently rendering.
 
-**Fix:** `ssr: { noExternal: ['@base-ui/react', '@base-ui/utils'] }` in the
-app's own `vite.config.ts`. Both entries are needed: `@base-ui/utils` (where
-`useId.mjs` actually lives) is a separate package, so bundling
-`@base-ui/react` alone leaves it external and reintroduces the identical
-problem one hop down.
+**Fix:** `ssr: { noExternal: ['@base-ui/react', '@base-ui/utils',
+'use-sync-external-store'] }` in the app's own `vite.config.ts`. All three
+entries are needed, and each was found the same way — by a component reaching
+one hop further into Base UI's dependency chain than the last one did:
+
+| Package | Found by | Symptom |
+|---|---|---|
+| `@base-ui/react` | Button/Field/Input | `Cannot read properties of null (reading 'useId')` |
+| `@base-ui/utils` | the same, one hop down — `useId.mjs` actually lives here | identical |
+| `use-sync-external-store` | **Dialog**, the first component with a Base UI *store* | `Cannot read properties of null (reading 'useSyncExternalStore')` |
+
+The third is the instructive one. `/form` kept working the whole time, because
+Field and Input reach Base UI through `useId`, which was already bundled;
+`/dialog` returned a 500 while every other route returned 200. The built server
+file had `import { useSyncExternalStore } from "use-sync-external-store/shim"`
+as its own external import, that package `require`s `react` and resolves it from
+the ROOT `node_modules`, and the second React reported a null dispatcher.
+
+**The general rule:** every package in Base UI's dependency chain that imports
+React must end up in the same bundled chunk. A new Base UI component that pulls
+in a new React-importing transitive dependency will need a fourth entry. The
+symptom is always a null hook dispatcher, and the diagnosis is always to grep
+the built `build/server/index.js` for top-level `import` statements naming a
+package that lives only in the root `node_modules`.
 
 **This is a monorepo-nesting artifact, not a consumer problem.** It happens
 because `fixtures/ssr-app` is a non-workspace app sitting *inside* the

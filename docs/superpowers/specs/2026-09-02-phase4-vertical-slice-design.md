@@ -37,8 +37,10 @@ working, testable software and its own gate:
 | **4d** | `Dialog` | Portal absent from server HTML, focus trapped and returned, enter/exit motion driven by `@ap/motion` |
 | **4e** | Storybook harness, gates 4–7 wiring, fixture extension, **`ThemeProvider`'s runtime override path (§4.2, deferred from 4a — see §9)** | Gates 4–7 green in CI over all four components, and a per-tenant theme rendered into the server HTML with no flash and no hydration mismatch |
 
-Ordering is dependency-forced: everything needs 4a; Dialog is last because it is the only
-component that consumes `@ap/motion`, and it should land on a provider stack already proven.
+Ordering is dependency-forced: everything needs 4a; Dialog is last because it is the component
+that leans hardest on `@ap/motion`, and it should land on a provider stack already proven.
+(As of 4c it is no longer the *only* consumer — `Spinner` was pulled forward for `Input`'s
+loading state and got there first. See §9.)
 Storybook is last because stories need components to tell stories about.
 
 ## 3. Base UI adoption
@@ -295,6 +297,7 @@ components under both SSR and SPA.
 | Textarea, Select, Checkbox, Radio, Switch, Toast, Tooltip, Popover, Tabs, Accordion | Phase 5 |
 | ~~Spinner~~ — **pulled forward into 4c**, 2026-09-03 | `Input`'s `loading` state needs an indeterminate indicator, and the alternatives were worse: a CSS-only spin inside `Input.css.ts` would have declared keyframes outside `@ap/motion`, breaking ADR-0010's guarantee that reduced motion is enforced at the token layer, and it would have been rewritten the moment the real component arrived. Shipped narrow — `label`, `size`, `className`, `currentColor`, no colour token — so Phase 5 extends it rather than replacing it. It is the first consumer of `@ap/motion` in `@ap/react`, which is what surfaced the packaging gap now closed by the `@ap/react/motion.css` re-export. |
 | Base UI date components | §3.2 — adopting one imposes `date-fns` on every consuming product |
+| `examples/Dialogs.html` | Deferred 2026-09-03 during 4d. The examples pipeline renders static SSR with no JavaScript, Base UI requires a `Dialog.Portal`, and a portal renders nothing under `renderToString` — so a static page cannot show an open dialog without hand-written imitation markup that would drift from the component. Converting the pipeline to ship a client bundle is the right fix and is its own piece of work. Every claim the page would have shown is asserted against a real browser in `fixtures/ssr-app/e2e/dialog.spec.ts`. |
 
 ## 10. Risks
 

@@ -47,6 +47,7 @@ One definition, two outputs. The layers cannot drift.
 | `warning.pulse` | 2 breath cycles, then stops | **Never infinite** — perpetual motion is a vestibular hazard and an attention sink |
 | `success.check` | stroke draw + scale settle, 400ms | |
 | `enter.fade-rise` / `exit.fade` | dialogs, popovers, menus | |
+| `enter.slide-up` / `exit.slide-down` | bottom-sheet presentation below `sm` ([ADR-0017](0017-responsive-adaptive.md)) | Travels 100% of its own height, not a fixed step — an 8px hop on a full-height surface reads as a twitch |
 | `collapse` / `expand` | height via the primitive's panel-height CSS var | |
 | `toast.slide-in` / `toast.slide-out` | edge slide + fade | |
 | `skeleton.shimmer`, `spinner.rotate` | infinite | The only legitimate loops — the motion *is* the information |

@@ -51,6 +51,16 @@ Components whose *shape* should change on small screens do so by default, each w
 | Component | Below `sm` (viewport — these are portaled surfaces) | Opt-out |
 |---|---|---|
 | Dialog | bottom sheet: full-width, slides from bottom edge (`enter.slide-up` token) | `layout="dialog"` — `layout="auto"` is the default |
+
+`enter.slide-up` (and its partner `exit.slide-down`) did not exist when this ADR
+was written — the row named a token the motion system had never defined. Both
+were added in Phase 4d, when Dialog first needed them; see
+[ADR-0010](0010-motion-system.md).
+
+Note also that `layout` and `size` are separate axes on Dialog and only `layout`
+takes `auto`. The width scale's shrink-to-fit step is called `fit` precisely so
+that one component does not carry two different `auto`s meaning different
+things.
 | Select / Menu / Popover | anchored popup may switch to bottom-sheet presentation where anchoring is unusable | same pattern |
 | Toast | full-width at bottom edge instead of corner-stacked | position prop |
 | Tooltip | suppressed for touch-only interaction (hover-dependent tooltips are unreachable by touch); the accessible label remains | — |
