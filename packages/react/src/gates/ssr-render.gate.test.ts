@@ -253,16 +253,23 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // attribute legitimately appears only after hydration.
     //
     // Anchored to an `<input>` specifically, not a bare `toContain(id=...)`:
-    // the served label itself also carries this same id
-    // (`<label id="base-ui-…" for="base-ui-…">`), so a regression where `for`
-    // pointed at the label itself, or at the `Field` wrapper `<div>`, would
-    // still satisfy an unanchored substring search for `id="<labelFor>"`
-    // anywhere in the document. Requiring the id on an `<input>` element
-    // specifically is what actually distinguishes a correct label->control
-    // pairing from a self-referential one.
+    // the served label carries an id of the same generated form
+    // (`<label id="base-ui-…" for="base-ui-…">` — its own id comes from
+    // `useRegisteredLabelId`, a different generated value of the same shape),
+    // so a regression where `for` pointed at the label itself, or at the
+    // `Field` wrapper `<div>`, would still satisfy an unanchored substring
+    // search for `id="<labelFor>"` anywhere in the document. Requiring the id
+    // on an `<input>` element specifically is what actually distinguishes a
+    // correct label->control pairing from a self-referential one.
     const labelFor = /<label[^>]*\sfor="([^"]+)"/.exec(html)?.[1]
     expect(labelFor, 'no for attribute on the server-rendered label').toBeDefined()
-    expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${labelFor}"`))
+    // `labelFor` is extracted from the response, so it is untrusted input to
+    // this RegExp. Base UI's ids are `base-ui-…` today and contain nothing
+    // special, but escaping costs one line and removes the class of failure
+    // where a changed id format turns this assertion into a different pattern
+    // than the one it reads as.
+    const escapedLabelFor = labelFor!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${escapedLabelFor}"`))
   })
 })
 

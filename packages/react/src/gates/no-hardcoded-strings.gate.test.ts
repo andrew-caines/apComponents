@@ -45,6 +45,14 @@ const USER_FACING_ATTRS = [
   // forwards it — the most likely real hardcoded-string case this gate
   // missed, and free to add.
   'label',
+  // Phase 4c: `Field`'s other two static-copy props. `<Field label hint
+  // error>` is the recommended way to build a form field, so the moment a
+  // Phase 5 component composes one, `hint="We never share this."` and
+  // `error="That address is already in use."` are exactly as shippable, and
+  // exactly as English, as a hardcoded `label` — and `label` alone would not
+  // have flagged either.
+  'hint',
+  'error',
 ] as const
 
 /**
@@ -214,6 +222,8 @@ describe('gate: the detection logic itself catches known evasions', () => {
       '<div aria-roledescription="carousel">',
     ],
     ['a different flagged attribute (abbr)', '<abbr title="x" abbr="Kilometers">'],
+    ['Field copy props (hint)', '<Field label={t(\'email\')} hint="We never share this." />'],
+    ['Field copy props (error)', '<Field label={t(\'email\')} error="That address is in use." />'],
     ['a ternary between two hardcoded strings', "<button aria-label={cond ? 'Close' : 'Dismiss'}>"],
     ['string concatenation', "<button aria-label={'Cl' + 'ose'}>"],
     ['visible JSX text content', '<span>Close</span>'],

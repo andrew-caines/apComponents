@@ -74,6 +74,13 @@ export const FieldLabel = forwardRef<HTMLLabelElement, FieldLabelProps>(function
  * The unstyled control slot. `Input` is the styled one and is what a product
  * normally uses; `Field.Control` stays available for a control this library
  * does not ship yet.
+ *
+ * Note that `size` here is Base UI's passthrough of the HTML `size` attribute
+ * — the legacy integer width in characters — because this part is unstyled and
+ * has no type scale to name. `Input` renders the same `<input>` element but
+ * redeclares `size` as the `'sm' | 'md' | 'lg'` recipe variant (see
+ * `Input.tsx`). Same prop name, same rendered element, two different meanings:
+ * check which component you are on before reading a `size` on a field control.
  */
 export interface FieldControlProps extends Omit<BaseFieldControlProps, 'className'> {
   className?: string
@@ -88,6 +95,10 @@ export const FieldControl = forwardRef<HTMLInputElement, FieldControlProps>(func
       {...rest}
       // See the ref note on FieldLabel above — Base UI types it as HTMLElement.
       ref={ref as Ref<HTMLElement>}
+      // A conditional spread, not `merge()`, because this part is deliberately
+      // unstyled: there is no recipe class to merge the consumer's className
+      // with, and under exactOptionalPropertyTypes passing `className:
+      // undefined` is not the same as omitting it.
       {...(className !== undefined ? { className } : {})}
     />
   )
@@ -140,7 +151,16 @@ export const FieldError = forwardRef<HTMLDivElement, FieldErrorProps>(function F
         return (
           <div {...elementProps}>
             <Icon name="alert-circle" className={fieldErrorIconClass} />
-            <span>{children}</span>
+            {/*
+              A `<div>`, not a `<span>`: when a control fails more than one
+              constraint at once, Base UI's FieldError passes a `<ul><li>…`
+              element as `children` (see `field/error/FieldError.mjs`), and
+              `<ul>` inside `<span>` violates the HTML content model. The
+              layout is unchanged — this element is a flex item of the error
+              row either way, and a flex item is blockified regardless of the
+              tag it was written with.
+            */}
+            <div>{children}</div>
           </div>
         )
       }}

@@ -14,8 +14,15 @@ export { INPUT_TOKENS } from './Input.tokens.js'
  * which is a physical-units sizing mechanism the type scale replaces. Keeping
  * both spellings would mean `size="sm"` and `size={20}` on one prop with
  * different meanings and different types. The variant wins the name because it
- * is the one a consumer of this library reaches for; a product that genuinely
- * wants the HTML attribute can still set it through `render`.
+ * is the one a consumer of this library reaches for.
+ *
+ * A product that genuinely wants the HTML attribute can set it through
+ * `render` — but the attribute alone will not do anything visible here, because
+ * `Input.css.ts` sets `inline-size: 100%` in the `ap.components` layer and that
+ * overrides the attribute's intrinsic width. Setting it is therefore a
+ * two-part job: `render={<input size={20} />}` for the attribute, plus a width
+ * of the consumer's own (unlayered CSS always beats a layered rule, so an
+ * ordinary `className` is enough) to let it take effect.
  */
 export interface InputProps extends Omit<BaseInputProps, 'className' | 'size'> {
   /** Size. Defaults to `md`. */
