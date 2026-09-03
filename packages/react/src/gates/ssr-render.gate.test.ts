@@ -236,6 +236,25 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // identically to a build where the recipe is emitted unlayered.
     expect(css).toMatch(/@layer ap\.components\s*\{[\s\S]*?--ap-surface-bg-canvas/)
   })
+
+  it('serves the form route with a real form, a labelled control and its value in the markup', async () => {
+    const res = await fetchAsBrowser(`${base}/form`)
+    expect(res.status).toBe(200)
+    const html = await res.text()
+
+    // A real form the browser can submit without any JavaScript — this is the
+    // markup ADR-0011 §4's progressive-enhancement claim rests on.
+    expect(html).toContain('method="post"')
+    expect(html).toContain('name="email"')
+
+    // The label-to-control wiring is derived during render, so it survives to
+    // the server response. `aria-describedby` deliberately is NOT asserted:
+    // Base UI's description/error ids register from a layout effect, so the
+    // attribute legitimately appears only after hydration.
+    const labelFor = /<label[^>]*\sfor="([^"]+)"/.exec(html)?.[1]
+    expect(labelFor, 'no for attribute on the server-rendered label').toBeDefined()
+    expect(html).toContain(`id="${labelFor}"`)
+  })
 })
 
 describe(
