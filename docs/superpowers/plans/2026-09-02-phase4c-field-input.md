@@ -446,6 +446,27 @@ git commit -m "feat(react): Input with size variants and uncontrolled-first sema
 
 ### Task 2: `Field` compound parts
 
+> **⚠️ Corrected during implementation — read before copying anything below.**
+> The code blocks in this task are kept as written for the historical record,
+> but **two constructions in them are non-discriminating** and the Task 2
+> review replaced both. As shipped in commits `82baf49` (code) and `273cf52`
+> (docs):
+>
+> 1. **The `<span>{children}</span>` wrapper in `FieldError`'s render
+>    function.** Base UI emits `<ul><li>` for multiple validity errors, and a
+>    `<ul>` nested inside a `<span>` violates the HTML content model. Shipped
+>    code wraps with a `<div>` instead.
+> 2. **The "jsdom does not populate `validationMessage`" comment** on the
+>    "leaves the message slot to Base UI when given no children" test. That is
+>    false — jsdom returns `"Constraints not satisfied"`, and `Field.test.tsx`'s
+>    native-validation test depends on it being populated. The comment's
+>    assertion is still correct: in *this* test the empty text comes from Base
+>    UI's `validityData.error` being initially `''` because no interaction has
+>    happened yet, not from jsdom lacking a message at all.
+>
+> Later phases read these plans as precedent: take the corrected forms, not
+> the blocks below.
+
 **Files:**
 - Create: `packages/react/src/components/Field/Field.tokens.ts`
 - Create: `packages/react/src/components/Field/Field.css.ts`
@@ -950,6 +971,32 @@ git commit -m "feat(react): Field compound parts with derived ARIA and a structu
 ---
 
 ### Task 3: The `Field` convenience component and the equivalence proof
+
+> **⚠️ Corrected during implementation — read before copying anything below.**
+> The code blocks in this task are kept as written for the historical record,
+> but **two constructions in them are non-discriminating** and the Task 3
+> review replaced both. As shipped in commits `82baf49` (code) and `273cf52`
+> (docs):
+>
+> 1. **`FieldProps extends Omit<FieldRootProps, 'children'>`.** This leaves
+>    `invalid` on the convenience component's prop surface: a caller could set
+>    it directly and get `aria-invalid` and the red border with no message to
+>    read. Shipped code omits `'invalid'` too:
+>    `Omit<FieldRootProps, 'children' | 'invalid'>`.
+> 2. **`{hasError ? <FieldError match>{error}</FieldError> : null}`.** This
+>    renders no error element at all when `error` is undefined, so a native
+>    validation failure produced border-and-`aria-invalid` with no icon and no
+>    text — exactly the colour-alone state ADR-0011 §5 exists to prevent.
+>    Shipped code renders the slot unconditionally:
+>    `<FieldError {...(hasError ? { match: true, children: error } : {})} />`.
+>    Note specifically that the obvious-looking
+>    `<FieldError ...>{hasError ? error : undefined}</FieldError>` does **not**
+>    work: JSX emits a present `children: undefined` key, and Base UI's
+>    `for...in` prop merge lets that `undefined` win over — and blank out —
+>    its own native validity message.
+>
+> Later phases read these plans as precedent: take the corrected forms, not
+> the blocks below.
 
 **Files:**
 - Create: `packages/react/src/components/Field/Field.tsx`

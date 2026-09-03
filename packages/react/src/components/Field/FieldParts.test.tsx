@@ -139,11 +139,12 @@ describe('Field parts', () => {
   // the free half of its error behaviour, and it breaks the moment a wrapper
   // starts passing children of its own through unconditionally.
   //
-  // jsdom does not populate `validationMessage`, so the message TEXT cannot be
-  // asserted here; the browser-level version of this assertion is Task 4's
-  // e2e. What is assertable, and what actually proves the wrapper did not
-  // hijack the slot, is that the error element renders with its icon and an
-  // EMPTY message wrapper — a wrapper injecting its own children would put
+  // No interaction happens here, so Base UI's own `validityData.error` is
+  // still its initial `''` and the message TEXT cannot be asserted — the
+  // populated-message case is `Field.test.tsx`'s native-validation test.
+  // What is assertable, and what actually proves the wrapper did not hijack
+  // the slot, is that the error element renders with its icon and an EMPTY
+  // message wrapper — a wrapper injecting its own children would put
   // something in it.
   it('leaves the message slot to Base UI when given no children', () => {
     const { container } = render(
