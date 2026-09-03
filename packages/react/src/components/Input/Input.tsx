@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, type ReactNode, type Ref } from 'react'
+import { forwardRef, type CSSProperties, type ReactNode, type Ref } from 'react'
 import { Input as BaseInput } from '@base-ui/react/input'
 import type { InputProps as BaseInputProps } from '@base-ui/react/input'
 import {
@@ -9,10 +9,13 @@ import {
   slotButton,
   slotDecorative,
   slotEnd,
+  slotInk,
   slotStart,
 } from './Input.css.js'
+import { INPUT_ICON_COLORS, type InputIconColor } from './Input.tokens.js'
 
-export { INPUT_TOKENS } from './Input.tokens.js'
+export { INPUT_TOKENS, INPUT_ICON_COLORS } from './Input.tokens.js'
+export type { InputIconColor } from './Input.tokens.js'
 
 /**
  * An icon placed inside the control, at the start or end of the inline axis.
@@ -43,12 +46,20 @@ export { INPUT_TOKENS } from './Input.tokens.js'
 export type InputAdornment =
   | {
       icon: ReactNode
+      /**
+       * A semantic colour role — `danger`, `success`, `action`… Defaults to
+       * `default` (secondary text). Every option is a foreground role the
+       * contrast gate covers, so none of them is unreadable.
+       */
+      color?: InputIconColor
       /** Omit for a decorative icon. Supplying it requires `label`. */
       onClick?: never
       label?: never
     }
   | {
       icon: ReactNode
+      /** As above. */
+      color?: InputIconColor
       /** Makes the adornment a real `<button type="button">`. */
       onClick: () => void
       /** The button's accessible name. Required — see the note above. */
@@ -93,9 +104,28 @@ function Adornment({
 }) {
   const position = side === 'start' ? slotStart : slotEnd
 
+  // The colour travels as the Tier 3 custom property the slot already reads,
+  // rather than as one generated class per role — ADR-0003's rule that static
+  // styles stay static and dynamic values flow through custom properties.
+  //
+  // `--ap-input-icon-hover` is set to the same value on purpose. An icon a
+  // product deliberately coloured `danger` should not turn grey-blue under the
+  // cursor; the hover feedback is the chip behind it, not a change of hue.
+  const tint =
+    adornment.color !== undefined && adornment.color !== 'default'
+      ? ({
+          '--ap-input-icon': INPUT_ICON_COLORS[adornment.color],
+          '--ap-input-icon-hover': INPUT_ICON_COLORS[adornment.color],
+        } as CSSProperties)
+      : undefined
+
   if (adornment.onClick === undefined) {
     return (
-      <span className={[position, slotDecorative].join(' ')} aria-hidden="true">
+      <span
+        className={[position, slotDecorative].join(' ')}
+        {...(tint ? { style: tint } : {})}
+        aria-hidden="true"
+      >
         {adornment.icon}
       </span>
     )
@@ -103,6 +133,7 @@ function Adornment({
 
   return (
     <button
+      {...(tint ? { style: tint } : {})}
       // `type="button"` is not cosmetic: a bare <button> inside a <form>
       // defaults to type="submit", so a copy or clear affordance would submit
       // the form instead of doing its job — and only when the field happens to
@@ -116,7 +147,7 @@ function Adornment({
       // and leave a tab stop inside a control that is meant to be inert.
       disabled={disabled}
     >
-      {adornment.icon}
+      <span className={slotInk}>{adornment.icon}</span>
     </button>
   )
 }

@@ -520,18 +520,39 @@ try {
 
   // --- check 8: an actionable adornment is a usable button ------------------
   const buttons = await page.evaluate(() =>
-    [...document.querySelectorAll('.specimen button[aria-label]')].map((b) => ({
-      name: b.getAttribute('aria-label') ?? '',
-      type: b.getAttribute('type'),
-      w: b.getBoundingClientRect().width,
-      h: b.getBoundingClientRect().height,
-    })),
+    [...document.querySelectorAll('.specimen button[aria-label]')].map((b) => {
+      const box = b.getBoundingClientRect()
+      // The painted chip is the button's inner span; the button itself is the
+      // (full-height) hit area. A background on the hit area runs straight into
+      // the input's border — which is exactly what this measures.
+      const ink = b.firstElementChild?.getBoundingClientRect()
+      const input = b.parentElement?.querySelector('input')?.getBoundingClientRect()
+      return {
+        name: b.getAttribute('aria-label') ?? '',
+        type: b.getAttribute('type'),
+        w: box.width,
+        h: box.height,
+        inkClearance:
+          ink && input ? Math.min(ink.top - input.top, input.bottom - ink.bottom) : null,
+      }
+    }),
   )
   if (buttons.length === 0) fail('8 adornment buttons', 'no actionable adornment on the page')
   for (const b of buttons) {
     if (b.type !== 'button') fail('8 adornment buttons', `"${b.name}" has type=${b.type} — it would submit the form`)
     if (b.name.trim() === '') fail('8 adornment buttons', 'an adornment button has an empty accessible name')
     if (b.w < 24 || b.h < 24) fail('8 adornment buttons', `"${b.name}" is ${b.w}x${b.h}, under the 24px hit target`)
+    if (b.inkClearance === null) {
+      fail('8 adornment buttons', `"${b.name}" has no inner chip to measure`)
+    } else if (b.inkClearance < 2) {
+      // 2px is the smallest gap that still reads as a gap at 1x. Below it the
+      // hover background visually merges with the input's border.
+      fail(
+        '8 adornment buttons',
+        `"${b.name}" chip clears the input edge by only ${b.inkClearance.toFixed(1)}px — ` +
+          'its hover background will touch the border',
+      )
+    }
   }
 
   // --- check 5: nothing collapsed ------------------------------------------

@@ -117,7 +117,10 @@ export const EXAMPLES: Example[] = [
       'and it becomes a real `<button type="button">`; the type then requires a `label`, because a ' +
       'button with no accessible name is unusable by anyone not looking at it. Without `onClick` ' +
       'the icon is decorative and transparent to clicks, so tapping the currency symbol puts the ' +
-      'caret in the field behind it.',
+      'caret in the field behind it. `color` takes a semantic role — every option is a foreground ' +
+      'token the contrast gate covers, so none of them is unreadable. The hit area is the full ' +
+      'height of the control; only the smaller chip inside it is painted, so a hover background ' +
+      'never runs into the border.',
     title: 'Icons inside the field',
     render: () => (
       <>
@@ -135,12 +138,17 @@ export const EXAMPLES: Example[] = [
             }}
           />
         </Field>
-        <Field label="Both ends">
+        <Field label="Both ends, with semantic colours">
           <Input
             name="search"
             defaultValue="quarterly report"
-            startIcon={{ icon: <Icon name="info" /> }}
-            endIcon={{ icon: <Icon name="check" />, onClick: () => {}, label: 'Apply filter' }}
+            startIcon={{ icon: <Icon name="info" />, color: 'info' }}
+            endIcon={{
+              icon: <Icon name="check" />,
+              color: 'success',
+              onClick: () => {},
+              label: 'Apply filter',
+            }}
           />
         </Field>
       </>

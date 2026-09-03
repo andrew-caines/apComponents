@@ -121,6 +121,40 @@ the icon is `aria-hidden` and transparent to pointer events, so clicking it
 puts the caret in the field behind it. A consumer never chooses between those
 two behaviours; the presence of a handler does.
 
+### 6.3 A colour prop takes a semantic role, never a value or the whole keyset
+
+`InputAdornment`'s `color` accepts `default | primary | action | danger |
+warning | success | info` — a curated list of **foreground** roles, not
+`keyof vars.color` and certainly not a hex.
+
+Exposing the full token keyset would make `color="bgCanvas"` (an invisible
+icon) and `color="borderSubtle"` (a 3:1 role doing a 4.5:1 job) type-legal.
+Every option in the curated list is a role the contrast gate already covers as
+text, so a product cannot pick an unreadable one — the same reasoning as
+[ADR-0007](0007-three-tier-token-contract.md)'s point that a semantic token
+carries its guarantee with it.
+
+The chosen role is applied by setting the component's own Tier 3 custom
+property inline, not by generating a class per role: that is
+[ADR-0003](0003-zero-runtime-styling.md)'s division — static styles stay static,
+dynamic values travel as custom properties — and it reuses the same
+`--ap-input-icon` hook a product already has for overriding the default.
+
+### 6.4 The hit area and the painted surface are allowed to differ
+
+An interactive adornment's `<button>` spans the full height of the control so
+the target is comfortably past WCAG 2.5.8, while the hover background and focus
+ring are drawn on a smaller box inside it. Painting the target itself put a
+background flush against the input's border at every size, and at `sm` the two
+requirements genuinely conflict: a 26px-tall field cannot contain a 24px target
+with visible clearance on both sides. Separating them satisfies both.
+
+Where a component does this, the focus ring stays on the focusable element and
+is inset with a negative `outline-offset`. Moving the ring to the inner box
+would require suppressing the button's own, which the style gate forbids with
+no exemption — correctly, since a text scan cannot tell a relocated ring from a
+deleted one.
+
 ### 7. Every component ships with
 
 - A `.stories.tsx` (gallery entry, controls, axe run)

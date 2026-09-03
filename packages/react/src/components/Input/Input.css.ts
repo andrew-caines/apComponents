@@ -169,6 +169,24 @@ export const slotDecorative = style({
   '@layer': { [componentsLayer]: { pointerEvents: 'none' } },
 })
 
+/**
+ * The button is the HIT AREA and paints nothing itself.
+ *
+ * It spans the full height of the control on purpose — a 24px-wide, full-height
+ * target is comfortably past WCAG 2.5.8 and easy to hit with a thumb. But a
+ * background painted on that box runs edge to edge and collides with the
+ * input's own border, which is what a hover state looked like before this
+ * split. So the visible surface moved to `slotInk` below, sized to the icon
+ * rather than to the target.
+ *
+ * The focus ring stays HERE, on the element that actually receives focus,
+ * drawn with a negative `outline-offset` so it lands inside the hit area
+ * instead of around it. Moving the ring onto the inner chip would have meant
+ * suppressing the button's own ring (`outline-style: none`) — which the style
+ * gate forbids outright, with no exemption, and it is right to: "the ring is
+ * drawn on a different element" is indistinguishable from "the ring is gone"
+ * to a text scan, and the second one is a real and common defect.
+ */
 export const slotButton = style({
   '@layer': {
     [componentsLayer]: {
@@ -178,24 +196,43 @@ export const slotButton = style({
       background: 'transparent',
       font: 'inherit',
       cursor: 'pointer',
-      borderRadius: t.radius,
       selectors: {
-        '&:hover:not(:disabled)': {
-          color: t.iconHover,
-          background: t.iconHoverBg,
-        },
         // `outline`, never `boxShadow` — see the note on the input's own ring.
         '&:focus-visible': {
           outlineWidth: vars.misc.focusRingWidth,
           outlineStyle: 'solid',
           outlineColor: t.focusRing,
-          // No offset: the ring would otherwise be clipped by the input's own
-          // border, which sits a couple of pixels away.
-          outlineOffset: '0px',
+          // NEGATIVE offset: the button spans the full height of the control,
+          // so a ring drawn at or outside its edge collides with the input's
+          // border. Pulling it inward keeps it clear at every size.
+          outlineOffset: '-4px',
         },
         '&:disabled': {
           cursor: 'default',
           opacity: 0.6,
+        },
+      },
+    },
+  },
+})
+
+/**
+ * The painted chip inside the button: the icon plus a little padding, so its
+ * size follows the type scale and it stays clear of the input's border at every
+ * `size`. At `md` this is a 24px square inside a ~34px control.
+ */
+export const slotInk = style({
+  '@layer': {
+    [componentsLayer]: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: vars.space['2'],
+      borderRadius: vars.radius.sm,
+      selectors: {
+        [`${slotButton}:hover:not(:disabled) &`]: {
+          color: t.iconHover,
+          background: t.iconHoverBg,
         },
       },
     },

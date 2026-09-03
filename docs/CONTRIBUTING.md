@@ -168,6 +168,20 @@ same file set plus one split, and the split is the point:
   `label`, so a clickable icon with no name will not compile (§6.2). When you add an
   interactive slot to a component, prefer making the unusable state unrepresentable
   over documenting it.
+- A colour prop takes a **curated list of semantic roles**, never `keyof vars.color`
+  and never a raw value — the full keyset makes `color="bgCanvas"` (an invisible icon)
+  type-legal. Apply the choice by setting the component's Tier 3 custom property
+  inline rather than generating a class per role
+  ([ADR-0011](adr/0011-component-api-conventions.md) §6.3).
+- A hit area and the surface you paint may differ, and sometimes must: at `sm` a
+  26px-tall field cannot hold a 24px target with visible clearance on both sides.
+  Keep the focus ring on the focusable element and inset it with a negative
+  `outline-offset` — the style gate forbids suppressing an outline with no
+  exemption, and a text scan cannot tell a relocated ring from a deleted one (§6.4).
+- Writing a forbidden CSS literal **in a comment** fails the gate that forbids it:
+  `style-rules.gate.test.ts` scans raw text. Hyphenate it — write `margin-top` and
+  `outline-style: none` when you are explaining why not to use them. This has caught
+  two honest comments so far; see the known-gaps note below.
 - Wrap the control in extra markup only when there is something to put there.
   `Input` renders a bare `<input>` with no adornment and a positioned wrapper with
   one, so adding the feature moved nothing a consumer already styles or queries.
@@ -261,6 +275,24 @@ introduce a new name through `IconProvider`. Adding `search` means extending
 contract our own components call by. Phase 4 ships five on purpose; ADR-0012's
 fuller set arrives as components need them, since an icon nothing renders is a
 permanent maintenance obligation bought for nothing.
+
+## Known gap: `style-rules` scans raw text, comments included
+
+`style-rules.gate.test.ts` checks its physical-property and focus-removal rules
+with substring and regex matches over the whole file, with no comment
+stripping. So a `.css.ts` or `.tokens.ts` file **cannot name a forbidden
+construct in prose** — a comment reading "use `margin-block-start`, not
+`marginTop`" fails the physical-properties rule, and one explaining why a
+button does not set `outline: none` fails the focus rule. Both have happened,
+in `Field.css.ts` and `Input.css.ts` respectively.
+
+It fails closed, so nothing unsafe ships — but it pushes the reasoning out of
+exactly the files that need it, which is the opposite of what this codebase
+wants. The workaround is to hyphenate: `margin-top`, `outline-style: none`.
+
+The fix is to strip comments before the text scan, or to move these two checks
+onto the TypeScript AST walk that `collectStyleBlocks` already builds for the
+`@layer` rule. Neither has been done yet.
 
 ## Known gaps in Phase 2's gates
 

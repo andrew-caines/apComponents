@@ -39,3 +39,30 @@ export const INPUT_TOKENS = {
   iconHover: tier3('input-icon-hover', vars.color.textPrimary),
   iconHoverBg: tier3('input-icon-hover-bg', vars.color.actionBgSubtle),
 } as const
+
+/**
+ * The colours an adornment icon may take.
+ *
+ * Semantic roles, not the raw `vars.color` keyset. Most of that keyset is
+ * backgrounds and borders — `bgCanvas` as an icon colour is an invisible icon,
+ * and `borderSubtle` is a 3:1 role being used as a 4.5:1 one. Every entry here
+ * is a foreground role the contrast gate covers as text, so a product cannot
+ * pick an unreadable one from this list.
+ *
+ * Applied by setting the Tier 3 custom property rather than by generating a
+ * class per colour: this is the dynamic-values-travel-as-custom-properties path
+ * ADR-0003 describes, and it reuses the same `--ap-input-icon` hook a product
+ * already has for overriding the default.
+ */
+export const INPUT_ICON_COLORS = Object.freeze({
+  /** The default — secondary text, for an icon that should not compete. */
+  default: vars.color.textSecondary,
+  primary: vars.color.textPrimary,
+  action: vars.color.actionText,
+  danger: vars.color.dangerText,
+  warning: vars.color.warningText,
+  success: vars.color.successText,
+  info: vars.color.infoText,
+})
+
+export type InputIconColor = keyof typeof INPUT_ICON_COLORS
