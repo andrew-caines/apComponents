@@ -32,9 +32,9 @@ test('the form submits and the action runs with client JavaScript blocked', asyn
   // generated id, never the literal `"email-input"`, until that effect runs
   // post-hydration. With client JS genuinely blocked that effect never
   // fires, so `#email-input` never matches. `for`/`id` association is still
-  // real and still present pre-hydration (`Field.ssr.test.tsx` asserts
-  // exactly this pairing) — `getByLabel` is what resolves through it,
-  // exactly as the next test's comment already documents.
+  // real and still present pre-hydration (`Field.ssr.test.tsx` and the SSR
+  // gate's `serves the form route...` test both assert exactly this
+  // pairing) — `getByLabel` is what resolves through it.
   await expect(page.getByLabel('Email')).toBeVisible()
   const hydrated = await page.evaluate(() => document.documentElement.dataset['apHydrated'])
   expect(hydrated, 'client JS was not actually blocked — this test proves nothing').toBeUndefined()
@@ -45,16 +45,15 @@ test('the form submits and the action runs with client JavaScript blocked', asyn
   await expect(page.locator('#submitted')).toHaveText('received: a@b.c')
 })
 
-test('the label is associated with the control before any JavaScript runs', async ({ page }) => {
-  await blockClientJavaScript(page)
-  await page.goto('/form')
-  // getByLabel resolves through the for/id association in the served HTML.
-  await expect(page.getByLabel('Email')).toBeVisible()
-})
-
 test('a server-side validation error renders with an icon, not colour alone', async ({ page }) => {
   await blockClientJavaScript(page)
   await page.goto('/form')
+  // Guard the guard, same as the first test — without this, a silently
+  // ineffective `blockClientJavaScript` would let RR8 submit this via a
+  // client-side fetch instead of a real POST, and the test would still go
+  // green while proving nothing about the JS-free path.
+  const hydrated = await page.evaluate(() => document.documentElement.dataset['apHydrated'])
+  expect(hydrated, 'client JS was not actually blocked — this test proves nothing').toBeUndefined()
   // See the id/label note in the first test above — `#email-input` does not
   // exist in server-only markup, so this fills by label the same way.
   await page.getByLabel('Email').fill('not-an-email')
@@ -66,14 +65,17 @@ test('a server-side validation error renders with an icon, not colour alone', as
   // FROM the message as its immediate preceding sibling, never as a page-wide
   // `locator('svg')` count: that would pass on any icon anywhere on the page.
   //
-  // `*[local-name()='svg']`, not the bare `svg` node test: the browser parses
-  // an `<svg>` tag through HTML's foreign-content algorithm into the real SVG
-  // namespace (confirmed directly: `el.namespaceURI` is
+  // `*[1][local-name()='svg']`, not the bare `svg` node test: the browser
+  // parses an `<svg>` tag through HTML's foreign-content algorithm into the
+  // real SVG namespace (confirmed directly: `el.namespaceURI` is
   // `http://www.w3.org/2000/svg`), and XPath's unprefixed name test only
   // matches the *null* namespace — `preceding-sibling::svg` silently matches
   // nothing for a real `<svg>` regardless of hydration state, so it would
-  // never distinguish an icon actually being there from one that isn't.
-  await expect(errorText.locator("xpath=preceding-sibling::*[local-name()='svg']")).toHaveCount(1)
+  // never distinguish an icon actually being there from one that isn't. The
+  // `[1]` is what makes this the *immediate* preceding sibling, matching
+  // the comment above — `preceding-sibling::*` alone would count every
+  // element before the message, not just the one right next to it.
+  await expect(errorText.locator("xpath=preceding-sibling::*[1][local-name()='svg']")).toHaveCount(1)
 })
 
 test('the same form still works after hydration, with no console noise', async ({ page }) => {

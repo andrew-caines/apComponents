@@ -237,7 +237,7 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(css).toMatch(/@layer ap\.components\s*\{[\s\S]*?--ap-surface-bg-canvas/)
   })
 
-  it('serves the form route with a real form, a labelled control and its value in the markup', async () => {
+  it('serves the form route with a real form and a labelled control in the markup', async () => {
     const res = await fetchAsBrowser(`${base}/form`)
     expect(res.status).toBe(200)
     const html = await res.text()
@@ -251,9 +251,18 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // the server response. `aria-describedby` deliberately is NOT asserted:
     // Base UI's description/error ids register from a layout effect, so the
     // attribute legitimately appears only after hydration.
+    //
+    // Anchored to an `<input>` specifically, not a bare `toContain(id=...)`:
+    // the served label itself also carries this same id
+    // (`<label id="base-ui-…" for="base-ui-…">`), so a regression where `for`
+    // pointed at the label itself, or at the `Field` wrapper `<div>`, would
+    // still satisfy an unanchored substring search for `id="<labelFor>"`
+    // anywhere in the document. Requiring the id on an `<input>` element
+    // specifically is what actually distinguishes a correct label->control
+    // pairing from a self-referential one.
     const labelFor = /<label[^>]*\sfor="([^"]+)"/.exec(html)?.[1]
     expect(labelFor, 'no for attribute on the server-rendered label').toBeDefined()
-    expect(html).toContain(`id="${labelFor}"`)
+    expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${labelFor}"`))
   })
 })
 
