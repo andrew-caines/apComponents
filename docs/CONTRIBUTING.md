@@ -9,6 +9,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
     npm install
     npm --prefix fixtures/ssr-app install
     npm --prefix fixtures/consumer install
+    npm run showcase:install
     npx --prefix fixtures/ssr-app playwright install chromium
 
 ## Everyday commands
@@ -27,6 +28,8 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
 | `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
 | `npm run gen:input-demo` | Regenerates `examples/InputFields.html` — renders the real components, compiles their real CSS, reads every code sample out of the AST, then runs six browser checks |
+| `npm run showcase` | Dev server for the showcase app — every component, live, in both schemes |
+| `npm run showcase:test` | Smoke-tests every showcase section: 200, server-rendered heading, nav state, zero console output |
 
 ## Generated files
 
@@ -187,12 +190,72 @@ same file set plus one split, and the split is the point:
   one, so adding the feature moved nothing a consumer already styles or queries.
   `Input.test.tsx` asserts both shapes.
 
+- **Add a section to the showcase.** A component nobody can look at is a component
+  nobody reviews. It is one entry in `showcase/app/sections.ts` and one route file —
+  see "The showcase" below. The smoke test walks that list, so the new page is
+  covered the moment it is added.
+
 Import the shared `componentsLayer` from `packages/react/src/theme/layers.css.ts` and
 wrap every style object (base, each variant, each compound variant) in
 `{ '@layer': { [componentsLayer]: { ... } } }`, the way `Surface.css.ts` does. Do not
 declare a new layer per component — every component must emit into the same
 `ap.components` layer that `theme.css`'s `@layer ap.tokens, ap.components;` order
 statement names, or the cascade guarantee silently breaks.
+
+## The showcase
+
+A small React Router 8 app at `showcase/` that renders every component against the
+real generated theme. It is where you look at what you built; it is not a gate.
+
+    npm run showcase:install     # once
+    npm run showcase             # dev server
+    npm run showcase:test        # the smoke test described below
+
+### Adding a section is one entry and one file
+
+`showcase/app/sections.ts` is the single source of truth. Both the router
+(`app/routes.ts`) and the nav bar (`app/root.tsx`) derive from it:
+
+```ts
+{ slug: 'dialog', title: 'Dialog', file: 'routes/dialog.tsx',
+  blurb: 'Modal surfaces: sizes, the sheet layout, focus handling and motion.' }
+```
+
+Add the entry, add `app/routes/<name>.tsx` exporting a default component wrapped in
+`<Page slug="…">`, and it appears in the nav, gets a route, and is covered by the
+smoke test. Nothing else to wire.
+
+That indirection is the whole design. A showcase whose nav is maintained by hand
+drifts from its routes, and once it has lied to you twice nobody trusts it again.
+Deriving both from one list makes "the nav advertises a page that does not exist"
+and "a page exists that the nav never mentions" unrepresentable.
+
+### What the smoke test does
+
+`showcase/e2e/smoke.spec.ts` walks `SECTIONS` and, for each, asserts the route
+returns 200, that the section title is in the **raw server response** (not merely in
+the hydrated DOM), that the `<h1>` renders, that the nav marks it current, and that
+the page logs no console errors or warnings. Perturbation-proven: making one route
+throw fails that route's test and only that one.
+
+It is a smoke test on purpose. What each component *does* belongs in that
+component's own tests; this exists so a component that breaks its page fails loudly
+instead of rotting unnoticed behind a tab nobody clicked.
+
+### Pages that are generated instead
+
+The colour reference, the size scales and `examples/InputFields.html` are generated
+static files, verified by their own browser checks at generation time. Link them
+from the showcase rather than reimplementing them — a second copy is a second thing
+to keep true.
+
+### Known: `showcase`'s typecheck reports the same duplicate-React-types error
+
+`npm --prefix showcase run typecheck` reports the one
+`FieldParts.tsx … Two different types with this name exist` error described under
+"Known gaps in Phase 2's gates" — same cause, same pending fix, unrelated to the
+showcase itself. `npm run showcase:build` and the smoke test are both clean, and the
+showcase is deliberately not wired into CI.
 
 ## Motion
 

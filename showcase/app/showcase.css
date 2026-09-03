@@ -1,0 +1,63 @@
+/*
+ * The showcase's own chrome, written in plain CSS against the library's public
+ * custom properties. Deliberately not vanilla-extract and deliberately not
+ * using any private token: this file is also a small proof that a product can
+ * style its own shell from the published contract alone.
+ */
+body {
+  margin: 0;
+  background: var(--ap-color-bg-canvas);
+  color: var(--ap-color-text-primary);
+  font-family: var(--ap-font-body);
+}
+
+.nav {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--ap-z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ap-space-2);
+  padding: var(--ap-space-3) var(--ap-space-5);
+  background: var(--ap-color-bg-raised);
+  border-block-end: 1px solid var(--ap-color-border-subtle);
+}
+
+.nav-brand {
+  font-weight: var(--ap-font-weight-semibold);
+  margin-inline-end: var(--ap-space-3);
+}
+
+.nav a {
+  padding: var(--ap-space-1) var(--ap-space-3);
+  border-radius: var(--ap-radius-sm);
+  color: var(--ap-color-text-secondary);
+  font-size: var(--ap-text-sm-size);
+  text-decoration: none;
+}
+
+.nav a:hover { background: var(--ap-color-action-bg-subtle); color: var(--ap-color-text-primary); }
+.nav a[aria-current='page'] { background: var(--ap-color-action-bg-subtle); color: var(--ap-color-action-text); }
+.nav a:focus-visible {
+  outline: var(--ap-focus-ring-width) solid var(--ap-color-focus-ring);
+  outline-offset: var(--ap-focus-ring-offset);
+}
+
+.nav-spacer { margin-inline-start: auto; }
+
+main { padding: var(--ap-space-6) var(--ap-space-5); max-inline-size: 60rem; }
+h1 { font-family: var(--ap-font-heading); font-size: var(--ap-text-2xl-size); margin-block: 0 var(--ap-space-2); }
+h2 { font-family: var(--ap-font-heading); font-size: var(--ap-text-lg-size); margin-block: var(--ap-space-6) var(--ap-space-3); }
+.blurb { color: var(--ap-color-text-secondary); margin-block: 0 var(--ap-space-5); }
+
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ap-space-4); }
+.stack { display: flex; flex-direction: column; gap: var(--ap-space-4); max-inline-size: 26rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--ap-space-4); }
+
+.swatch { border-radius: var(--ap-radius-md); border: 1px solid var(--ap-color-border-subtle); block-size: 3rem; }
+.chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ap-color-action-bg-subtle); border-radius: var(--ap-radius-sm);
+}
+.mono { font-family: var(--ap-font-mono); font-size: var(--ap-text-xs-size); color: var(--ap-color-text-secondary); }

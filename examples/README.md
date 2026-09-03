@@ -29,3 +29,9 @@ same element animates opacity and *not* `rotate`. That is ADR-0010's reduced-mot
 guarantee asserted against resolved keyframes rather than against the CSS text.
 
 Each directory's README explains what the page proves and how it is verified.
+
+These pages are static by design — they open from disk with no server and no build,
+which is what lets them be committed and diffed. Anything that needs a running app
+(opening a dialog, trapping focus, switching colour scheme without touching OS
+settings) lives in the showcase instead: `npm run showcase`. See
+[CONTRIBUTING](../docs/CONTRIBUTING.md#the-showcase).
