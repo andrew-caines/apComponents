@@ -159,6 +159,19 @@ same file set plus one split, and the split is the point:
   read — [ADR-0011](adr/0011-component-api-conventions.md) §5's colour-alone failure,
   reached through the recommended API. Base UI's part returns `null` while the field
   is valid, so an unconditional slot costs no markup.
+- A prop that positions something is named for the **inline axis** — `startIcon`,
+  `endIcon` — never `left`/`right`, and it is placed with `inset-inline-start`/`-end`.
+  See [ADR-0011](adr/0011-component-api-conventions.md) §6.1: a physical name would be
+  the only one in the API, and it becomes wrong under RTL.
+- A prop that makes something clickable carries its accessible name in the **type**,
+  not in a doc comment. `InputAdornment` is a union whose `onClick` branch requires
+  `label`, so a clickable icon with no name will not compile (§6.2). When you add an
+  interactive slot to a component, prefer making the unusable state unrepresentable
+  over documenting it.
+- Wrap the control in extra markup only when there is something to put there.
+  `Input` renders a bare `<input>` with no adornment and a positioned wrapper with
+  one, so adding the feature moved nothing a consumer already styles or queries.
+  `Input.test.tsx` asserts both shapes.
 
 Import the shared `componentsLayer` from `packages/react/src/theme/layers.css.ts` and
 wrap every style object (base, each variant, each compound variant) in

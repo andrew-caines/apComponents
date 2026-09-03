@@ -10,7 +10,7 @@
 // Keep each `render` body small and idiomatic: it is public-facing sample
 // code, not a test fixture.
 import type { ReactElement } from 'react'
-import { Button, Field, Input } from '../../packages/react/src/index.js'
+import { Button, Field, Icon, Input } from '../../packages/react/src/index.js'
 
 export interface Example {
   /** Anchor id and the key the generator matches AST source against. */
@@ -104,6 +104,44 @@ export const EXAMPLES: Example[] = [
         </Field>
         <Field label="Search">
           <Input name="q" type="search" placeholder="Search employees" />
+        </Field>
+      </>
+    ),
+  },
+  {
+    id: 'adornments',
+    note:
+      'An icon inside the control, at the inline start or end. `start` and `end` rather than left ' +
+      'and right, because the position is set with `inset-inline-*` — in an RTL locale a ' +
+      '`startIcon` renders on the right and the name stays true. Give the adornment an `onClick` ' +
+      'and it becomes a real `<button type="button">`; the type then requires a `label`, because a ' +
+      'button with no accessible name is unusable by anyone not looking at it. Without `onClick` ' +
+      'the icon is decorative and transparent to clicks, so tapping the currency symbol puts the ' +
+      'caret in the field behind it.',
+    title: 'Icons inside the field',
+    render: () => (
+      <>
+        <Field label="Amount" hint="Decorative — clicking the symbol focuses the field.">
+          <Input name="amount" defaultValue="1250.00" startIcon={{ icon: <span>€</span> }} />
+        </Field>
+        <Field label="API key" hint="The clear button is a real button: tab to it, press Enter.">
+          <Input
+            name="key"
+            defaultValue="sk-live-4f9a2c"
+            endIcon={{
+              icon: <Icon name="close" />,
+              onClick: () => {},
+              label: 'Clear the API key',
+            }}
+          />
+        </Field>
+        <Field label="Both ends">
+          <Input
+            name="search"
+            defaultValue="quarterly report"
+            startIcon={{ icon: <Icon name="info" /> }}
+            endIcon={{ icon: <Icon name="check" />, onClick: () => {}, label: 'Apply filter' }}
+          />
         </Field>
       </>
     ),

@@ -167,7 +167,7 @@ const { FIELD_TOKENS } = (await import(
 const sections = EXAMPLES.map((ex) => {
   // `identifierPrefix` is not cosmetic here. Each example is its own
   // `renderToString` call, and each call restarts React's `useId` counter — so
-  // without a per-example prefix the eight specimens mint the same handful of
+  // without a per-example prefix the specimens mint the same handful of
   // ids, the page ends up with duplicates, and `label[for]` resolves to
   // whichever element with that id comes first in the document rather than to
   // its own control. That is a broken label for a screen reader, and it looks
@@ -437,20 +437,101 @@ try {
   // --- check 4: no error is carried by colour alone -------------------------
   // ADR-0011 §5 asserted against the rendered page rather than restated in
   // prose beside it.
+  // Scoped to the error row's own shape — `Field.Error` renders an icon
+  // followed by a message element, and nothing else on the page does. Matching
+  // every `svg` inside a specimen instead would sweep in the adornment icons,
+  // which are decorative by design and have no text beside them.
+  //
+  // The selector is self-guarding: if `Field.Error`'s structure ever changes,
+  // this finds nothing and the zero-length check below fails rather than
+  // quietly asserting over an empty set.
   const errors = await page.evaluate(() =>
-    [...document.querySelectorAll('.specimen svg')].map((svg) => {
-      const row = svg.parentElement!
+    [...document.querySelectorAll('.specimen div:has(> svg + div)')].map((row) => {
+      const svg = row.querySelector(':scope > svg')!
       return {
-        id: svg.closest('.specimen')!.getAttribute('data-example') ?? '',
+        id: row.closest('.specimen')!.getAttribute('data-example') ?? '',
         text: (row.textContent ?? '').trim(),
         hidden: svg.getAttribute('aria-hidden'),
       }
     }),
   )
-  if (errors.length === 0) fail('4 never colour alone', 'no error icon anywhere on the page')
+  if (errors.length === 0) fail('4 never colour alone', 'no error row anywhere on the page')
   for (const e of errors) {
     if (e.text === '') fail('4 never colour alone', `${e.id}: an error icon with no text beside it`)
     if (e.hidden !== 'true') fail('4 never colour alone', `${e.id}: the icon is not aria-hidden`)
+  }
+
+  // --- check 7: an adorned field actually reserves room for its icon --------
+  // The recipe puts the extra padding in `compoundVariants`, betting that
+  // vanilla-extract emits those last so they beat the `size` rule. That is a
+  // cascade assumption, and a cascade assumption that silently stops holding
+  // produces text running underneath the icon — legible in a screenshot only
+  // if you already suspect it. Measured here against a plain field of the same
+  // size, and against the icon's own box.
+  const adorned = await page.evaluate(() => {
+    // No named function may be declared inside this callback. tsx compiles the
+    // script with esbuild's `keepNames`, which wraps every named function in a
+    // `__name()` helper — the helper stays in Node, the function body is
+    // serialised into the browser, and the page throws `__name is not defined`.
+    // Everything here is therefore inline.
+    const plain = document.querySelector('.specimen[data-example="basic"] input')
+    const rows = [...document.querySelectorAll('.specimen[data-example="adornments"] input')]
+    return {
+      plainStart: plain ? parseFloat(getComputedStyle(plain).paddingInlineStart) || 0 : null,
+      plainEnd: plain ? parseFloat(getComputedStyle(plain).paddingInlineEnd) || 0 : null,
+      fields: rows.map((input) => {
+        const wrap = input.parentElement!
+        const cs = getComputedStyle(input)
+        const box = input.getBoundingClientRect()
+        return {
+          hasStart: wrap.firstElementChild !== input,
+          hasEnd: wrap.lastElementChild !== input,
+          padStart: parseFloat(cs.paddingInlineStart) || 0,
+          padEnd: parseFloat(cs.paddingInlineEnd) || 0,
+          // Every adornment must sit within the input's own box, or it is
+          // floating outside the control it belongs to.
+          contained: [...wrap.children]
+            .filter((c) => c !== input)
+            .every((c) => {
+              const r = c.getBoundingClientRect()
+              return r.left >= box.left - 1 && r.right <= box.right + 1
+            }),
+        }
+      }),
+    }
+  })
+  if (adorned.plainStart === null) fail('7 adornments', 'no plain input to compare against')
+  if (adorned.fields.length === 0) fail('7 adornments', 'no adorned inputs found on the page')
+  for (const f of adorned.fields) {
+    if (f.hasStart && f.padStart <= (adorned.plainStart ?? 0)) {
+      fail('7 adornments', `start-adorned field reserves ${f.padStart}px, no more than the plain ${adorned.plainStart}px`)
+    }
+    if (!f.hasStart && f.padStart !== adorned.plainStart) {
+      fail('7 adornments', `unadorned start side padded ${f.padStart}px, expected ${adorned.plainStart}px`)
+    }
+    if (f.hasEnd && f.padEnd <= (adorned.plainEnd ?? 0)) {
+      fail('7 adornments', `end-adorned field reserves ${f.padEnd}px, no more than the plain ${adorned.plainEnd}px`)
+    }
+    if (!f.hasEnd && f.padEnd !== adorned.plainEnd) {
+      fail('7 adornments', `unadorned end side padded ${f.padEnd}px, expected ${adorned.plainEnd}px`)
+    }
+    if (!f.contained) fail('7 adornments', 'an adornment renders outside its input box')
+  }
+
+  // --- check 8: an actionable adornment is a usable button ------------------
+  const buttons = await page.evaluate(() =>
+    [...document.querySelectorAll('.specimen button[aria-label]')].map((b) => ({
+      name: b.getAttribute('aria-label') ?? '',
+      type: b.getAttribute('type'),
+      w: b.getBoundingClientRect().width,
+      h: b.getBoundingClientRect().height,
+    })),
+  )
+  if (buttons.length === 0) fail('8 adornment buttons', 'no actionable adornment on the page')
+  for (const b of buttons) {
+    if (b.type !== 'button') fail('8 adornment buttons', `"${b.name}" has type=${b.type} — it would submit the form`)
+    if (b.name.trim() === '') fail('8 adornment buttons', 'an adornment button has an empty accessible name')
+    if (b.w < 24 || b.h < 24) fail('8 adornment buttons', `"${b.name}" is ${b.w}x${b.h}, under the 24px hit target`)
   }
 
   // --- check 5: nothing collapsed ------------------------------------------
@@ -506,4 +587,4 @@ if (failures.length) {
   console.error(`\n${failures.length} verification failure(s):\n${failures.map((f) => `  ${f}`).join('\n')}`)
   process.exit(1)
 }
-console.log(`verified: ${EXAMPLES.length} examples, 6 checks passed. Screenshots written.`)
+console.log(`verified: ${EXAMPLES.length} examples, 8 checks passed. Screenshots written.`)

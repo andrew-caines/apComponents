@@ -22,4 +22,20 @@ export const INPUT_TOKENS = {
   borderInvalid: tier3('input-border-invalid', vars.color.dangerBorder),
   radius: tier3('input-radius', vars.radius.md),
   focusRing: tier3('input-focus-ring', vars.color.focusRing),
+
+  // Adornments (startIcon / endIcon).
+  //
+  // The slot is `hit-target` wide rather than an em-based icon size, because an
+  // adornment carrying an `onClick` is a real button and WCAG 2.5.8 sizes a
+  // target, not a glyph. A decorative adornment gets the same box so the two
+  // reserve identical space and a field does not reflow when an icon becomes
+  // actionable.
+  iconSlot: tier3('input-icon-slot', vars.misc.hitTarget),
+  iconGap: tier3('input-icon-gap', vars.space['2']),
+  icon: tier3('input-icon', vars.color.textSecondary),
+  // An actionable adornment is the only part of the control that responds to
+  // its own hover, so it needs its own pair — the input's `borderHover` says
+  // nothing about a button sitting inside it.
+  iconHover: tier3('input-icon-hover', vars.color.textPrimary),
+  iconHoverBg: tier3('input-icon-hover-bg', vars.color.actionBgSubtle),
 } as const

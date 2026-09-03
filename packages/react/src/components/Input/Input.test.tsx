@@ -87,3 +87,113 @@ describe('Input', () => {
     expect(onValueChange.mock.calls[0]?.[0]).toBe('x')
   })
 })
+
+describe('Input adornments', () => {
+  it('renders a decorative start icon, hidden from assistive technology', () => {
+    const { container } = render(
+      <Input aria-label="Amount" startIcon={{ icon: <span data-testid="euro">€</span> }} />,
+    )
+    const icon = screen.getByTestId('euro')
+    expect(icon.parentElement?.getAttribute('aria-hidden')).toBe('true')
+    // Decorative means decorative: no button, nothing focusable.
+    expect(container.querySelector('button')).toBeNull()
+  })
+
+  it('renders an actionable end icon as a real button with its accessible name', () => {
+    const onClick = vi.fn()
+    render(
+      <Input
+        aria-label="Amount"
+        endIcon={{ icon: <span>x</span>, onClick, label: 'Clear amount' }}
+      />,
+    )
+    const button = screen.getByRole('button', { name: 'Clear amount' })
+    // `type="button"`, or it submits the form it happens to be sitting in.
+    expect(button.getAttribute('type')).toBe('button')
+    fireEvent.click(button)
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not submit the form it sits in when the adornment is clicked', () => {
+    const onSubmit = vi.fn((e: { preventDefault: () => void }) => e.preventDefault())
+    const onClick = vi.fn()
+    render(
+      <form onSubmit={onSubmit}>
+        <Input aria-label="Amount" endIcon={{ icon: <span>x</span>, onClick, label: 'Clear' }} />
+      </form>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(onClick).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('disables the adornment button when the input is disabled', () => {
+    render(
+      <Input
+        aria-label="Amount"
+        disabled
+        endIcon={{ icon: <span>x</span>, onClick: () => {}, label: 'Clear' }}
+      />,
+    )
+    // `.disabled`, not a jest-dom matcher — this repo does not install one.
+    expect((screen.getByRole('button', { name: 'Clear' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('reserves padding on the adorned side, and only that side', () => {
+    // jsdom does not apply the vanilla-extract stylesheet, so the assertion is
+    // on the class the recipe produces rather than on computed padding — the
+    // computed value is asserted in a browser by gen:input-demo's check 7.
+    const plain = inputRecipe({ size: 'md', adornStart: false, adornEnd: false })
+    expect(inputRecipe({ size: 'md', adornStart: true, adornEnd: false })).not.toBe(plain)
+    expect(inputRecipe({ size: 'md', adornStart: false, adornEnd: true })).not.toBe(plain)
+    expect(inputRecipe({ size: 'md', adornStart: true, adornEnd: false })).not.toBe(
+      inputRecipe({ size: 'md', adornStart: false, adornEnd: true }),
+    )
+  })
+
+  it('applies the adorned classes to the real input, driven by the props', () => {
+    render(<Input aria-label="Amount" startIcon={{ icon: <span>€</span> }} />)
+    expect(screen.getByRole('textbox').className).toBe(
+      inputRecipe({ size: 'md', adornStart: true, adornEnd: false }),
+    )
+  })
+
+  it('still forwards the ref to the input, not the wrapper, when adorned', () => {
+    const ref = createRef<HTMLInputElement>()
+    render(<Input aria-label="Amount" ref={ref} startIcon={{ icon: <span>€</span> }} />)
+    expect(ref.current?.tagName).toBe('INPUT')
+  })
+
+  // The wrapper exists only when it has something to hold. Without this, the
+  // "adding adornments changed no existing markup" claim is just a comment.
+  it('renders no wrapper at all when there is no adornment', () => {
+    const { container } = render(<Input aria-label="Amount" />)
+    expect(container.firstElementChild?.tagName).toBe('INPUT')
+    expect(container.querySelectorAll('span')).toHaveLength(0)
+  })
+
+  it('wraps only when adorned', () => {
+    const { container } = render(<Input aria-label="Amount" endIcon={{ icon: <span>x</span> }} />)
+    expect(container.firstElementChild?.tagName).toBe('SPAN')
+    expect(container.querySelector('input')).not.toBeNull()
+  })
+
+  // A compile-time test, and the only kind that can prove this rule. If the
+  // union is ever flattened into a plain object, `onClick` without `label`
+  // starts compiling, `@ts-expect-error` becomes an unused suppression, and
+  // `npm run typecheck` fails on THIS line — which is exactly the alarm we
+  // want, because the runtime consequence is a button no screen-reader user
+  // can identify.
+  it('rejects an onClick with no accessible name, at compile time', () => {
+    render(
+      <Input
+        aria-label="Amount"
+        // @ts-expect-error `label` is required whenever `onClick` is supplied
+        endIcon={{ icon: <span>x</span>, onClick: () => {} }}
+      />,
+    )
+    // The adornment still renders; the point of this test is the type error
+    // above, which `npm run typecheck` enforces.
+    expect(screen.getByRole('textbox')).not.toBeNull()
+  })
+})

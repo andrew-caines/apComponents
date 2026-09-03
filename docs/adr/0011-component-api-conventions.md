@@ -78,9 +78,48 @@ There is no API by which a component renders an error, warning or success state 
 | `render` | element passthrough (Base UI) |
 | `data-*` | primitive state attributes always preserved |
 | `variant`, `size`, `tone` | typed recipe variants |
+| `startIcon`, `endIcon` | an adornment placed inside the control on the inline axis |
 | `asChild` | **not used** — `render` is the mechanism |
 
 Every component forwards refs and spreads unknown props to its root element.
+
+### 6.1 Direction is always logical, in prop names as well as in CSS
+
+A position-bearing prop is named for the **inline axis**, never for the screen:
+`startIcon`/`endIcon`, not `leftIcon`/`rightIcon`. The styling that places them
+uses `inset-inline-start`/`-end`, so under RTL a `startIcon` renders on the
+right and the name is still true; `leftIcon` would become a lie the first time
+a product ships Arabic or Hebrew.
+
+This is the same rule the style gate already enforces one level down — it
+rejects `padding-left` in favour of `padding-inline-start` — and Base UI, which
+these components wrap, ships a `DirectionProvider` for exactly this reason
+([ADR-0004](0004-base-ui-primitives.md)). A physical name in the public API
+would be the one place the system stopped agreeing with itself.
+
+### 6.2 An interactive adornment carries its accessible name in the type
+
+Where an adornment can be clicked, the prop takes a union, not a flat object:
+
+```ts
+type InputAdornment =
+  | { icon: ReactNode; onClick?: never; label?: never }
+  | { icon: ReactNode; onClick: () => void; label: string }
+```
+
+Supplying `onClick` without `label` is a compile error. This is deliberate and
+follows §5's logic: a clickable icon with no accessible name is invisible to
+screen-reader and voice-control users while looking perfect on screen, so the
+failure is one nobody catches by looking. Making it unrepresentable costs a
+union; making it a review item costs it every time somebody forgets.
+
+The same shape carries the other half of the contract. With `onClick`, the
+component renders a real `<button type="button">` — focusable, keyboard
+operable, sized to the `hit-target` token, disabled when the control is, and
+explicitly non-submitting so it cannot post the form it sits in. Without it,
+the icon is `aria-hidden` and transparent to pointer events, so clicking it
+puts the caret in the field behind it. A consumer never chooses between those
+two behaviours; the presence of a handler does.
 
 ### 7. Every component ships with
 
