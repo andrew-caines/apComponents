@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { INPUT_TOKENS } from '../components/Input/Input.tokens.js'
 import { FIELD_TOKENS } from '../components/Field/Field.tokens.js'
+import { SPINNER_TOKENS } from '../components/Spinner/Spinner.tokens.js'
 
 const PAGE = join(import.meta.dirname, '../../../../examples/InputFields.html')
 
@@ -35,6 +36,7 @@ describe('gate: the committed Input/Field examples page documents the real Tier 
   const cases = [
     ...Object.entries(INPUT_TOKENS).map(([key, value]) => ['Input', key, value] as const),
     ...Object.entries(FIELD_TOKENS).map(([key, value]) => ['Field', key, value] as const),
+    ...Object.entries(SPINNER_TOKENS).map(([key, value]) => ['Spinner', key, value] as const),
   ]
 
   it.each(cases)('documents %s.%s with its current fallback', (_component, key, value) => {

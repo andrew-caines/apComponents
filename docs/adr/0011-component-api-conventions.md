@@ -155,6 +155,27 @@ would require suppressing the button's own, which the style gate forbids with
 no exemption — correctly, since a text scan cannot tell a relocated ring from a
 deleted one.
 
+### 6.5 A pending control stays submittable
+
+`loading` on a form control makes it **read-only, not disabled**. A disabled
+field drops out of the tab order *and* out of form submission, so a form posted
+while one field was still validating would silently lose that field's value —
+the user sees a filled-in input and the server sees nothing. Read-only keeps the
+value in the payload and the field reachable by keyboard, while still refusing
+edits. `aria-busy` carries the pending state.
+
+The spinner **replaces** the trailing adornment rather than joining it: two
+glyphs competing in one slot at `sm` is not a layout worth having, and the
+adornment a control shows while pending is nearly always the one that acts on a
+value it does not have yet. Adornments on the other side stay, but an actionable
+one is disabled for the same reason.
+
+The spinner itself is decorative — `aria-hidden`, no label. `aria-busy` already
+announces the state; a labelled spinner beside it would announce it twice, and
+two announcements for one state is noise rather than redundancy. A spinner
+carries its own label only where it is the *sole* indication that something is
+happening.
+
 ### 7. Every component ships with
 
 - A `.stories.tsx` (gallery entry, controls, axe run)

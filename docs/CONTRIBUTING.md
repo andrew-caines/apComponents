@@ -196,11 +196,27 @@ statement names, or the cascade guarantee silently breaks.
 
 ## Motion
 
-`@ap/motion/motion.css` is opt-in — nothing in `@ap/react` imports it, and no
-component in this repo consumes `@ap/motion` yet. A consumer that wants it must
-import it **after** `@ap/react/theme.css`, because `theme.css` carries the
-`@layer ap.tokens, ap.components;` order statement that `motion.css`'s own
-`ap.tokens`-layered custom properties rely on for cascade position.
+`motion.css` is **no longer optional**, because `Spinner` consumes it — and
+through `Spinner`, so does `Input`'s `loading` state. Link it as
+`@ap/react/motion.css`, a one-line re-export of `@ap/motion/motion.css` that
+exists so an app links the stylesheets of the package it installed:
+
+    import '@ap/react/fonts.css'    // optional — see ADR-0015
+    import '@ap/react/theme.css'
+    import '@ap/react/motion.css'   // after theme.css
+
+Order matters. `theme.css` carries the `@layer ap.tokens, ap.components;` order
+statement that `motion.css`'s own `ap.tokens`-layered custom properties rely on
+for cascade position.
+
+Omitting it fails in the worst available way: components declare animation as
+`animation: var(--ap-motion-<name>)`, so with no `motion.css` the property
+resolves to nothing. There is no error and no console warning — `Input loading`
+still renders its spinner, the spinner simply never moves, and the one thing it
+exists to communicate is the one thing it stops communicating. Three assertions
+in `consumer-build.gate.test.ts` hold that shut: the keyframes reach a real
+consumer's bundle, the component stays bound to the `var()` rather than to the
+keyframes name, and the `prefers-reduced-motion` override ships with it.
 
 `collapse` and `expand` reference `var(--panel-height)`, which is supplied by
 Base UI's primitives in Phase 4. Both motions emit correctly today — the
@@ -319,6 +335,29 @@ This is a known gap, not a defect in the gates: verifying real transitive
 resolution would require installing a fixture outside this repository, which
 Phase 2 does not do. Until that exists, treat ADR-0002's transitive-resolution
 claim as architecturally intended and exercised manually, not as CI-enforced.
+
+### The same nesting currently makes `fixtures/consumer`'s typecheck fail
+
+`npm --prefix fixtures/consumer run typecheck` (CI job `consumer`) reports one
+error, in `packages/react/src/components/Field/FieldParts.tsx`, ending in
+`Two different types with this name exist, but they are unrelated`. That is the
+signature of two copies of `@types/react` in one program: the fixture's own
+files resolve types from `fixtures/consumer/node_modules/@types/react`, while
+the `@ap/react` sources they pull in resolve from the root `node_modules`, so
+TypeScript sees two nominally distinct `VoidOrUndefinedOnly`s and refuses the
+assignment.
+
+It is the same class of artifact as the duplicate-React trap below, and equally
+not something a real external consumer would hit — they would have exactly one
+copy. It predates Phase 4 and is unrelated to any component's types; nothing in
+`packages/react` is wrong. The fix is to pin the fixture's program to a single
+copy (a `paths` mapping for `react`/`react-dom` in
+`fixtures/consumer/tsconfig.json`), which is worth doing deliberately, with a
+perturbation showing the mapping still fails when the types genuinely disagree —
+a `paths` entry that silences a real type error would be strictly worse than the
+current red. **Until then the `consumer` CI job is expected to fail on that
+step**, and `npm run test:consumer`, which is the assertion that actually
+exercises the build, passes.
 
 ## Base UI's `render` prop and the `nativeButton`/anchor-role trap
 

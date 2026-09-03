@@ -163,6 +163,9 @@ const { INPUT_TOKENS } = (await import(
 const { FIELD_TOKENS } = (await import(
   pathToFileURL(resolve(ROOT, 'packages/react/src/components/Field/Field.tokens.ts')).href
 )) as { FIELD_TOKENS: Record<string, string> }
+const { SPINNER_TOKENS } = (await import(
+  pathToFileURL(resolve(ROOT, 'packages/react/src/components/Spinner/Spinner.tokens.ts')).href
+)) as { SPINNER_TOKENS: Record<string, string> }
 
 const sections = EXAMPLES.map((ex) => {
   // `identifierPrefix` is not cosmetic here. Each example is its own
@@ -197,6 +200,9 @@ const page = `<meta charset="utf-8">
 <title>Input &amp; Field — apComponents</title>
 <link rel="stylesheet" href="../packages/react/src/theme/fonts.css">
 <link rel="stylesheet" href="../packages/react/src/theme/theme.css">
+<!-- The motion tokens. Without this the spinner renders but never animates, and
+     reduced-motion degradation has nothing to degrade. -->
+<link rel="stylesheet" href="../packages/motion/src/motion.css">
 <style>
 /* The components' own stylesheet, compiled from the real .css.ts sources by
    scripts/input-demo/build.ts. Everything below the marker is this page's own
@@ -319,6 +325,7 @@ ${sections}
     <tbody>
 ${tokenRows('Input', INPUT_TOKENS)}
 ${tokenRows('Field', FIELD_TOKENS)}
+${tokenRows('Spinner', SPINNER_TOKENS)}
     </tbody>
   </table>
 </section>
@@ -555,6 +562,78 @@ try {
     }
   }
 
+  // --- check 9: the spinner animates, and degrades where it should ---------
+  // ADR-0010's central claim is that motion degrades at the TOKEN layer, with
+  // no component code change. Nothing had ever executed that in a browser.
+  //
+  // `getComputedStyle` cannot settle it: the reduced variant redefines the same
+  // `@keyframes` name inside a media query, so the animation-name is identical
+  // either way. `getAnimations()` returns the RESOLVED keyframes, which is the
+  // only place the difference is visible.
+  const readSpinner = () =>
+    page.evaluate(() => {
+      const svg = document.querySelector('.specimen[data-example="loading"] svg')
+      if (!svg) return null
+      const anims = svg.getAnimations()
+      const props = new Set<string>()
+      for (const a of anims) {
+        for (const frame of (a.effect as KeyframeEffect).getKeyframes()) {
+          for (const key of Object.keys(frame)) props.add(key)
+        }
+      }
+      return { count: anims.length, props: [...props] }
+    })
+
+  const full = await readSpinner()
+  if (full === null) {
+    fail('9 motion', 'no spinner found in the loading example')
+  } else {
+    if (full.count === 0) {
+      fail(
+        '9 motion',
+        'the spinner has no running animation — motion.css is probably not linked, ' +
+          'so var(--ap-motion-spinner-rotate) resolved to nothing',
+      )
+    }
+    if (!full.props.includes('rotate')) {
+      fail('9 motion', `at full motion the spinner does not animate rotate (got: ${full.props.join(', ')})`)
+    }
+  }
+
+  {
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+    const p = await ctx.newPage()
+    await p.goto(url)
+    const reduced = await p.evaluate(() => {
+      const svg = document.querySelector('.specimen[data-example="loading"] svg')
+      if (!svg) return null
+      const props = new Set<string>()
+      for (const a of svg.getAnimations()) {
+        for (const frame of (a.effect as KeyframeEffect).getKeyframes()) {
+          for (const key of Object.keys(frame)) props.add(key)
+        }
+      }
+      return { count: svg.getAnimations().length, props: [...props] }
+    })
+    if (reduced === null) {
+      fail('9 motion', 'no spinner found under reduced motion')
+    } else {
+      // Rotation is the vestibular trigger and must be gone…
+      if (reduced.props.includes('rotate')) {
+        fail('9 motion', 'the spinner still animates rotate under prefers-reduced-motion')
+      }
+      // …but the state must remain perceivable, which is the half that a
+      // "just remove the animation" degradation gets wrong.
+      if (!reduced.props.includes('opacity')) {
+        fail(
+          '9 motion',
+          `under reduced motion the spinner animates nothing perceivable (got: ${reduced.props.join(', ')})`,
+        )
+      }
+    }
+    await ctx.close()
+  }
+
   // --- check 5: nothing collapsed ------------------------------------------
   const boxes = await page.evaluate(() =>
     [...document.querySelectorAll('.specimen')].map((s) => {
@@ -608,4 +687,4 @@ if (failures.length) {
   console.error(`\n${failures.length} verification failure(s):\n${failures.map((f) => `  ${f}`).join('\n')}`)
   process.exit(1)
 }
-console.log(`verified: ${EXAMPLES.length} examples, 8 checks passed. Screenshots written.`)
+console.log(`verified: ${EXAMPLES.length} examples, 9 checks passed. Screenshots written.`)

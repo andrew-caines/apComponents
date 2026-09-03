@@ -21,4 +21,11 @@ The inputs on that page are genuine `<input>` elements, so typing, hover and foc
 work with no JavaScript. Only behaviour that needs React — validation firing on blur — is
 inert, and those states appear as rendered specimens instead.
 
+The loading specimen's spinner really spins: the page links `@ap/motion`'s generated
+`motion.css`, so the animation is the shipped one rather than a mock-up. The generator
+checks that in a browser both ways — that the spinner has a running animation whose
+keyframes include `rotate`, and that in a `prefers-reduced-motion: reduce` context the
+same element animates opacity and *not* `rotate`. That is ADR-0010's reduced-motion
+guarantee asserted against resolved keyframes rather than against the CSS text.
+
 Each directory's README explains what the page proves and how it is verified.

@@ -62,8 +62,9 @@
 }
 
 @keyframes ap-spinner-rotate {
-  0% { rotate: 0deg }
-  100% { rotate: 360deg }
+  0% { opacity: 1; rotate: 0deg }
+  50% { opacity: 0.4; rotate: 180deg }
+  100% { opacity: 1; rotate: 360deg }
 }
 
 @keyframes ap-attention-nudge {
@@ -137,7 +138,9 @@
   }
 
   @keyframes ap-spinner-rotate {
-    0%, 100% { }
+    0% { opacity: 1 }
+    50% { opacity: 0.4 }
+    100% { opacity: 1 }
   }
 
   @keyframes ap-attention-nudge {

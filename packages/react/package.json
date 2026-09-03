@@ -8,9 +8,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./theme.css": "./src/theme/theme.css",
-    "./fonts.css": "./src/theme/fonts.css"
+    "./fonts.css": "./src/theme/fonts.css",
+    "./motion.css": "./src/theme/motion.css"
   },
   "dependencies": {
+    "@ap/motion": "file:../motion",
     "@ap/tokens": "file:../tokens",
     "@base-ui/react": "1.7.0",
     "@vanilla-extract/css": "^1.21.2",

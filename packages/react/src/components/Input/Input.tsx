@@ -13,6 +13,7 @@ import {
   slotStart,
 } from './Input.css.js'
 import { INPUT_ICON_COLORS, type InputIconColor } from './Input.tokens.js'
+import { Spinner } from '../Spinner/Spinner.js'
 
 export { INPUT_TOKENS, INPUT_ICON_COLORS } from './Input.tokens.js'
 export type { InputIconColor } from './Input.tokens.js'
@@ -90,6 +91,26 @@ export interface InputProps extends Omit<BaseInputProps, 'className' | 'size'> {
   startIcon?: InputAdornment
   /** An icon at the inline end — a copy or clear button, a unit suffix. */
   endIcon?: InputAdornment
+  /**
+   * The control is busy — validating a value, fetching one. While true the
+   * field is read-only, carries `aria-busy`, and shows a spinner in place of
+   * whatever `endIcon` holds.
+   *
+   * `readOnly`, deliberately, not `disabled`: a disabled field drops out of the
+   * tab order AND out of form submission, so a form posted mid-check would
+   * silently lose the value. Read-only keeps both and still refuses edits.
+   *
+   * The spinner REPLACES `endIcon` rather than sitting beside it — one slot,
+   * and the busy state is the more urgent thing to show. `startIcon` is
+   * untouched, though an actionable one is disabled for the duration, since
+   * nothing it could do to the value would stick.
+   *
+   * Note the limit of what this announces: `aria-busy` is the correct
+   * semantic, but screen-reader support for it on a text input is thin, and
+   * the spinner itself is decorative. A product that needs the transition
+   * spoken should own a live region rather than rely on this.
+   */
+  loading?: boolean
   className?: string
 }
 
@@ -153,12 +174,18 @@ function Adornment({
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { size = 'md', startIcon, endIcon, className, ...rest },
+  { size = 'md', startIcon, endIcon, loading = false, className, ...rest },
   ref,
 ) {
+  // The spinner takes the end slot outright while loading. Decorative: the
+  // input's own `aria-busy` carries the meaning, and a labelled spinner beside
+  // it would announce the same state twice.
+  const end: InputAdornment | undefined = loading ? { icon: <Spinner /> } : endIcon
+
   const control = (
     <BaseInput
       {...rest}
+      {...(loading ? { readOnly: true, 'aria-busy': true } : {})}
       // Base UI types this ref as `Ref<HTMLElement>` even though the component
       // renders a real `<input>` — `Ref<HTMLInputElement>` is not assignable to
       // it, because a mutable ref is invariant in its element type. The cast is
@@ -168,7 +195,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       // asserts the runtime tagName is genuinely INPUT.
       ref={ref as Ref<HTMLElement>}
       className={[
-        inputRecipe({ size, adornStart: startIcon !== undefined, adornEnd: endIcon !== undefined }),
+        inputRecipe({ size, adornStart: startIcon !== undefined, adornEnd: end !== undefined }),
         className,
       ]
         .filter(Boolean)
@@ -179,14 +206,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   // No adornment, no wrapper. An unadorned `Input` renders precisely the markup
   // it rendered before this prop existed — same element, same classes, same
   // parent — so nothing a consumer already styles or queries moved.
-  if (startIcon === undefined && endIcon === undefined) return control
+  if (startIcon === undefined && end === undefined) return control
 
-  const disabled = rest.disabled === true
+  // A busy field's affordances go inert with it: whatever a start button would
+  // do to the value cannot stick while the value is read-only.
+  const disabled = rest.disabled === true || loading
   return (
     <span className={inputWrapper}>
       {startIcon ? <Adornment adornment={startIcon} side="start" disabled={disabled} /> : null}
       {control}
-      {endIcon ? <Adornment adornment={endIcon} side="end" disabled={disabled} /> : null}
+      {end ? <Adornment adornment={end} side="end" disabled={disabled} /> : null}
     </span>
   )
 })

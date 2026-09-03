@@ -112,11 +112,25 @@ export const MOTIONS = deepFreeze({
       { at: 1, translateX: '100%' },
     ],
   },
+  // `reduced: 'opacity'`, not 'none'. A spinner is the one motion where the
+  // movement IS the information, so degrading it to nothing leaves a
+  // reduced-motion user looking at a static glyph with no indication that
+  // anything is happening at all. Rotation is a vestibular trigger; an opacity
+  // fade is not — so this keeps the state perceivable without the property
+  // that causes harm.
+  //
+  // The opacity track is therefore not decoration: a reduced variant is the
+  // opacity SUBSET of these same keyframes (see emitCss.ts), so a spinner with
+  // no opacity to degrade to degrades to nothing. `motions.test.ts` enforces
+  // exactly that pairing. At full motion this reads as a gentle breath under
+  // the rotation; under reduce the breath is all that remains, and it is
+  // enough to say "still working".
   'spinner.rotate': {
-    duration: 'slower', ease: 'linear', iterations: 'infinite', reduced: 'none',
+    duration: 'slower', ease: 'linear', iterations: 'infinite', reduced: 'opacity',
     steps: [
-      { at: 0, rotate: '0deg' },
-      { at: 1, rotate: '360deg' },
+      { at: 0, rotate: '0deg', opacity: 1 },
+      { at: 0.5, rotate: '180deg', opacity: 0.4 },
+      { at: 1, rotate: '360deg', opacity: 1 },
     ],
   },
   'attention.nudge': {

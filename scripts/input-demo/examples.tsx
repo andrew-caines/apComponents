@@ -155,6 +155,31 @@ export const EXAMPLES: Example[] = [
     ),
   },
   {
+    id: 'loading',
+    title: 'Loading',
+    note:
+      'While `loading` is true the field is read-only, carries `aria-busy`, and shows a spinner ' +
+      'where `endIcon` would be. Read-only rather than disabled on purpose: a disabled field drops ' +
+      'out of the tab order AND out of form submission, so a form posted mid-check would silently ' +
+      'lose the value. The spinner animation comes from `@ap/motion`’s `spinner.rotate`, so under ' +
+      '`prefers-reduced-motion` the rotation drops away and only a gentle opacity breath remains — ' +
+      'handled entirely at the token layer, with no media query in the component.',
+    render: () => (
+      <>
+        <Field label="IBAN" hint="Checked against the bank directory as you type.">
+          <Input name="iban" defaultValue="GB33BUKB20201555555555" loading />
+        </Field>
+        <Field label="Not loading, for comparison">
+          <Input
+            name="iban2"
+            defaultValue="GB33BUKB20201555555555"
+            endIcon={{ icon: <Icon name="close" />, onClick: () => {}, label: 'Clear' }}
+          />
+        </Field>
+      </>
+    ),
+  },
+  {
     id: 'compound',
     title: 'The compound API, when layout needs controlling',
     note:

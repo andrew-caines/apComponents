@@ -257,3 +257,82 @@ describe('Input adornment colour', () => {
     expect(glyph.parentElement?.parentElement).toBe(button)
   })
 })
+
+describe('Input loading state', () => {
+  it('makes the field read-only, not disabled', () => {
+    // The distinction is load-bearing: a disabled field drops out of form
+    // submission, so a form posted mid-check would silently lose the value.
+    render(<Input aria-label="IBAN" name="iban" defaultValue="GB33" loading />)
+    const input = screen.getByRole('textbox') as HTMLInputElement
+    expect(input.readOnly).toBe(true)
+    expect(input.disabled).toBe(false)
+
+    const form = document.createElement('form')
+    input.parentElement!.appendChild(form)
+    form.appendChild(input)
+    expect(new FormData(form).get('iban')).toBe('GB33')
+  })
+
+  it('marks the field busy', () => {
+    render(<Input aria-label="IBAN" loading />)
+    expect(screen.getByRole('textbox').getAttribute('aria-busy')).toBe('true')
+  })
+
+  it('replaces endIcon with the spinner while loading', () => {
+    const { container, rerender } = render(
+      <Input
+        aria-label="IBAN"
+        endIcon={{ icon: <span data-testid="clear">x</span>, onClick: () => {}, label: 'Clear' }}
+        loading
+      />,
+    )
+    expect(screen.queryByTestId('clear')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull()
+    expect(container.querySelector('svg')).not.toBeNull()
+
+    // …and gives it back when loading ends. Without this the replacement could
+    // be a one-way door and nothing would notice.
+    rerender(
+      <Input
+        aria-label="IBAN"
+        endIcon={{ icon: <span data-testid="clear">x</span>, onClick: () => {}, label: 'Clear' }}
+      />,
+    )
+    expect(screen.getByTestId('clear')).not.toBeNull()
+    expect(container.querySelector('svg')).toBeNull()
+  })
+
+  it('keeps startIcon, but makes an actionable one inert', () => {
+    render(
+      <Input
+        aria-label="Amount"
+        startIcon={{ icon: <span data-testid="euro">€</span>, onClick: () => {}, label: 'Currency' }}
+        loading
+      />,
+    )
+    expect(screen.getByTestId('euro')).not.toBeNull()
+    // Nothing it could do to the value would stick while the field is read-only.
+    expect((screen.getByRole('button', { name: 'Currency' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+  })
+
+  it('reserves the end padding while loading, even with no endIcon given', () => {
+    render(<Input aria-label="IBAN" loading />)
+    expect(screen.getByRole('textbox').className).toBe(
+      inputRecipe({ size: 'md', adornStart: false, adornEnd: true }),
+    )
+  })
+
+  it('hides the spinner from assistive technology, since aria-busy carries it', () => {
+    const { container } = render(<Input aria-label="IBAN" loading />)
+    expect(container.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('adds nothing at all when not loading', () => {
+    const { container } = render(<Input aria-label="IBAN" />)
+    expect(container.firstElementChild?.tagName).toBe('INPUT')
+    expect(screen.getByRole('textbox').hasAttribute('aria-busy')).toBe(false)
+    expect((screen.getByRole('textbox') as HTMLInputElement).readOnly).toBe(false)
+  })
+})

@@ -292,7 +292,8 @@ components under both SSR and SPA.
 | The other ten hooks | No caller yet; a hook with no caller has no design pressure |
 | Ten of the fifteen icons | Nothing renders them |
 | Storybook docs site, MDX, Pages deploy | Phase 6; §7.1 draws the line |
-| Textarea, Select, Checkbox, Radio, Switch, Toast, Tooltip, Popover, Tabs, Accordion, Spinner | Phase 5 |
+| Textarea, Select, Checkbox, Radio, Switch, Toast, Tooltip, Popover, Tabs, Accordion | Phase 5 |
+| ~~Spinner~~ — **pulled forward into 4c**, 2026-09-03 | `Input`'s `loading` state needs an indeterminate indicator, and the alternatives were worse: a CSS-only spin inside `Input.css.ts` would have declared keyframes outside `@ap/motion`, breaking ADR-0010's guarantee that reduced motion is enforced at the token layer, and it would have been rewritten the moment the real component arrived. Shipped narrow — `label`, `size`, `className`, `currentColor`, no colour token — so Phase 5 extends it rather than replacing it. It is the first consumer of `@ap/motion` in `@ap/react`, which is what surfaced the packaging gap now closed by the `@ap/react/motion.css` re-export. |
 | Base UI date components | §3.2 — adopting one imposes `date-fns` on every consuming product |
 
 ## 10. Risks

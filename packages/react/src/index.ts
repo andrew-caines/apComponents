@@ -6,6 +6,8 @@ export { Button, BUTTON_TOKENS } from './components/Button/index.js'
 export type { ButtonProps } from './components/Button/index.js'
 export { Input, INPUT_TOKENS } from './components/Input/index.js'
 export type { InputProps } from './components/Input/index.js'
+export { Spinner, SPINNER_TOKENS } from './components/Spinner/index.js'
+export type { SpinnerProps } from './components/Spinner/index.js'
 export { Field, FIELD_TOKENS } from './components/Field/index.js'
 export type {
   FieldProps,

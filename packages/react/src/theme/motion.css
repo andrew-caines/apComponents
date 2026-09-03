@@ -1,0 +1,16 @@
+/*
+ * A re-export, not a copy. `@ap/motion`'s generated `motion.css` is the single
+ * source of truth for every `@keyframes` block and every
+ * `--ap-motion-*` animation custom property; this file only makes it reachable
+ * under `@ap/react`, so a consumer links the stylesheets of the package they
+ * installed rather than one they never named.
+ *
+ * It is not optional the way `fonts.css` is. Components ship animation as
+ * `animation: var(--ap-motion-<name>)`, which resolves to nothing at all when
+ * this file is absent — and "nothing at all" is invisible: `Input loading`
+ * still renders its spinner, the spinner just never moves, so the one thing it
+ * exists to say is the one thing it stops saying. There is no error and no
+ * console warning. `consumer-build.gate.test.ts` asserts the keyframes reach a
+ * real consumer's bundle for exactly that reason.
+ */
+@import '@ap/motion/motion.css';

@@ -2,11 +2,14 @@
 <title>Input &amp; Field — apComponents</title>
 <link rel="stylesheet" href="../packages/react/src/theme/fonts.css">
 <link rel="stylesheet" href="../packages/react/src/theme/theme.css">
+<!-- The motion tokens. Without this the spinner renders but never animates, and
+     reduced-motion degradation has nothing to degrade. -->
+<link rel="stylesheet" href="../packages/motion/src/motion.css">
 <style>
 /* The components' own stylesheet, compiled from the real .css.ts sources by
    scripts/input-demo/build.ts. Everything below the marker is this page's own
    chrome and styles nothing inside a .specimen. */
-@layer ap.components{.teqgwu0{box-sizing:border-box;justify-content:center;align-items:center;gap:var(--ap-space-2);font-family:var(--ap-font-body);border-radius:var(--ap-button-radius,var(--ap-radius-md));cursor:pointer;border-style:solid;border-width:1px;text-decoration:none;display:inline-flex}.teqgwu0:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-button-focus-ring,var(--ap-color-focus-ring));outline-offset:var(--ap-focus-ring-offset)}.teqgwu0[data-disabled]{cursor:default;opacity:.6}.teqgwu1{padding-inline:var(--ap-space-3);padding-block:var(--ap-space-1);font-size:var(--ap-text-sm-size);line-height:var(--ap-text-sm-lh)}.teqgwu2{padding-inline:var(--ap-space-4);padding-block:var(--ap-space-2);font-size:var(--ap-text-md-size);line-height:var(--ap-text-md-lh)}.teqgwu3{padding-inline:var(--ap-space-5);padding-block:var(--ap-space-3);font-size:var(--ap-text-lg-size);line-height:var(--ap-text-lg-lh)}.teqgwu9{background:var(--ap-button-action-bg,var(--ap-color-action-bg));color:var(--ap-button-action-on-solid,var(--ap-color-action-on-solid));border-color:#0000}.teqgwu9:hover{background:var(--ap-button-action-bg-hover,var(--ap-color-action-bg-hover))}.teqgwua{background:var(--ap-button-danger-bg,var(--ap-color-danger-bg));color:var(--ap-button-danger-on-solid,var(--ap-color-danger-on-solid));border-color:#0000}.teqgwua:hover{background:var(--ap-button-danger-bg-hover,var(--ap-color-danger-bg-hover))}.teqgwub{color:var(--ap-button-action-text,var(--ap-color-action-text));border-color:var(--ap-button-border,var(--ap-color-border-interactive));background:0 0}.teqgwub:hover{background:var(--ap-button-action-subtle,var(--ap-color-action-bg-subtle))}.teqgwuc{color:var(--ap-button-danger-text,var(--ap-color-danger-text));border-color:var(--ap-button-border,var(--ap-color-border-interactive));background:0 0}.teqgwuc:hover{background:var(--ap-button-danger-subtle,var(--ap-color-danger-bg-subtle))}.teqgwud{color:var(--ap-button-action-text,var(--ap-color-action-text));background:0 0;border-color:#0000}.teqgwud:hover{background:var(--ap-button-action-subtle,var(--ap-color-action-bg-subtle))}.teqgwue{color:var(--ap-button-danger-text,var(--ap-color-danger-text));background:0 0;border-color:#0000}.teqgwue:hover{background:var(--ap-button-danger-subtle,var(--ap-color-danger-bg-subtle))}.znh0mz0{box-sizing:border-box;inline-size:100%;font-family:var(--ap-font-body);color:var(--ap-input-text,var(--ap-color-text-primary));background:var(--ap-input-bg,var(--ap-color-bg-surface));border-style:solid;border-width:1px;border-color:var(--ap-input-border,var(--ap-color-border-normal));border-radius:var(--ap-input-radius,var(--ap-radius-md))}.znh0mz0::placeholder{color:var(--ap-input-placeholder,var(--ap-color-text-secondary));opacity:1}.znh0mz0:hover:not([data-disabled]){border-color:var(--ap-input-border-hover,var(--ap-color-border-interactive))}.znh0mz0:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-input-focus-ring,var(--ap-color-focus-ring));outline-offset:var(--ap-focus-ring-offset)}.znh0mz0[data-invalid]{border-color:var(--ap-input-border-invalid,var(--ap-color-danger-border))}.znh0mz0[data-disabled]{cursor:default;opacity:.6}.znh0mz1{padding-inline-start:var(--ap-space-3);padding-inline-end:var(--ap-space-3);padding-block:var(--ap-space-1);font-size:var(--ap-text-sm-size);line-height:var(--ap-text-sm-lh)}.znh0mz2{padding-inline-start:var(--ap-space-4);padding-inline-end:var(--ap-space-4);padding-block:var(--ap-space-2);font-size:var(--ap-text-md-size);line-height:var(--ap-text-md-lh)}.znh0mz3{padding-inline-start:var(--ap-space-5);padding-inline-end:var(--ap-space-5);padding-block:var(--ap-space-3);font-size:var(--ap-text-lg-size);line-height:var(--ap-text-lg-lh)}.znh0mz8{padding-inline-start:calc(var(--ap-input-icon-gap,var(--ap-space-2)) + var(--ap-input-icon-slot,var(--ap-hit-target)) + var(--ap-input-icon-gap,var(--ap-space-2)))}.znh0mz9{padding-inline-end:calc(var(--ap-input-icon-gap,var(--ap-space-2)) + var(--ap-input-icon-slot,var(--ap-hit-target)) + var(--ap-input-icon-gap,var(--ap-space-2)))}.znh0mza{inline-size:100%;display:block;position:relative}.znh0mzb{inline-size:var(--ap-input-icon-slot,var(--ap-hit-target));color:var(--ap-input-icon,var(--ap-color-text-secondary));justify-content:center;align-items:center;display:flex;position:absolute;inset-block:0;inset-inline-start:var(--ap-input-icon-gap,var(--ap-space-2))}.znh0mzc{inline-size:var(--ap-input-icon-slot,var(--ap-hit-target));color:var(--ap-input-icon,var(--ap-color-text-secondary));justify-content:center;align-items:center;display:flex;position:absolute;inset-block:0;inset-inline-end:var(--ap-input-icon-gap,var(--ap-space-2))}.znh0mzd{pointer-events:none}.znh0mze{font:inherit;cursor:pointer;background:0 0;border:0;margin:0;padding:0}.znh0mze:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-input-focus-ring,var(--ap-color-focus-ring));outline-offset:-4px}.znh0mze:disabled{cursor:default;opacity:.6}.znh0mzf{padding:var(--ap-space-2);border-radius:var(--ap-radius-sm);justify-content:center;align-items:center;display:flex}.znh0mze:hover:not(:disabled) .znh0mzf{color:var(--ap-input-icon-hover,var(--ap-color-text-primary));background:var(--ap-input-icon-hover-bg,var(--ap-color-action-bg-subtle))}.acdsev0{gap:var(--ap-field-gap,var(--ap-space-2));font-family:var(--ap-font-body);flex-direction:column;display:flex}.acdsev1{color:var(--ap-field-label-text,var(--ap-color-text-primary));font-size:var(--ap-field-label-size,var(--ap-text-sm-size));line-height:var(--ap-field-label-line-height,var(--ap-text-sm-lh));font-weight:500}.acdsev2{color:var(--ap-field-description-text,var(--ap-color-text-secondary));font-size:var(--ap-field-description-size,var(--ap-text-xs-size));line-height:var(--ap-field-description-line-height,var(--ap-text-xs-lh));margin:0}.acdsev3{align-items:flex-start;gap:var(--ap-field-error-gap,var(--ap-space-1));color:var(--ap-field-error-text,var(--ap-color-danger-text));font-size:var(--ap-field-error-size,var(--ap-text-xs-size));line-height:var(--ap-field-error-line-height,var(--ap-text-xs-lh));display:flex}.acdsev4{flex-shrink:0;margin-block-start:.15em}}
+@layer ap.components{.teqgwu0{box-sizing:border-box;justify-content:center;align-items:center;gap:var(--ap-space-2);font-family:var(--ap-font-body);border-radius:var(--ap-button-radius,var(--ap-radius-md));cursor:pointer;border-style:solid;border-width:1px;text-decoration:none;display:inline-flex}.teqgwu0:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-button-focus-ring,var(--ap-color-focus-ring));outline-offset:var(--ap-focus-ring-offset)}.teqgwu0[data-disabled]{cursor:default;opacity:.6}.teqgwu1{padding-inline:var(--ap-space-3);padding-block:var(--ap-space-1);font-size:var(--ap-text-sm-size);line-height:var(--ap-text-sm-lh)}.teqgwu2{padding-inline:var(--ap-space-4);padding-block:var(--ap-space-2);font-size:var(--ap-text-md-size);line-height:var(--ap-text-md-lh)}.teqgwu3{padding-inline:var(--ap-space-5);padding-block:var(--ap-space-3);font-size:var(--ap-text-lg-size);line-height:var(--ap-text-lg-lh)}.teqgwu9{background:var(--ap-button-action-bg,var(--ap-color-action-bg));color:var(--ap-button-action-on-solid,var(--ap-color-action-on-solid));border-color:#0000}.teqgwu9:hover{background:var(--ap-button-action-bg-hover,var(--ap-color-action-bg-hover))}.teqgwua{background:var(--ap-button-danger-bg,var(--ap-color-danger-bg));color:var(--ap-button-danger-on-solid,var(--ap-color-danger-on-solid));border-color:#0000}.teqgwua:hover{background:var(--ap-button-danger-bg-hover,var(--ap-color-danger-bg-hover))}.teqgwub{color:var(--ap-button-action-text,var(--ap-color-action-text));border-color:var(--ap-button-border,var(--ap-color-border-interactive));background:0 0}.teqgwub:hover{background:var(--ap-button-action-subtle,var(--ap-color-action-bg-subtle))}.teqgwuc{color:var(--ap-button-danger-text,var(--ap-color-danger-text));border-color:var(--ap-button-border,var(--ap-color-border-interactive));background:0 0}.teqgwuc:hover{background:var(--ap-button-danger-subtle,var(--ap-color-danger-bg-subtle))}.teqgwud{color:var(--ap-button-action-text,var(--ap-color-action-text));background:0 0;border-color:#0000}.teqgwud:hover{background:var(--ap-button-action-subtle,var(--ap-color-action-bg-subtle))}.teqgwue{color:var(--ap-button-danger-text,var(--ap-color-danger-text));background:0 0;border-color:#0000}.teqgwue:hover{background:var(--ap-button-danger-subtle,var(--ap-color-danger-bg-subtle))}.znh0mz0{box-sizing:border-box;inline-size:100%;font-family:var(--ap-font-body);color:var(--ap-input-text,var(--ap-color-text-primary));background:var(--ap-input-bg,var(--ap-color-bg-surface));border-style:solid;border-width:1px;border-color:var(--ap-input-border,var(--ap-color-border-normal));border-radius:var(--ap-input-radius,var(--ap-radius-md))}.znh0mz0::placeholder{color:var(--ap-input-placeholder,var(--ap-color-text-secondary));opacity:1}.znh0mz0:hover:not([data-disabled]){border-color:var(--ap-input-border-hover,var(--ap-color-border-interactive))}.znh0mz0:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-input-focus-ring,var(--ap-color-focus-ring));outline-offset:var(--ap-focus-ring-offset)}.znh0mz0[data-invalid]{border-color:var(--ap-input-border-invalid,var(--ap-color-danger-border))}.znh0mz0[data-disabled]{cursor:default;opacity:.6}.znh0mz1{padding-inline-start:var(--ap-space-3);padding-inline-end:var(--ap-space-3);padding-block:var(--ap-space-1);font-size:var(--ap-text-sm-size);line-height:var(--ap-text-sm-lh)}.znh0mz2{padding-inline-start:var(--ap-space-4);padding-inline-end:var(--ap-space-4);padding-block:var(--ap-space-2);font-size:var(--ap-text-md-size);line-height:var(--ap-text-md-lh)}.znh0mz3{padding-inline-start:var(--ap-space-5);padding-inline-end:var(--ap-space-5);padding-block:var(--ap-space-3);font-size:var(--ap-text-lg-size);line-height:var(--ap-text-lg-lh)}.znh0mz8{padding-inline-start:calc(var(--ap-input-icon-gap,var(--ap-space-2)) + var(--ap-input-icon-slot,var(--ap-hit-target)) + var(--ap-input-icon-gap,var(--ap-space-2)))}.znh0mz9{padding-inline-end:calc(var(--ap-input-icon-gap,var(--ap-space-2)) + var(--ap-input-icon-slot,var(--ap-hit-target)) + var(--ap-input-icon-gap,var(--ap-space-2)))}.znh0mza{inline-size:100%;display:block;position:relative}.znh0mzb{inline-size:var(--ap-input-icon-slot,var(--ap-hit-target));color:var(--ap-input-icon,var(--ap-color-text-secondary));justify-content:center;align-items:center;display:flex;position:absolute;inset-block:0;inset-inline-start:var(--ap-input-icon-gap,var(--ap-space-2))}.znh0mzc{inline-size:var(--ap-input-icon-slot,var(--ap-hit-target));color:var(--ap-input-icon,var(--ap-color-text-secondary));justify-content:center;align-items:center;display:flex;position:absolute;inset-block:0;inset-inline-end:var(--ap-input-icon-gap,var(--ap-space-2))}.znh0mzd{pointer-events:none}.znh0mze{font:inherit;cursor:pointer;background:0 0;border:0;margin:0;padding:0}.znh0mze:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-input-focus-ring,var(--ap-color-focus-ring));outline-offset:-4px}.znh0mze:disabled{cursor:default;opacity:.6}.znh0mzf{padding:var(--ap-space-2);border-radius:var(--ap-radius-sm);justify-content:center;align-items:center;display:flex}.znh0mze:hover:not(:disabled) .znh0mzf{color:var(--ap-input-icon-hover,var(--ap-color-text-primary));background:var(--ap-input-icon-hover-bg,var(--ap-color-action-bg-subtle))}._170e0e10{animation:var(--ap-motion-spinner-rotate);flex-shrink:0;display:inline-block}.acdsev0{gap:var(--ap-field-gap,var(--ap-space-2));font-family:var(--ap-font-body);flex-direction:column;display:flex}.acdsev1{color:var(--ap-field-label-text,var(--ap-color-text-primary));font-size:var(--ap-field-label-size,var(--ap-text-sm-size));line-height:var(--ap-field-label-line-height,var(--ap-text-sm-lh));font-weight:500}.acdsev2{color:var(--ap-field-description-text,var(--ap-color-text-secondary));font-size:var(--ap-field-description-size,var(--ap-text-xs-size));line-height:var(--ap-field-description-line-height,var(--ap-text-xs-lh));margin:0}.acdsev3{align-items:flex-start;gap:var(--ap-field-error-gap,var(--ap-space-1));color:var(--ap-field-error-text,var(--ap-color-danger-text));font-size:var(--ap-field-error-size,var(--ap-text-xs-size));line-height:var(--ap-field-error-line-height,var(--ap-text-xs-lh));display:flex}.acdsev4{flex-shrink:0;margin-block-start:.15em}}
 /*$vite$:1*/
 /* ---- page chrome ---- */
 :root { color-scheme: light dark; }
@@ -112,7 +115,7 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
 <p class="sub">Everything is imported from one place:</p>
 <pre class="code"><code>import <b class="e">{ Field, Input, Button }</b> from '@ap/react'</code></pre>
 
-<nav class="toc"><a href="#basic">A labelled field</a><a href="#error">An error from the server</a><a href="#sizes">Sizes</a><a href="#states">States</a><a href="#types">Native input types</a><a href="#adornments">Icons inside the field</a><a href="#compound">The compound API, when layout needs controlling</a><a href="#uncontrolled">Uncontrolled, so it submits before hydration</a><a href="#standalone">An input on its own</a></nav>
+<nav class="toc"><a href="#basic">A labelled field</a><a href="#error">An error from the server</a><a href="#sizes">Sizes</a><a href="#states">States</a><a href="#types">Native input types</a><a href="#adornments">Icons inside the field</a><a href="#loading">Loading</a><a href="#compound">The compound API, when layout needs controlling</a><a href="#uncontrolled">Uncontrolled, so it submits before hydration</a><a href="#standalone">An input on its own</a></nav>
 
 <section id="basic">
   <h2><a href="#basic">A labelled field</a></h2>
@@ -124,7 +127,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
     </div>
     <div class="src">
       <div class="cap">source</div>
-      <pre class="code"><code>&lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Email"</b> <b class="a">hint</b>=<b class="s">"We never share this."</b>&gt;
+      <pre class="code"><code>
+&lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Email"</b> <b class="a">hint</b>=<b class="s">"We never share this."</b>&gt;
   &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"email"</b> <b class="a">type</b>=<b class="s">"email"</b> <b class="a">placeholder</b>=<b class="s">"you@example.com"</b> /&gt;
 &lt;/<b class="t">Field</b>&gt;</code></pre>
     </div>
@@ -141,7 +145,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
     </div>
     <div class="src">
       <div class="cap">source</div>
-      <pre class="code"><code>&lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Email"</b> <b class="a">hint</b>=<b class="s">"We never share this."</b> <b class="a">error</b>=<b class="s">"That address is already in use."</b>&gt;
+      <pre class="code"><code>
+&lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Email"</b> <b class="a">hint</b>=<b class="s">"We never share this."</b> <b class="a">error</b>=<b class="s">"That address is already in use."</b>&gt;
   &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"email"</b> <b class="a">type</b>=<b class="s">"email"</b> <b class="a">defaultValue</b>=<b class="s">"taken@example.com"</b> /&gt;
 &lt;/<b class="t">Field</b>&gt;</code></pre>
     </div>
@@ -158,7 +163,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
     </div>
     <div class="src">
       <div class="cap">source</div>
-      <pre class="code"><code>&lt;&gt;
+      <pre class="code"><code>
+&lt;&gt;
   &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Small"</b>&gt;
     &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"s"</b> <b class="a">size</b>=<b class="s">"sm"</b> <b class="a">defaultValue</b>=<b class="s">"size=sm"</b> /&gt;
   &lt;/<b class="t">Field</b>&gt;
@@ -183,7 +189,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
     </div>
     <div class="src">
       <div class="cap">source</div>
-      <pre class="code"><code>&lt;&gt;
+      <pre class="code"><code>
+&lt;&gt;
   &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Rest"</b>&gt;
     &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"a"</b> <b class="a">defaultValue</b>=<b class="s">"Editable"</b> /&gt;
   &lt;/<b class="t">Field</b>&gt;
@@ -208,7 +215,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
     </div>
     <div class="src">
       <div class="cap">source</div>
-      <pre class="code"><code>&lt;&gt;
+      <pre class="code"><code>
+&lt;&gt;
   &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Password"</b>&gt;
     &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"pw"</b> <b class="a">type</b>=<b class="s">"password"</b> <b class="a">defaultValue</b>=<b class="s">"hunter2"</b> /&gt;
   &lt;/<b class="t">Field</b>&gt;
@@ -233,7 +241,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
     </div>
     <div class="src">
       <div class="cap">source</div>
-      <pre class="code"><code>&lt;&gt;
+      <pre class="code"><code>
+&lt;&gt;
   &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Amount"</b> <b class="a">hint</b>=<b class="s">"Decorative — clicking the symbol focuses the field."</b>&gt;
     &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"amount"</b> <b class="a">defaultValue</b>=<b class="s">"1250.00"</b> <b class="a">startIcon</b>={<b class="e">{ icon: &lt;span&gt;€&lt;/span&gt; }</b>} /&gt;
   &lt;/<b class="t">Field</b>&gt;
@@ -266,6 +275,33 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
   </div>
 </section>
 
+<section id="loading">
+  <h2><a href="#loading">Loading</a></h2>
+  <p class="note">While <code>loading</code> is true the field is read-only, carries <code>aria-busy</code>, and shows a spinner where <code>endIcon</code> would be. Read-only rather than disabled on purpose: a disabled field drops out of the tab order AND out of form submission, so a form posted mid-check would silently lose the value. The spinner animation comes from <code>@ap/motion</code>’s <code>spinner.rotate</code>, so under <code>prefers-reduced-motion</code> the rotation drops away and only a gentle opacity breath remains — handled entirely at the token layer, with no media query in the component.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="loading"><div class="acdsev0"><label id="base-ui-_loading-R_d_" for="base-ui-_loading-R_1_" class="acdsev1">IBAN</label><span class="znh0mza"><input id="base-ui-_loading-R_1_" readOnly="" aria-busy="true" class="znh0mz0 znh0mz2 znh0mz5 znh0mz6 znh0mz9" name="iban" value="GB33BUKB20201555555555"/><span class="znh0mzc znh0mzd" aria-hidden="true"><svg class="_170e0e10" style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="var(--ap-spinner-width, 2px)" stroke-dasharray="var(--ap-spinner-dash, 42 15)" stroke-linecap="round"></circle></svg></span></span><p id="base-ui-_loading-R_t_" class="acdsev2">Checked against the bank directory as you type.</p></div><div class="acdsev0"><label id="base-ui-_loading-R_e_" for="base-ui-_loading-R_2_" class="acdsev1">Not loading, for comparison</label><span class="znh0mza"><input id="base-ui-_loading-R_2_" class="znh0mz0 znh0mz2 znh0mz5 znh0mz6 znh0mz9" name="iban2" value="GB33BUKB20201555555555"/><button type="button" class="znh0mzc znh0mze" aria-label="Clear"><span class="znh0mzf"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg></span></button></span></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"IBAN"</b> <b class="a">hint</b>=<b class="s">"Checked against the bank directory as you type."</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"iban"</b> <b class="a">defaultValue</b>=<b class="s">"GB33BUKB20201555555555"</b> loading /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Not loading, for comparison"</b>&gt;
+    &lt;<b class="t">Input</b>
+      <b class="a">name</b>=<b class="s">"iban2"</b>
+      <b class="a">defaultValue</b>=<b class="s">"GB33BUKB20201555555555"</b>
+      <b class="a">endIcon</b>={{ icon: &lt;<b class="t">Icon</b> <b class="a">name</b>=<b class="s">"close"</b> /&gt;, onClick: () =&gt; <b class="e">{}</b>, label: 'Clear' }}
+    /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+&lt;/&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
 <section id="compound">
   <h2><a href="#compound">The compound API, when layout needs controlling</a></h2>
   <p class="note">The same parts the convenience component is built from. Reach for these when the order or the markup between them has to change. <code>Field.Root invalid</code> is the one route to an invalid state without a message — and it makes you render your own <code>Field.Error</code>, which is why the convenience component does not expose <code>invalid</code> at all.</p>
@@ -276,7 +312,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
     </div>
     <div class="src">
       <div class="cap">source</div>
-      <pre class="code"><code>&lt;<b class="t">Field.Root</b>&gt;
+      <pre class="code"><code>
+&lt;<b class="t">Field.Root</b>&gt;
   &lt;<b class="t">Field.Label</b>&gt;Employee ID&lt;/<b class="t">Field.Label</b>&gt;
   &lt;<b class="t">Field.Description</b>&gt;Six digits, no prefix.&lt;/<b class="t">Field.Description</b>&gt;
   &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"employee-id"</b> <b class="a">defaultValue</b>=<b class="s">"004512"</b> /&gt;
@@ -296,7 +333,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
     </div>
     <div class="src">
       <div class="cap">source</div>
-      <pre class="code"><code>&lt;<b class="t">form</b> <b class="a">method</b>=<b class="s">"get"</b>&gt;
+      <pre class="code"><code>
+&lt;<b class="t">form</b> <b class="a">method</b>=<b class="s">"get"</b>&gt;
   &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Full name"</b> <b class="a">hint</b>=<b class="s">"Appears on the employee record."</b>&gt;
     &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"fullName"</b> <b class="a">defaultValue</b>=<b class="s">"Ada Lovelace"</b> required /&gt;
   &lt;/<b class="t">Field</b>&gt;
@@ -353,6 +391,8 @@ th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border
 <tr><td class="mono">errorSize</td><td class="mono dim">var(--ap-field-error-size, var(--ap-text-xs-size))</td></tr>
 <tr><td class="mono">errorLineHeight</td><td class="mono dim">var(--ap-field-error-line-height, var(--ap-text-xs-lh))</td></tr>
 <tr><td class="mono">errorGap</td><td class="mono dim">var(--ap-field-error-gap, var(--ap-space-1))</td></tr>
+<tr><th rowspan="2" class="grp">Spinner</th><td class="mono">width</td><td class="mono dim">var(--ap-spinner-width, 2px)</td></tr>
+<tr><td class="mono">dash</td><td class="mono dim">var(--ap-spinner-dash, 42 15)</td></tr>
     </tbody>
   </table>
 </section>

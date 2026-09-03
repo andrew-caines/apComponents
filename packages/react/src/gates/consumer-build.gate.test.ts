@@ -67,6 +67,33 @@ describe('gate 8: a file:-protocol consumer builds against our source', () => {
     expect(css).toMatch(/var\(--ap-surface-bg-surface,\s*var\(--ap-color-bg-surface\)\)/)
   })
 
+  it("carries @ap/motion's keyframes through the @ap/react re-export (ADR-0010)", () => {
+    // `@ap/react/motion.css` is one line: `@import '@ap/motion/motion.css'`.
+    // If a bundler declined to resolve that bare specifier, or the export map
+    // entry went missing, the build still succeeds and every other assertion
+    // in this file still passes — the only symptom is a spinner that renders
+    // and never moves. Assert the keyframes themselves landed.
+    expect(css).toContain('@keyframes ap-spinner-rotate')
+    expect(css).toContain('--ap-motion-spinner-rotate:')
+  })
+
+  it('keeps the component bound to the motion variable rather than the keyframes name', () => {
+    // Spinner.css.ts derives its animation from `cssVarName('spinner.rotate')`.
+    // Hardcoding `animation: ap-spinner-rotate ...` in the component would
+    // satisfy the assertion above (motion.css still ships the keyframes) while
+    // silently opting out of the token layer — and with it the reduced-motion
+    // override, which lives on the variable, not on the keyframes.
+    expect(css).toMatch(/animation:\s*var\(--ap-motion-spinner-rotate\)/)
+  })
+
+  it('ships the reduced-motion override alongside it (ADR-0010)', () => {
+    // The half a consumer never sees in testing. Under `prefers-reduced-motion`
+    // the variable is re-pointed at an opacity-only variant; if that block were
+    // dropped from the bundle the spinner would keep rotating for a user who
+    // asked it not to, and nothing in a default-context build would say so.
+    expect(css).toMatch(/@media[^{]*prefers-reduced-motion[^{]*\{[\s\S]*?--ap-motion-spinner-rotate:/)
+  })
+
   it('inlines the vendored font faces and no remote font URL', () => {
     expect(css).toContain('Inter Fallback')
     expect(css).not.toMatch(/fonts\.(googleapis|gstatic)\.com/)

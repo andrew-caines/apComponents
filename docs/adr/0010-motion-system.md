@@ -74,6 +74,18 @@ Because components consume the **token** rather than raw keyframes, no component
 
 This is the strongest argument for the CSS-first layering: it moves an accessibility guarantee from something every author must remember into something the system enforces once.
 
+#### "Or to nothing" has one exception: an indeterminate loop
+
+`reduced: 'none'` is the right default because most motion is emphasis — remove it and the interface still says everything it said before, just less theatrically. An indeterminate progress indicator is the inverse: the movement *is* the message. Degrade `spinner.rotate` to nothing and a reduced-motion user is left looking at a static glyph, with no way to tell a request in flight from one that died. The guarantee we enforce for their vestibular system would have quietly cost them the state.
+
+So `spinner.rotate` is `reduced: 'opacity'`. Rotation is a vestibular trigger; a slow opacity fade is not — the state stays perceivable without the property that does harm.
+
+This has a consequence for how such a motion is authored. A reduced variant is emitted as the **opacity subset of the same keyframes** (`emitCss.ts`), so a motion with no opacity track has nothing to degrade *to*, and `reduced: 'opacity'` silently produces an empty animation — a spinner that stops meaning anything for exactly the users this clause exists to protect. `motions.test.ts` therefore rejects `reduced: 'opacity'` on any motion whose steps declare no `opacity`, which is what forces `spinner.rotate`'s opacity track to exist at all. At full motion it reads as a gentle breath beneath the rotation; under `reduce` the breath is all that remains, and it is enough to say "still working".
+
+The rule is not "infinite motions must degrade to something" — the system's other infinite motion, `skeleton.shimmer`, is correctly `reduced: 'none'`. The test is whether the indicator still reads as *active* once it stops moving. A skeleton does: it is a content-shaped placeholder, and its static form is the whole message, with the shimmer only sweetening it. A spinner does not: a static arc is indistinguishable from an ordinary icon.
+
+So: **when motion is the only thing distinguishing an indicator from decoration, it degrades to a perceivable non-transform change rather than to nothing.** Everything else takes `reduced: 'none'`.
+
 ## Consequences
 
 - Most components animate with zero JavaScript, no hydration concern, and no dependency.
