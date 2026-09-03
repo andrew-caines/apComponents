@@ -8,11 +8,13 @@
 // generated stylesheet and the token source ever disagree, the swatch and its
 // own label disagree visibly, and gen-colour-demo's verification pass fails.
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { clampToSrgb } from '../packages/tokens/src/colour/gamut.js'
 import {
   DEFAULT_BRAND,
   SEMANTIC_MAP,
   contrastPairings,
   generateTheme,
+  oklchToHex,
   resolveSemantic,
   wcagRatio,
   type Mode,
@@ -207,6 +209,49 @@ function buttons(): string {
     </div>`
   }).join('')
   return `<div class="stack">${kinds}</div>`
+}
+
+const LEGAL =
+  'Rates shown exclude VAT. Cancel any time before the renewal date; refunds are ' +
+  'pro-rated to the day. Terms apply.'
+
+/** The size ladder around the floor, so the choice of 11px is visible. */
+function finePrintSizes(): string {
+  const rows = [
+    ['12px', 'text-xs — the smallest step in the ramp'],
+    ['11px', 'text-fine-print — the floor'],
+    ['10px', '0.625rem — below the floor'],
+    ['9px', 'not legible'],
+  ]
+    .map(
+      ([px, note]) => `<tr>
+        <td class="tag mono">${px}</td>
+        <td style="font-size:${px};line-height:16px;max-width:64ch">${esc(LEGAL)}</td>
+        <td class="tag dim">${esc(note)}</td>
+      </tr>`,
+    )
+    .join('')
+  return `<table><thead><tr><th>Size</th><th>Specimen</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+}
+
+/** Foregrounds that are legal at this size, and the ones that are not. */
+const FINE_PRINT_OK = FOREGROUNDS
+const FINE_PRINT_NOT = ['color-border-normal', 'color-border-interactive', 'color-focus-ring']
+
+function finePrintColours(): string {
+  const cell = (fg: string, bad: boolean) => `<tr>
+      <td class="tag mono">${esc(fg.replace('color-', ''))}</td>
+      <td data-token="${fg}">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:${v(fg)};max-width:64ch;display:inline-block">${esc(LEGAL)}</span>
+      </td>
+      <td>${ratioBadge(fg, 'color-bg-canvas')}</td>
+      <td class="tag ${bad ? 'mono' : 'dim'}">${bad ? '<b>not a text colour</b>' : 'ok at any size'}</td>
+    </tr>`
+  return `<table><thead><tr><th>Foreground</th><th>Fine print on canvas</th><th>Contrast</th><th></th></tr></thead><tbody>
+      ${FINE_PRINT_OK.map((f) => cell(f, false)).join('')}
+      ${FINE_PRINT_NOT.map((f) => cell(f, true)).join('')}
+    </tbody></table>`
 }
 
 function bordersAndFocus(): string {
@@ -431,6 +476,22 @@ const html = `<meta charset="utf-8">
   ${buttons()}
 </section>
 
+<section id="fine-print">
+  <h2>Fine print — 11px, and the colours it may use</h2>
+  <p class="note"><code>text-fine-print</code> is 11px/16px, below <code>xs</code> and outside the
+     <code>xs</code>…<code>2xl</code> series, so it has no icon counterpart to keep in sync — an
+     icon beside it uses <code>md</code> (1em) and tracks it automatically.</p>
+  ${finePrintSizes()}
+  <p class="note">WCAG gives small text no exemption: the 3:1 allowance begins at 24px, or
+     18.66px bold. So fine print always needs a <b>4.5:1</b> foreground. The last three rows are
+     the 3:1 tokens — gated for borders and focus rings, where 3:1 <i>is</i> the requirement.
+     The system guarantees them nothing better, so they are never safe for text even when a
+     particular theme clears 4.5 by luck. In this theme's dark mode they measure about 6.5–7:1
+     and would read perfectly well; change the brand seed and they drop below 4.5. A guarantee
+     you cannot rely on is not a guarantee.</p>
+  ${finePrintColours()}
+</section>
+
 <section>
   <h2>Borders and the focus ring</h2>
   ${bordersAndFocus()}
@@ -473,6 +534,48 @@ if (failures.length) {
     `theme has failing pairings:\n${failures
       .map((p) => `  [${p.mode}] ${p.fg} on ${p.bg} = ${p.ratio.toFixed(2)} (needs ${p.required})`)
       .join('\n')}`,
+  )
+}
+
+// Fine print is small text, so WCAG's 3:1 large-text allowance never applies
+// to it. Both halves of the page's guidance are asserted here, because a
+// warning nobody has watched fire is decoration.
+//
+// The second half needed correcting once already: the page first claimed the
+// 3:1 tokens "fall short by design", and this check pointed out that in dark
+// mode they measure 6.5-7.0:1 and pass. The real reason they are unsafe is
+// not what they happen to measure in one theme -- it is that the system only
+// GUARANTEES them 3:1. So that is what gets asserted: somewhere in the seed
+// space they do drop below 4.5, which is exactly why you cannot build on it.
+{
+  const bad: string[] = []
+  for (const mode of MODES) {
+    for (const fg of FINE_PRINT_OK) {
+      const r = wcagRatio(hex(mode, fg), hex(mode, 'color-bg-canvas'))
+      if (r < 4.5) bad.push(`[${mode}] ${fg} is shown as safe for fine print but is ${r.toFixed(2)}:1`)
+    }
+  }
+  // Prove the 3:1 guarantee really is only 3:1, across the same grid gate 4 sweeps.
+  const HUES = Array.from({ length: 15 }, (_, i) => i * 25)
+  const SWEEP = HUES.flatMap((h) =>
+    [0.35, 0.55, 0.75].flatMap((l) => [0.06, 0.15, 0.24].map((c) => oklchToHex(clampToSrgb({ l, c, h })))),
+  )
+  for (const fg of FINE_PRINT_NOT) {
+    let worst = Infinity
+    for (const brand of SWEEP) {
+      const t = generateTheme({ brand })
+      for (const mode of MODES) {
+        worst = Math.min(worst, wcagRatio(resolveSemantic(t, mode, fg), resolveSemantic(t, mode, 'color-bg-canvas')))
+      }
+    }
+    if (worst >= 4.5) {
+      bad.push(`${fg} never drops below 4.5:1 across the sweep (worst ${worst.toFixed(2)}) — the page's claim that it is text-unsafe is unfounded`)
+    }
+  }
+  if (bad.length) throw new Error(['fine-print colour guidance is wrong:', ...bad].join('\n'))
+  console.log(
+    `fine-print: ${FINE_PRINT_OK.length} foregrounds >= 4.5:1 in both modes; ` +
+      `${FINE_PRINT_NOT.length} 3:1 tokens each fall below 4.5 somewhere in the seed space`,
   )
 }
 

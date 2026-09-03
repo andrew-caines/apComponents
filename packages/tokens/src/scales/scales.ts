@@ -12,6 +12,18 @@ export const SPACE = Object.freeze({
 // Each entry is frozen too — freezing only the container still let
 // `theme.scales.text.md.size = '99px'` through, polluting every later theme.
 export const TEXT = Object.freeze({
+  // Legal lines, disclaimers, footnotes — deliberately below the ramp, and
+  // deliberately NOT named as a step: `fine-print` sits outside the xs…2xl
+  // series, so it carries no ICON counterpart and no one has to keep one in
+  // sync. An icon set beside it uses `md` (1em) and tracks it automatically.
+  //
+  // 11px is the floor, not a preference. Below it the x-height of Inter at
+  // 1x stops resolving reliably, and WCAG gives small text no exemption:
+  // the 3:1 allowance starts at 24px (or 18.66px bold), so fine print always
+  // needs a 4.5:1 foreground. Pair it with text-primary/secondary or a
+  // `-text` role token, never with a border or focus-ring token — those are
+  // gated at 3:1 and are not text colours.
+  'fine-print': Object.freeze({ size: '11px', lineHeight: '16px' }),
   xs: Object.freeze({ size: '12px', lineHeight: '16px' }),
   sm: Object.freeze({ size: '14px', lineHeight: '20px' }),
   md: Object.freeze({ size: '16px', lineHeight: '24px' }),

@@ -61,6 +61,10 @@ export const vars = createGlobalThemeContract(
     "9": 'space-9',
   },
   text: {
+    "finePrint": {
+      size: 'text-fine-print-size',
+      lineHeight: 'text-fine-print-lh',
+    },
     "xs": {
       size: 'text-xs-size',
       lineHeight: 'text-xs-lh',

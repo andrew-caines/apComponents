@@ -43,7 +43,7 @@ described the wrong mode. Check 4 below exists for precisely that.
 ## The verification pass
 
 `gen:colour-demo` does not just write a file. It loads the page in Chromium in both
-schemes and checks five things, failing the build on any of them:
+schemes and checks six things, failing the build on any of them:
 
 1. **Completeness** — every `--ap-color-*` declared in `theme.css` appears on the
    page. Enumerated from the stylesheet, not from a hand-written list, so a token
@@ -55,7 +55,13 @@ schemes and checks five things, failing the build on any of them:
 4. **The toggle moves both the colour and the labels**, in both directions, against a
    light OS and a dark OS — so neither direction passes by agreeing with the system
    preference — and **System** restores the OS value.
-5. **The pinned hover specimen equals what `:hover` actually paints**, for every role,
+5. **Fine print's colour guidance holds** — every foreground the page marks safe at 11px
+   clears 4.5:1 in both modes, and each 3:1 token it marks unsafe is shown to fall below
+   4.5 *somewhere in the seed space*. That second half was rewritten once: the page first
+   claimed the 3:1 tokens "fall short by design", and this check replied that in dark mode
+   they measure 6.5–7:1 and pass. The reason they are unsafe is not what they measure in
+   one theme, it is that the system guarantees them nothing better than 3:1.
+6. **The pinned hover specimen equals what `:hover` actually paints**, for every role,
    and both equal the `-bg-hover` token. A swatch labelled "hover" that does not match
    the real hover is worse than no swatch — a wrong answer wearing a proof's clothing.
    This check earned its place immediately: it found that live hover never moved at all,

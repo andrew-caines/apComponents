@@ -75,8 +75,9 @@
    to recapture the screenshots. Rendered from the generated <code>theme.css</code> — every value below is a live custom property, not a hardcoded number.</p>
 
 <section>
-  <h2>Text — xs to 2xl</h2>
+  <h2>Text — fine-print, then xs to 2xl</h2>
   <div class="row">
+    <div class="cell"><span class="tag">fine-print</span><span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh)">Handgloves</span></div>
     <div class="cell"><span class="tag">xs</span><span style="font-size:var(--ap-text-xs-size);line-height:var(--ap-text-xs-lh)">Handgloves</span></div>
     <div class="cell"><span class="tag">sm</span><span style="font-size:var(--ap-text-sm-size);line-height:var(--ap-text-sm-lh)">Handgloves</span></div>
     <div class="cell"><span class="tag">md</span><span style="font-size:var(--ap-text-md-size);line-height:var(--ap-text-md-lh)">Handgloves</span></div>
@@ -84,6 +85,13 @@
     <div class="cell"><span class="tag">xl</span><span style="font-size:var(--ap-text-xl-size);line-height:var(--ap-text-xl-lh)">Handgloves</span></div>
     <div class="cell"><span class="tag">2xl</span><span style="font-size:var(--ap-text-2xl-size);line-height:var(--ap-text-2xl-lh)">Handgloves</span></div>
   </div>
+</section>
+
+<section>
+  <p class="note" style="font-size:var(--ap-text-sm-size);color:var(--ap-color-text-secondary);margin:0 0 var(--ap-space-4);max-width:68ch">
+    <code>fine-print</code> (11px) sits deliberately outside the <code>xs</code>…<code>2xl</code>
+    series, so it has no icon counterpart to keep in sync — an icon beside it uses
+    <code>md</code> (1em) and tracks it automatically.</p>
 </section>
 
 <section>

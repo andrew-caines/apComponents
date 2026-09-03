@@ -731,6 +731,10 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
         "lineHeight": "40px",
         "size": "32px",
       },
+      "fine-print": {
+        "lineHeight": "16px",
+        "size": "11px",
+      },
       "lg": {
         "lineHeight": "28px",
         "size": "20px",

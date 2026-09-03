@@ -609,6 +609,121 @@
     </div></div>
 </section>
 
+<section id="fine-print">
+  <h2>Fine print — 11px, and the colours it may use</h2>
+  <p class="note"><code>text-fine-print</code> is 11px/16px, below <code>xs</code> and outside the
+     <code>xs</code>…<code>2xl</code> series, so it has no icon counterpart to keep in sync — an
+     icon beside it uses <code>md</code> (1em) and tracks it automatically.</p>
+  <table><thead><tr><th>Size</th><th>Specimen</th><th></th></tr></thead><tbody><tr>
+        <td class="tag mono">12px</td>
+        <td style="font-size:12px;line-height:16px;max-width:64ch">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</td>
+        <td class="tag dim">text-xs — the smallest step in the ramp</td>
+      </tr><tr>
+        <td class="tag mono">11px</td>
+        <td style="font-size:11px;line-height:16px;max-width:64ch">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</td>
+        <td class="tag dim">text-fine-print — the floor</td>
+      </tr><tr>
+        <td class="tag mono">10px</td>
+        <td style="font-size:10px;line-height:16px;max-width:64ch">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</td>
+        <td class="tag dim">0.625rem — below the floor</td>
+      </tr><tr>
+        <td class="tag mono">9px</td>
+        <td style="font-size:9px;line-height:16px;max-width:64ch">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</td>
+        <td class="tag dim">not legible</td>
+      </tr></tbody></table>
+  <p class="note">WCAG gives small text no exemption: the 3:1 allowance begins at 24px, or
+     18.66px bold. So fine print always needs a <b>4.5:1</b> foreground. The last three rows are
+     the 3:1 tokens — gated for borders and focus rings, where 3:1 <i>is</i> the requirement.
+     The system guarantees them nothing better, so they are never safe for text even when a
+     particular theme clears 4.5 by luck. In this theme's dark mode they measure about 6.5–7:1
+     and would read perfectly well; change the brand seed and they drop below 4.5. A guarantee
+     you cannot rely on is not a guarantee.</p>
+  <table><thead><tr><th>Foreground</th><th>Fine print on canvas</th><th>Contrast</th><th></th></tr></thead><tbody>
+      <tr>
+      <td class="tag mono">text-primary</td>
+      <td data-token="color-text-primary">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-text-primary);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge ok" title="#1f2022 on #fdfdfd">16.03:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#e6e8eb on #111111">15.38:1 <b>gated</b></span></span></td>
+      <td class="tag dim">ok at any size</td>
+    </tr><tr>
+      <td class="tag mono">text-secondary</td>
+      <td data-token="color-text-secondary">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-text-secondary);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge ok" title="#575a5e on #fdfdfd">6.82:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#cdcfd4 on #111111">12.11:1 <b>gated</b></span></span></td>
+      <td class="tag dim">ok at any size</td>
+    </tr><tr>
+      <td class="tag mono">action-text</td>
+      <td data-token="color-action-text">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-action-text);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge ok" title="#254fba on #fdfdfd">7.10:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#b8d0ff on #111111">12.14:1 <b>gated</b></span></span></td>
+      <td class="tag dim">ok at any size</td>
+    </tr><tr>
+      <td class="tag mono">danger-text</td>
+      <td data-token="color-danger-text">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-danger-text);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge ok" title="#a3193a on #fdfdfd">7.49:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#ffbfc2 on #111111">12.12:1 <b>gated</b></span></span></td>
+      <td class="tag dim">ok at any size</td>
+    </tr><tr>
+      <td class="tag mono">warning-text</td>
+      <td data-token="color-warning-text">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-warning-text);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge ok" title="#7e4e00 on #fdfdfd">6.94:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#ffc47d on #111111">12.09:1 <b>gated</b></span></span></td>
+      <td class="tag dim">ok at any size</td>
+    </tr><tr>
+      <td class="tag mono">success-text</td>
+      <td data-token="color-success-text">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-success-text);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge ok" title="#00683a on #fdfdfd">6.79:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#7ae4a3 on #111111">12.10:1 <b>gated</b></span></span></td>
+      <td class="tag dim">ok at any size</td>
+    </tr><tr>
+      <td class="tag mono">info-text</td>
+      <td data-token="color-info-text">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-info-text);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge ok" title="#006080 on #fdfdfd">6.92:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#88daff on #111111">12.16:1 <b>gated</b></span></span></td>
+      <td class="tag dim">ok at any size</td>
+    </tr>
+      <tr>
+      <td class="tag mono">border-normal</td>
+      <td data-token="color-border-normal">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-border-normal);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge mid" title="#8f9094 on #fdfdfd">3.14:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#96989b on #111111">6.53:1 <b>gated</b></span></span></td>
+      <td class="tag mono"><b>not a text colour</b></td>
+    </tr><tr>
+      <td class="tag mono">border-interactive</td>
+      <td data-token="color-border-interactive">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-border-interactive);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge mid" title="#888b8e on #fdfdfd">3.37:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#9c9ea2 on #111111">7.04:1 <b>gated</b></span></span></td>
+      <td class="tag mono"><b>not a text colour</b></td>
+    </tr><tr>
+      <td class="tag mono">focus-ring</td>
+      <td data-token="color-focus-ring">
+        <span style="font-size:var(--ap-text-fine-print-size);line-height:var(--ap-text-fine-print-lh);
+                     color:var(--ap-color-focus-ring);max-width:64ch;display:inline-block">Rates shown exclude VAT. Cancel any time before the renewal date; refunds are pro-rated to the day. Terms apply.</span>
+      </td>
+      <td><span class="only-light"><span class="badge mid" title="#5a87e9 on #fdfdfd">3.40:1 <b>gated</b></span></span><span class="only-dark"><span class="badge ok" title="#6c9afe on #111111">6.92:1 <b>gated</b></span></span></td>
+      <td class="tag mono"><b>not a text colour</b></td>
+    </tr>
+    </tbody></table>
+</section>
+
 <section>
   <h2>Borders and the focus ring</h2>
   <div class="row center"><div class="cell" data-token="color-border-subtle" style="align-items:center">
