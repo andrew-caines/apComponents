@@ -24,6 +24,8 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run test:hydration` | Playwright: zero hydration warnings, tokens resolve, no third-party requests |
 | `npm run test:consumer` | Builds the `file:`-protocol consumer fixture |
 | `npm run report:contrast` | Writes `reports/contrast.md` (the WCAG compliance artifact) |
+| `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
+| `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
 
 ## Generated files
 
@@ -36,6 +38,7 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
 | `packages/react/src/theme/theme.css` | `npm run gen:theme-css` |
 | `packages/react/src/theme/fonts.css` + `packages/react/fonts/*.woff2` | `npm run gen:fonts` |
 | `packages/motion/src/motion.css` | `npm run gen:motion-css` |
+| `examples/colours/index.html` | `npm run gen:colour-demo` |
 
 ## Rules the gates enforce
 
@@ -101,6 +104,11 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
   related by convention rather than by code, and nothing catches them drifting apart.
   If you change `TEXT`'s sizes, or add a scale that names its steps `xs`…`2xl`, update
   `ICON` (or the new scale) in the same commit.
+
+  `TEXT`'s `fine-print` (11px) is deliberately **outside** that series, and that is the
+  point of the name: a step called `xxs` would pull an `ICON` counterpart along with it
+  and put the two scales back in lockstep. An icon set beside fine print uses `md`
+  (`1em`) and tracks it with no coordination at all.
 
 ## Adding a component
 
