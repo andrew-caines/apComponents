@@ -6,6 +6,15 @@ export { Button, BUTTON_TOKENS } from './components/Button/index.js'
 export type { ButtonProps } from './components/Button/index.js'
 export { Input, INPUT_TOKENS } from './components/Input/index.js'
 export type { InputProps } from './components/Input/index.js'
+export { Field, FIELD_TOKENS } from './components/Field/index.js'
+export type {
+  FieldProps,
+  FieldRootProps,
+  FieldLabelProps,
+  FieldControlProps,
+  FieldDescriptionProps,
+  FieldErrorProps,
+} from './components/Field/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,
