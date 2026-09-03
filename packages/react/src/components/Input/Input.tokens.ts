@@ -7,8 +7,11 @@ import { vars } from '../../theme/contract.css.js'
  * property, or restyle every component by overriding Tier 2 (ADR-0007).
  *
  * `borderInvalid` is `dangerBorder` (ramp step 7) and not `dangerBg` (step 9):
- * step 7 is the gated border role, contrast-checked at 3:1 against the
- * surfaces, which is the ratio WCAG 1.4.11 asks of a non-text boundary.
+ * step 7 is the border role, and the one gated for non-text contrast — 3:1
+ * against `color-bg-canvas` (ADR-0008), the ratio WCAG 1.4.11 asks of a
+ * boundary. The gate pairs it against the canvas, not against every surface,
+ * so on `bg-surface` (one neutral step away) the margin is close to the
+ * gated one rather than identical to it.
  */
 export const INPUT_TOKENS = {
   bg: tier3('input-bg', vars.color.bgSurface),
