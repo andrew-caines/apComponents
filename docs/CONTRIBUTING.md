@@ -26,19 +26,29 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run report:contrast` | Writes `reports/contrast.md` (the WCAG compliance artifact) |
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
 | `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
+| `npm run gen:input-demo` | Regenerates `examples/InputFields.html` — renders the real components, compiles their real CSS, reads every code sample out of the AST, then runs six browser checks |
 
 ## Generated files
 
-These are generated and **committed**. Never edit them by hand; CI fails if they drift.
+These are generated and **committed**. Never edit them by hand.
 
-| File | Regenerate with |
-|---|---|
-| `packages/tokens/src/typography/metrics.generated.ts` | `npm run gen:font-metrics` |
-| `packages/react/src/theme/contract.css.ts` | `npm run gen:theme-contract` |
-| `packages/react/src/theme/theme.css` | `npm run gen:theme-css` |
-| `packages/react/src/theme/fonts.css` + `packages/react/fonts/*.woff2` | `npm run gen:fonts` |
-| `packages/motion/src/motion.css` | `npm run gen:motion-css` |
-| `examples/colours/index.html` | `npm run gen:colour-demo` |
+How well CI catches a stale one varies, so the third column says what actually
+guards each — "CI fails if they drift" is only true of the two that are compared
+byte for byte against their generator.
+
+| File | Regenerate with | What catches staleness |
+|---|---|---|
+| `packages/tokens/src/typography/metrics.generated.ts` | `npm run gen:font-metrics` | `test:fonts` — metrics are asserted against `@capsizecss/metrics` |
+| `packages/react/src/theme/contract.css.ts` | `npm run gen:theme-contract` | `test:contract` — every semantic token is present, none extra, no Tier 1 leak. **Not** a byte comparison |
+| `packages/react/src/theme/theme.css` | `npm run gen:theme-css` | `test:freshness` — **byte-compared** against the generator |
+| `packages/react/src/theme/fonts.css` + `packages/react/fonts/*.woff2` | `npm run gen:fonts` | `test:fonts` — every referenced font file exists and the fallback metrics are present. **Not** a byte comparison |
+| `packages/motion/src/motion.css` | `npm run gen:motion-css` | `test:motion` — **byte-compared** against the generator |
+| `examples/colours/index.html` | `npm run gen:colour-demo` | **Nothing.** The generator verifies the page in a browser when you run it; no gate re-checks the committed copy |
+| `examples/InputFields.html` | `npm run gen:input-demo` | `test:guards` checks the Tier 3 token table against `INPUT_TOKENS`/`FIELD_TOKENS`. The rendered markup and its stylesheet are verified only when you run the generator |
+
+Regenerating an examples page needs a browser, which is too heavy for the unit
+suite — so those two are the weak rows. Regenerate them in the same commit as
+any change to what they show.
 
 ## Rules the gates enforce
 

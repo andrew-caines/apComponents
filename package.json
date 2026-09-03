@@ -18,7 +18,7 @@
     "test:contract": "vitest run packages/react/src/gates/contract-drift.gate.test.ts",
     "test:freshness": "vitest run packages/react/src/gates/theme-freshness.gate.test.ts",
     "test:fonts": "vitest run packages/react/src/gates/fonts.gate.test.ts",
-    "test:guards": "vitest run packages/react/src/gates/use-client.gate.test.ts packages/react/src/gates/ssr-safety.gate.test.ts packages/react/src/gates/style-rules.gate.test.ts packages/react/src/gates/base-ui-imports.gate.test.ts packages/react/src/gates/no-hardcoded-strings.gate.test.ts",
+    "test:guards": "vitest run packages/react/src/gates/use-client.gate.test.ts packages/react/src/gates/ssr-safety.gate.test.ts packages/react/src/gates/style-rules.gate.test.ts packages/react/src/gates/base-ui-imports.gate.test.ts packages/react/src/gates/no-hardcoded-strings.gate.test.ts packages/react/src/gates/examples-freshness.gate.test.ts",
     "test:gates": "npm run test:tokens && npm run test:contrast && npm run test:gamut && npm run test:sweep && npm run test:contract && npm run test:freshness && npm run test:fonts && npm run test:guards && npm run test:motion",
     "fixture:install": "npm --prefix fixtures/ssr-app install && npm --prefix fixtures/consumer install",
     "test:ssr": "vitest run --config vitest.gates.config.ts packages/react/src/gates/ssr-render.gate.test.ts",
@@ -33,7 +33,8 @@
     "gen:motion-css": "tsx scripts/gen-motion-css.ts",
     "gen:scale-demo": "tsx scripts/gen-scale-demo.ts",
     "gen:colour-demo": "tsx scripts/gen-colour-demo.ts",
-    "test:motion": "vitest run packages/motion/src"
+    "test:motion": "vitest run packages/motion/src",
+    "gen:input-demo": "tsx scripts/gen-input-demo.ts"
   },
   "devDependencies": {
     "@capsizecss/core": "^4.1.2",
