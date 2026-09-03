@@ -478,8 +478,13 @@ import { vars } from '../../theme/contract.css.js'
  * value (ADR-0007).
  *
  * The error text uses `dangerText` (ramp step 11) rather than `dangerBg`
- * (step 9): step 11 is the ramp's TEXT role, gated at 4.5:1 against the
- * surfaces. Step 9 is a solid fill and is not a text colour.
+ * (step 9): step 11 is the ramp's TEXT role, gated at 4.5:1 against
+ * `color-bg-canvas` and against `color-danger-bg-subtle` (ADR-0008). Step 9
+ * is a solid fill and is not a text colour.
+ *
+ * Note what the gate does and does not cover: those two pairings, not every
+ * surface. A field sitting on `bg-raised` is two neutral steps from the gated
+ * background, so its margin is close to the gated one rather than identical.
  */
 export const FIELD_TOKENS = {
   gap: tier3('field-gap', vars.space['2']),
