@@ -235,8 +235,7 @@ Create `packages/react/src/components/Input/Input.test.tsx`:
 ```tsx
 // @vitest-environment jsdom
 import { createRef } from 'react'
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Input } from './Input.js'
 import { inputRecipe } from './Input.css.js'
@@ -295,10 +294,9 @@ describe('Input', () => {
 
   // The uncontrolled path is the one ADR-0011 §4 exists for: the value must
   // live in the DOM, so a native form submit carries it with no React state.
-  it('submits its value from a native form with no React state (uncontrolled)', async () => {
-    const user = userEvent.setup()
+  it('submits its value from a native form with no React state (uncontrolled)', () => {
     const seen = vi.fn()
-    render(
+    const { container } = render(
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -309,15 +307,17 @@ describe('Input', () => {
         <button type="submit">Go</button>
       </form>,
     )
-    await user.click(screen.getByRole('button', { name: 'Go' }))
+    // The value is read out of the DOM by FormData, not out of React state —
+    // which is the whole claim: a browser submitting this form before any
+    // JavaScript has hydrated carries the same value (ADR-0011 §4).
+    fireEvent.submit(container.querySelector('form')!)
     expect(seen).toHaveBeenCalledWith('a@b.c')
   })
 
-  it('reports changes through onValueChange when controlled', async () => {
-    const user = userEvent.setup()
+  it('reports changes through onValueChange when controlled', () => {
     const onValueChange = vi.fn()
     render(<Input aria-label="Email" value="" onValueChange={onValueChange} />)
-    await user.type(screen.getByRole('textbox'), 'x')
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'x' } })
     expect(onValueChange).toHaveBeenCalled()
     expect(onValueChange.mock.calls[0]?.[0]).toBe('x')
   })
@@ -703,21 +703,29 @@ describe('Field parts', () => {
     expect(svg!.getAttribute('aria-hidden')).toBe('true')
   })
 
-  // Omitting children must still surface the browser's own validity message —
-  // that is the free half of Base UI's error behaviour and it is easy to break
-  // by always passing children through.
-  it('falls back to the native validity message when given no children', () => {
-    render(
-      <FieldRoot>
+  // Omitting children must leave Base UI's own message slot in charge — that is
+  // the free half of its error behaviour, and it breaks the moment a wrapper
+  // starts passing children of its own through unconditionally.
+  //
+  // jsdom does not populate `validationMessage`, so the message TEXT cannot be
+  // asserted here; the browser-level version of this assertion is Task 4's
+  // e2e. What is assertable, and what actually proves the wrapper did not
+  // hijack the slot, is that the error element renders with its icon and an
+  // EMPTY message span — a wrapper injecting its own children would put
+  // something in that span.
+  it('leaves the message slot to Base UI when given no children', () => {
+    const { container } = render(
+      <FieldRoot invalid>
         <FieldLabel>Email</FieldLabel>
         <Input name="email" required />
         <FieldError match />
       </FieldRoot>,
     )
-    // jsdom reports an empty string for validationMessage, so assert the
-    // element exists and carries the icon rather than asserting message text.
-    const svg = document.querySelector('svg')
+    const svg = container.querySelector('svg')
     expect(svg, 'the error element did not render its icon').not.toBeNull()
+    const span = svg!.parentElement!.querySelector('span')
+    expect(span, 'no message span beside the icon').not.toBeNull()
+    expect(span!.textContent).toBe('')
   })
 
   it('merges className on every part rather than replacing it', () => {
