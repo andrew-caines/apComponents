@@ -21,7 +21,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run test:motion` | `@ap/motion`'s own suite: unit tests plus its equivalence, reduced-motion, freshness and isolation gates |
 | `npm run gen:motion-css` | Regenerates `packages/motion/src/motion.css` from `motions.ts` |
 | `npm run test:ssr` | Builds and serves the RR8 fixture, asserts SSR markup and streaming |
-| `npm run test:hydration` | Playwright: zero hydration warnings, tokens resolve, no third-party requests |
+| `npm run test:hydration` | Playwright: zero hydration warnings, tokens resolve, no third-party requests, and the pre-hydration submit proof — `/form` submits and its action runs with every client bundle blocked |
 | `npm run test:consumer` | Builds the `file:`-protocol consumer fixture |
 | `npm run report:contrast` | Writes `reports/contrast.md` (the WCAG compliance artifact) |
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
@@ -112,9 +112,43 @@ These are generated and **committed**. Never edit them by hand; CI fails if they
 
 ## Adding a component
 
-Copy the shape of `packages/react/src/components/Surface/`: a `.tsx` module with
-`'use client'`, a `.css.ts` recipe, a `.tokens.ts` file declaring the Tier 3 override
-surface, a test, and an `index.ts`. Nothing else in the tree needs to change.
+There are two shapes, and which one you want depends on whether the component has
+parts a product may need to lay out itself.
+
+**A single element** — copy `packages/react/src/components/Surface/`: a `.tsx` module
+with `'use client'`, a `.css.ts` recipe, a `.tokens.ts` file declaring the Tier 3
+override surface, a test, and an `index.ts`. Nothing else in the tree needs to change.
+
+**A component with parts** — copy `packages/react/src/components/Field/`. It is the
+same file set plus one split, and the split is the point:
+
+- `FieldParts.tsx` holds the compound parts (`FieldRoot`, `FieldLabel`,
+  `FieldControl`, `FieldDescription`, `FieldError`) — each a thin styled wrapper over
+  its Base UI part, each exported with its own props interface. These are the
+  complete API; everything else is built out of them.
+- `Field.tsx` holds the convenience component, the one-element common case
+  (`<Field label="Email" hint="…" error={…}>`). It imports only from `FieldParts.js`
+  — no Base UI import, no context read, no internal helper.
+- The two are joined with `Object.assign` at the bottom of `Field.tsx`, so
+  `Field` is both the convenience component and the namespace: `<Field label="…">`
+  or `<Field.Root>` + parts, from one import.
+- `Field.test.tsx` asserts the two produce **identical DOM**. That test is
+  [ADR-0011](adr/0011-component-api-conventions.md) §2 made mechanical: if the
+  convenience component ever needs something the compound parts cannot express, the
+  compound API is what gets fixed. Do not loosen it; add the missing part instead.
+- The convenience component's props deliberately `Omit` the parts' props it cannot
+  honour. `FieldProps` omits `invalid`, because `Field.Root`'s `invalid` marks a
+  control invalid without supplying anything to read, and the convenience component
+  has no way for a caller to supply that text other than `error`. Whenever a
+  convenience component inherits a prop whose effect it cannot render, omit it and
+  say why in the doc comment.
+- A slot that renders a message must be in the tree **unconditionally**, not gated
+  on a prop. `Field` always renders `<Field.Error>`, even with no `error` supplied,
+  because Base UI needs somewhere to put the browser's own validity message; gating
+  it on `error` produced a field with `aria-invalid` and a red border and nothing to
+  read — [ADR-0011](adr/0011-component-api-conventions.md) §5's colour-alone failure,
+  reached through the recommended API. Base UI's part returns `null` while the field
+  is valid, so an unconditional slot costs no markup.
 
 Import the shared `componentsLayer` from `packages/react/src/theme/layers.css.ts` and
 wrap every style object (base, each variant, each compound variant) in
@@ -323,6 +357,88 @@ whether the part's underlying hook forces attributes unconditionally the
 way `useButton`/`useFocusableWhenDisabled` do, and if so, apply the same
 `{ role: undefined, tabIndex: undefined }` override for the literal-anchor
 case rather than assuming Base UI's default is always right.
+
+## Base UI's Field discards a caller-supplied `id` from server markup
+
+**A caller-supplied `id` on a control inside a `Field` is not in the
+server-rendered HTML.** The control ships with a generated `base-ui-…` id
+instead, and only becomes the id you asked for after hydration. The id
+*changes* at hydration.
+
+The mechanism is two hooks that disagree about when the id is known.
+`LabelableProvider` (`internals/labelable-provider/LabelableProvider.mjs`)
+seeds its `controlId` state from its **own** `useBaseUiId()` on first render:
+
+```js
+const defaultId = useBaseUiId();
+const initialControlId = props.controlId === undefined ? defaultId : props.controlId;
+const [controlId, setControlIdState] = React.useState(initialControlId);
+```
+
+The control's own `useLabelableId`
+(`internals/labelable-provider/useLabelableId.mjs`) returns
+`controlId ?? defaultId` — the provider's value, first — and registers the
+caller's explicit `id` only from inside a `useIsoLayoutEffect`, which is a
+no-op on the server. So the server renders the provider's generated id; the
+first client effect registers the real one; the DOM id then changes.
+
+This is not a hydration mismatch — the client's first render agrees with the
+server, and the swap happens afterwards — so nothing warns about it.
+
+**What this means in practice.** Never write a test, a script, or a
+server-side integration that locates a `Field`'s control by a caller-supplied
+`id` before hydration: the id genuinely is not there. Locate it by its label
+(`getByLabelText`, `label=` in Playwright), which is derived during render and
+so is present in the server response. `fixtures/ssr-app/e2e/progressive-enhancement.spec.ts`
+does exactly this: every pre-hydration interaction goes through the label, and
+`#email-input` is used only after the page reports hydration is complete.
+
+The same reasoning applies to `aria-describedby`, for the same reason one hop
+further: `Field.Description` and `Field.Error` register their ids from a layout
+effect too, so the attribute is absent from the server response and appears
+after hydration. `ssr-render.gate.test.ts` asserts the label→control pairing
+against server markup and deliberately does not assert `aria-describedby`.
+
+## `@base-ui/react` left external in an SSR build loads a second React
+
+**Symptom:** an SSR build that succeeds, then dies at request time with
+
+```
+TypeError: Cannot read properties of null (reading 'useId')
+```
+
+thrown from `@base-ui/utils/useId.mjs`. Reading a property of `null` inside a
+hook is React's dispatcher being null — the signature of **two physical copies
+of React in one process**, where a component renders through one copy while
+the renderer is driving the other.
+
+**Cause.** `@base-ui/react` is a dependency of `@ap/react`, a workspace
+package, so npm hoists it to the repository **root** `node_modules` and never
+installs it under a nested app's own. `@ap/vite` bundles `@ap/react`'s source
+into the server build, but that source's `import … from '@base-ui/react/…'` is
+left as a plain external import, resolved at *runtime* relative to the built
+server file. From a nested app's `build/server/`, that resolution walks up to
+the root `node_modules` and finds the root's `react`. Every other external
+`react` import in the same built file resolves from the nested app's own
+`node_modules`. Two copies load, and Base UI's `useId` — reached through
+`Field`, `Input` or `Button` — reads a null dispatcher from whichever one is
+not currently rendering.
+
+**Fix:** `ssr: { noExternal: ['@base-ui/react', '@base-ui/utils'] }` in the
+app's own `vite.config.ts`. Both entries are needed: `@base-ui/utils` (where
+`useId.mjs` actually lives) is a separate package, so bundling
+`@base-ui/react` alone leaves it external and reintroduces the identical
+problem one hop down.
+
+**This is a monorepo-nesting artifact, not a consumer problem.** It happens
+because `fixtures/ssr-app` is a non-workspace app sitting *inside* the
+workspace, so its dependency resolution straddles two `node_modules` trees. A
+product that installs `@ap/react` from a registry gets `@base-ui/react` under
+its own `node_modules` like any other transitive dependency, with one `react`
+in scope, and never sees this. That is why the fix lives in the fixture's
+`vite.config.ts` and **not** in `@ap/vite`: putting it in the plugin would
+force every consumer to bundle Base UI to work around a problem only this
+repository has.
 
 ## Known caveats
 

@@ -1276,6 +1276,39 @@ git commit -m "feat(react): Field convenience component, proven identical to its
 
 ### Task 4: Prove the pre-hydration submit in a real browser
 
+> **⚠️ Corrected during implementation — read before copying anything below.**
+> The code blocks in this task are kept as written for the historical record,
+> but **four constructions in them are non-discriminating** and the Task 4
+> review replaced all four. As shipped in commit `d6864e8`:
+>
+> 1. **`#email-input` as a pre-hydration locator.** A caller-supplied `id` on a
+>    control inside a `Field` is not in the server-rendered HTML at all — Base
+>    UI seeds the id from its own generator and applies the caller's only from a
+>    post-hydration layout effect. Locate the control by its **label** before
+>    hydration; `#email-input` is valid only after the page reports hydration
+>    complete. (See "Base UI's Field discards a caller-supplied `id` from server
+>    markup" in `docs/CONTRIBUTING.md`.)
+> 2. **`expect(html).toContain(\`id="${labelFor}"\`)`.** Unanchored, so it also
+>    passes when the `for` points at the label itself or at the `Field` wrapper
+>    `<div>` — the self-referential regression it is supposed to catch. Anchor
+>    it to an `<input>`: ``new RegExp(`<input[^>]*\\sid="${escaped}"`)``.
+> 3. **`preceding-sibling::svg`.** An assertion that can never pass and can
+>    never fail meaningfully: the browser parses `<svg>` into the real SVG
+>    namespace, and XPath's unprefixed name test matches only the *null*
+>    namespace, so this node test silently matches nothing whether the icon is
+>    present or not. Use
+>    `preceding-sibling::*[1][local-name()='svg']` — namespace-agnostic, and the
+>    `[1]` keeps it the *immediate* sibling rather than "any element before".
+> 4. **`<Form>` without `noValidate`.** The route exists to prove the *server*
+>    action's validation. Without `noValidate` the browser's own `type="email"`
+>    constraint blocks the malformed value and the request never reaches the
+>    action — with JS enabled *and* disabled, since RR8's hydrated `<Form>`
+>    intercepts a `submit` event the browser only fires after its own
+>    constraint check passed.
+>
+> Later phases read these plans as precedent: take the corrected forms, not the
+> blocks below.
+
 Spec §8 check 9. ADR-0011 §4 claims an RR8 `<Form method="post">` submits and the action runs **before hydration completes**, because the browser is submitting a real form. That claim has never been executed. This task executes it the only way that cannot cheat: by **blocking every client JavaScript bundle**, so hydration provably never happens, and then submitting.
 
 **Files:**
