@@ -70,7 +70,7 @@ npm test 2>&1 | tail -5
 npm ls vite
 ```
 
-Expected now: 61 test files pass, and `npm ls vite` shows root `vite@8.2.2` **plus a nested `vite@7.3.6`** under `vitest`.
+Expected now: 59 test files pass, and `npm ls vite` shows root `vite@8.2.2` **plus a nested `vite@7.3.6`** under `vitest`.
 
 - [ ] **Step 2: Pin Vitest 4**
 
@@ -86,7 +86,7 @@ Expected: a single `vite@8.2.2`, no `vite@7.x`, no `vite-node`. Vitest 4 accepts
 - [ ] **Step 4: Run the full unit suite**
 
 Run: `npm test`
-Expected: PASS, **61 test files**, same count as Step 1. A lower count means the default exclude list shrank and something stopped matching — investigate rather than accept.
+Expected: PASS, **59 test files**, same count as Step 1. A lower count means the default exclude list shrank and something stopped matching — investigate rather than accept.
 
 - [ ] **Step 5: Prove no snapshot silently rewrote**
 
@@ -125,7 +125,7 @@ published vitest 5. No config edit was needed: this repo uses none of Vitest
 environmentMatchGlobs, no coverage, no reporters, no fake timers).
 
 The nested vite 7 that vitest 3 carried is gone, so tests now run through the
-same Vite 8 as the builds. 61 files pass, snapshots byte-identical, gates green."
+same Vite 8 as the builds. 59 files pass, snapshots byte-identical, gates green."
 ```
 
 ---
@@ -1405,7 +1405,7 @@ Ordered; each is a command whose output is the evidence. Success signals name th
 
 | # | Claim | Command | Success signal |
 |---|---|---|---|
-| 1 | Vitest 4 changed nothing | `npm test` | 61 files, same as before the pin. Perturb by widening `include` to `**/*.test.ts` → must pull in fixture files and fail |
+| 1 | Vitest 4 changed nothing | `npm test` | 59 files, same as before the pin. Perturb by widening `include` to `**/*.test.ts` → must pull in fixture files and fail |
 | 2 | No snapshot silently rewrote | `git diff --exit-code -- "**/__snapshots__"` | Empty |
 | 3 | Every gate still green | `npm run test:gates && npm run test:ssr && npm run test:consumer && npm run test:spa` | Pass |
 | 4 | Stories run headlessly | `npm run test:stories` | Every story and `play` passes in Chromium. Perturb an expected accessible name → must fail and name the story |
