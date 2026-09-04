@@ -1,23 +1,51 @@
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
+import { playwright } from '@vitest/browser-playwright'
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [vanillaExtractPlugin()],
   test: {
-    // packages only — fixture e2e specs belong to Playwright, not Vitest
-    include: ['packages/*/src/**/*.test.{ts,tsx}'],
-    // Unmounts React Testing Library trees between tests. Harmless for the
-    // node-environment specs, which never render into a document.
-    setupFiles: ['./vitest.setup.ts'],
-    // These two gates build a fixture app and boot a server. They are driven by
-    // their own scripts (test:ssr, test:consumer) and their own CI jobs, so they
-    // must not run inside the default `npm test`. They run instead under
-    // vitest.gates.config.ts, which carries no such exclusion — keep both
-    // files in sync if the gate filenames ever change.
-    exclude: [
-      ...configDefaults.exclude,
-      '**/ssr-render.gate.test.ts',
-      '**/consumer-build.gate.test.ts',
+    projects: [
+      {
+        // `extends: true` inherits the root `plugins` array. Without it the
+        // vanilla-extract transform does not run and every .css.ts import
+        // fails.
+        extends: true,
+        test: {
+          name: 'unit',
+          include: ['packages/*/src/**/*.test.{ts,tsx}'],
+          setupFiles: ['./vitest.setup.ts'],
+          // These two gates build fixture apps and boot a server. They run
+          // under vitest.gates.config.ts via test:ssr / test:consumer, and
+          // CI's unit job never installs fixture dependencies.
+          exclude: [
+            ...configDefaults.exclude,
+            '**/ssr-render.gate.test.ts',
+            '**/consumer-build.gate.test.ts',
+          ],
+        },
+      },
+      {
+        extends: true,
+        plugins: [storybookTest({ configDir: './storybook/.storybook' })],
+        test: {
+          name: 'storybook',
+          // @storybook/addon-vitest's `storybookTest()` plugin sets this
+          // project's Vite `root` to the parent of `configDir` (i.e.
+          // `storybook/`), so setupFiles here resolve against that root, not
+          // the repo root where this config file lives.
+          setupFiles: ['./.storybook/vitest.setup.ts'],
+          browser: {
+            enabled: true,
+            headless: true,
+            // An object from @vitest/browser-playwright, not the string
+            // 'playwright' — Vitest 4 changed this.
+            provider: playwright(),
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
     ],
   },
 })
