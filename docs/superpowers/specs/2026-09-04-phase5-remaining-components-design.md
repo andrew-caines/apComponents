@@ -28,7 +28,7 @@ can reject one plan while approving its neighbour.
 
 | Plan | Delivers | Ends when |
 |---|---|---|
-| **5a** | Storybook workspace, Vitest 4 upgrade, stories + MDX docs pages backfilled for Phase 4's six components, gates 4–5 moved off the showcase, showcase reduced to SSR smoke, ADR-0011 §7 and ADR-0014 amended | `test:unit` and `test:a11y` run through Storybook in CI over all six existing components; a deliberate axe violation fails the run |
+| **5a** | Storybook workspace, Vitest 4 upgrade, stories + MDX docs pages backfilled for Phase 4's six components, gates 4–5 moved off the showcase, showcase reduced to SSR smoke, the Pages base path (§3.5), ADR-0011 §7 and ADR-0014 amended | `test:unit` and `test:a11y` run through Storybook in CI over all six existing components; a deliberate axe violation fails the run |
 | **5b** | `Textarea`, `Checkbox`, `Switch`, `RadioGroup` + `Radio` | Each renders inside `Field` with ARIA derived, not hand-passed; each submits uncontrolled pre-hydration |
 | **5c** | `Select` | Selected label present in server HTML; popup absent; hidden input carries the value; keyboard listbox semantics pass |
 | **5d** | `Tooltip`, `Popover` | Portals absent server-side; tooltip describes its trigger; popover traps focus when it has a close button and returns it on dismiss |
@@ -106,7 +106,32 @@ in the plan's "what actually happened", not silently.
 - **MDX docs pages** live under `storybook/docs/` and cover the five non-component subjects the showcase currently holds as prose: foundations, colour, typography, theming, icons. They are not test files, and the a11y check is gated on story view mode, so both the Vitest and axe runs skip them.
 - **`preview.ts` imports `@ap/react/fonts.css`, `theme.css` and `motion.css`** and wraps every story in `ApProvider`. Motion is not optional: without it every `animation: var(--ap-motion-*)` resolves to nothing and every motion assertion is vacuous.
 
-### 3.5 Gates 4 and 5 become one mechanism
+### 3.5 The Pages base path is set now, not in Phase 6
+
+Phase 6 owns Storybook's deployment. One piece of it belongs here, because it costs
+nothing now and is invisible until it breaks: **the Vite `base` path.**
+
+**Decision, 2026-09-04: the published Storybook will be a public site.** The repository is
+private and owned by a personal account. GitHub Pages from a private repository requires a
+paid plan, and the site it publishes is readable by anyone with the URL regardless —
+restricting it to people with repository access requires an organisation on GitHub
+Enterprise Cloud, which a personal account cannot have. Publishing publicly is accepted
+rather than worked around. Two consequences Phase 6 inherits: if the account is on the free
+plan the repository itself must become public for Pages to work at all, and any prose
+published into the docs site is published to the open internet.
+
+A Pages project site is served from a subpath (`/apComponents/`), not from the domain root.
+Storybook's Vite builder does not fully handle a subpath on its own — some asset URLs
+rewrite and others do not — so the site loads with broken assets unless `base` is set in
+the `viteFinal` hook.
+
+**It is set from an environment variable, defaulting to root**, rather than hardcoded to
+the repository name. Gate 9 serves `storybook-static` from a local static server at the
+domain root, so a hardcoded subpath would break every screenshot in the visual-regression
+run while the deployed site worked, or the reverse. The Pages build sets the variable; every
+other build does not.
+
+### 3.6 Gates 4 and 5 become one mechanism
 
 Interaction (`play`) and accessibility (axe) both run inside the Vitest addon in headless
 Chromium. `@storybook/test-runner` is not adopted: it drags Jest into a Vitest repo, and
@@ -127,7 +152,7 @@ machine-detectable violations, not accessibility. Keyboard flows are covered by 
 Each component still gets a manual screen-reader pass recorded in its directory before
 release.
 
-### 3.6 Documentation changes this forces
+### 3.7 Documentation changes this forces
 
 | Document | Change |
 |---|---|
@@ -506,7 +531,7 @@ Ordered. Each is a command whose output is the evidence.
 | Binary byte units | No localised form exists in `Intl` |
 | Native `Intl.DurationFormat` | §5.2 — not in Node 22; adopting it would split server and client text |
 | Vitest's own screenshot support for gate 9 | §6.2 — Playwright is already wired; named as a Phase 6 candidate |
-| Storybook's build and deployment | Phase 6. This phase brings up stories as test infrastructure and docs pages as content; Phase 6 publishes them |
+| Storybook's build and deployment | Phase 6. This phase brings up stories as test infrastructure and docs pages as content; Phase 6 publishes them. **The Vite `base` path is the exception and is set here** — see §3.5 |
 | Anchored toasts | Base UI wants a second provider for them; no caller |
 | Data-display components (Table, Pagination, Badge, Avatar, Card, EmptyState) | v2, per ADR-0011 |
 
@@ -516,7 +541,7 @@ Ordered. Each is a command whose output is the evidence.
 |---|---|
 | The Vitest 4 upgrade breaks the existing suite | It is task one of 5a with a named fallback (§3.3); nothing else in the phase starts until it is green |
 | Ten components in sequence fork the conventions | §4.1 is written first and every plan cites it; the review checklist is the same each time |
-| Storybook's a11y failure path depends on a transitive matcher package | Proven on first run with a deliberate violation (§3.5); if the import is missing, declare it |
+| Storybook's a11y failure path depends on a transitive matcher package | Proven on first run with a deliberate violation (§3.6); if the import is missing, declare it |
 | Gate 9 produces noise that trains people to ignore CI | Advisory by construction, PR-only, with a pixel-ratio threshold; ADR-0014 already rejects blocking visual regression |
 | Gate 10's number is honest but the pipeline is bespoke | It measures the real consumer pipeline; the alternative measures a bundle nobody ships (§6.1) |
 | The showcase and Storybook drift into two galleries | The showcase's job is narrowed to SSR smoke with no prose, and CONTRIBUTING says so |
