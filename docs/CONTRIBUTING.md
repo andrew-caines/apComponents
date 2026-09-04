@@ -274,13 +274,11 @@ static files, verified by their own browser checks at generation time. Link them
 from the showcase rather than reimplementing them — a second copy is a second thing
 to keep true.
 
-### Known: `showcase`'s typecheck reports the same duplicate-React-types error
+### `showcase`'s tsconfig pins `react` to one copy of the types
 
-`npm --prefix showcase run typecheck` reports the one
-`FieldParts.tsx … Two different types with this name exist` error described under
-"Known gaps in Phase 2's gates" — same cause, same pending fix, unrelated to the
-showcase itself. `npm run showcase:build` and the smoke test are both clean, and the
-showcase is deliberately not wired into CI.
+`showcase/tsconfig.json` carries the same `paths` mapping as the two fixtures
+(see "Known gaps in Phase 2's gates" for why). `npm --prefix showcase run
+typecheck` is a step in the `showcase` CI job.
 
 ## Motion
 
@@ -430,28 +428,46 @@ resolution would require installing a fixture outside this repository, which
 Phase 2 does not do. Until that exists, treat ADR-0002's transitive-resolution
 claim as architecturally intended and exercised manually, not as CI-enforced.
 
-### The same nesting currently makes `fixtures/consumer`'s typecheck fail
+### The same nesting put two copies of `@types/react` into every downstream typecheck
 
-`npm --prefix fixtures/consumer run typecheck` (CI job `consumer`) reports one
-error, in `packages/react/src/components/Field/FieldParts.tsx`, ending in
+Until 2026-09-04, `npm --prefix fixtures/consumer run typecheck` (and the same
+command in `showcase` and `fixtures/ssr-app`) reported one error, in
+`packages/react/src/components/Field/FieldParts.tsx`, ending in
 `Two different types with this name exist, but they are unrelated`. That is the
-signature of two copies of `@types/react` in one program: the fixture's own
-files resolve types from `fixtures/consumer/node_modules/@types/react`, while
-the `@ap/react` sources they pull in resolve from the root `node_modules`, so
-TypeScript sees two nominally distinct `VoidOrUndefinedOnly`s and refuses the
-assignment.
+signature of two copies of `@types/react` in one program: the app's own files
+resolve types from its `node_modules/@types/react`, while the `@ap/react`
+sources they pull in — and Base UI's declarations — walk up from
+`packages/react` and land on the root `node_modules` copy. Same version, both
+loaded. TypeScript normally folds identical `name@version` packages into one,
+but did not here; `tsc --explainFiles` shows both files in the program, with the
+app's copy first registered under a mangled id (`@types/react/ndex.d.ts`, from
+`jsx-runtime.d.ts`'s `"./"` import). Whatever the mechanism, `Ref<T>`'s callback
+return type is keyed on a `unique symbol`, so the two copies are nominally
+distinct and any ref crossing the boundary is refused. `FieldError`'s `render`
+function, which spreads Base UI's element props (`ref: Ref<any>`) onto a `<div>`,
+was simply the first place they met.
 
-It is the same class of artifact as the duplicate-React trap below, and equally
-not something a real external consumer would hit — they would have exactly one
-copy. It predates Phase 4 and is unrelated to any component's types; nothing in
-`packages/react` is wrong. The fix is to pin the fixture's program to a single
-copy (a `paths` mapping for `react`/`react-dom` in
-`fixtures/consumer/tsconfig.json`), which is worth doing deliberately, with a
-perturbation showing the mapping still fails when the types genuinely disagree —
-a `paths` entry that silences a real type error would be strictly worse than the
-current red. **Until then the `consumer` CI job is expected to fail on that
-step**, and `npm run test:consumer`, which is the assertion that actually
-exercises the build, passes.
+Nothing in `packages/react` is wrong, and a real external consumer never sees
+this: the vendored submodule (ADR-0002) has no `node_modules` of its own, so
+resolution walks straight into the consumer's single copy.
+
+**Fix, applied to all three downstream tsconfigs:** a `paths` mapping pinning
+`react` and `react/jsx-runtime` to the app's own `node_modules/@types/react`.
+After it, `--explainFiles` lists no file under the root `@types/react`.
+
+**Perturbation, so the mapping is known not to silence real errors:** with the
+mapping in place, a consumer file passing `useRef<SVGSVGElement>` to `Surface`
+(which is `forwardRef<HTMLDivElement>`) still fails with the expected
+`RefObject<SVGSVGElement | null>` is not assignable to `Ref<HTMLDivElement>`,
+and `useRef<HTMLDivElement>` passes. (An `HTMLInputElement` ref also passes —
+that is TypeScript's structural typing, not the mapping: an input element has
+every member a div element has.)
+
+The typecheck now runs in three places so the gap cannot reopen silently: the
+`consumer` CI job's own step, a `typechecks against our source` assertion inside
+`test:consumer` (so the local gate checks what CI checks — it did not before, which
+is why this was first seen on GitHub), and new `typecheck` steps in the `ssr` and
+`showcase` CI jobs.
 
 ## Base UI's `render` prop and the `nativeButton`/anchor-role trap
 

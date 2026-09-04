@@ -39,6 +39,18 @@ beforeAll(() => {
 }, 180_000)
 
 describe('gate 8: a file:-protocol consumer builds against our source', () => {
+  it('typechecks against our source with a single copy of the React types', () => {
+    // The consumer installs its own `@types/react`; the linked `@ap/react`
+    // source (and Base UI's declarations) resolve the monorepo root's copy.
+    // Same version, but TypeScript still loads both, and `Ref<T>`'s callback
+    // return type is keyed on a `unique symbol`, so a Base UI `render` prop
+    // spread onto a `<div>` fails with "Two different types with this name
+    // exist". The fixture's tsconfig pins `react` to one copy (see the
+    // comment there). CI runs this typecheck as its own step; running it here
+    // too keeps the local gate honest about what CI checks.
+    execFileSync(npm, ['run', 'typecheck'], { cwd: APP, stdio: 'inherit', shell: isWin })
+  }, 120_000)
+
   it('produces a build', () => {
     expect(existsSync(join(DIST, 'index.html'))).toBe(true)
   })
