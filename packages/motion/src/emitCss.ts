@@ -4,8 +4,15 @@ import type { MotionSpec, Step } from './types.js'
 /** `error.shake` → `ap-error-shake`. Dots are not valid in a keyframe name. */
 export const cssKeyframeName = (name: string): string => `ap-${name.replace(/\./g, '-')}`
 
-/** `error.shake` → `--ap-motion-error-shake`. */
-const cssVarName = (name: string): string => `--ap-motion-${name.replace(/\./g, '-')}`
+/**
+ * `error.shake` → `--ap-motion-error-shake`.
+ *
+ * Exported so a component can name the variable by deriving it from the motion
+ * name rather than hardcoding the string. A hardcoded `--ap-motion-spinner-rotate`
+ * in a component silently resolves to nothing the day this convention changes,
+ * and "the animation stopped" is not a failure any type-checker or gate sees.
+ */
+export const cssVarName = (name: string): string => `--ap-motion-${name.replace(/\./g, '-')}`
 
 /** 0.167 → '16.7%', 0 → '0%', 1 → '100%'. Trailing zeros trimmed. */
 const offset = (at: number): string => `${Number((at * 100).toFixed(1))}%`

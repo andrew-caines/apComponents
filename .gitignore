@@ -8,5 +8,8 @@ fixtures/*/node_modules/
 fixtures/*/build/
 fixtures/*/.react-router/
 fixtures/*/dist/
+showcase/node_modules/
+showcase/build/
+showcase/.react-router/
 test-results/
 playwright-report/

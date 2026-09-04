@@ -1,8 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Surface, type SurfaceProps } from '@ap/react'
+import { Input, Surface, type SurfaceProps } from '@ap/react'
 import '@ap/react/fonts.css'
 import '@ap/react/theme.css'
+import '@ap/react/motion.css'
 
 // Type-level proof that the published types resolve for a consumer. `vite build`
 // alone would strip this without checking it, so this fixture also carries its
@@ -14,6 +15,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Surface tone={tone} pad="lg">
       consumer fixture
+      {/*
+        Loading, specifically. It is the one component state whose whole
+        meaning lives in an animation, so it is the state that proves
+        `motion.css` survived the trip into a consumer's bundle — a static
+        spinner looks fine in a screenshot and says nothing.
+      */}
+      <Input aria-label="Consumer fixture input" loading />
     </Surface>
   </StrictMode>,
 )

@@ -30,7 +30,7 @@ describe('toMotionCss', () => {
   it('emits a keyframes block for every motion', () => {
     expect(css).toContain('@keyframes ap-error-shake {')
     expect(css).toContain('@keyframes ap-spinner-rotate {')
-    expect((css.match(/^@keyframes /gm) ?? []).length).toBe(12)
+    expect((css.match(/^@keyframes /gm) ?? []).length).toBe(14)
   })
 
   it('emits keyframes unlayered and composite properties inside the token layer', () => {

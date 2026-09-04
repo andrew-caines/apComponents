@@ -63,7 +63,13 @@ The generator emits **tokens only** — it never ships or fetches font files. Th
 --ap-font-weight-medium:  500;
 --ap-font-weight-semibold: 600;
 
---ap-text-xs … --ap-text-2xl;             /* size+line-height pairs from the ADR-0006 scale */
+--ap-text-fine-print, --ap-text-xs … --ap-text-2xl;
+                                          /* size+line-height pairs from the ADR-0006 scale.
+                                             fine-print (11px) sits below the series on
+                                             purpose: it is the legibility floor for legal
+                                             lines, and small text gets no WCAG 3:1
+                                             allowance, so it always needs a 4.5:1
+                                             foreground. */
 --ap-font-numeric: 'tnum';                /* tabular numerals — applied by data components */
 ```
 

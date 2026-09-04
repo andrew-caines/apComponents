@@ -5,10 +5,11 @@ import { MOTIONS } from './motions.js'
 const entries = Object.entries(MOTIONS)
 
 describe('MOTIONS record', () => {
-  it('defines all twelve named motions from ADR-0010', () => {
+  it('defines all fourteen named motions from ADR-0010', () => {
     expect(Object.keys(MOTIONS).sort()).toEqual([
-      'attention.nudge', 'collapse', 'enter.fade-rise', 'error.shake', 'exit.fade',
-      'expand', 'skeleton.shimmer', 'spinner.rotate', 'success.check',
+      'attention.nudge', 'collapse', 'enter.fade-rise', 'enter.slide-up',
+      'error.shake', 'exit.fade', 'exit.slide-down', 'expand',
+      'skeleton.shimmer', 'spinner.rotate', 'success.check',
       'toast.slide-in', 'toast.slide-out', 'warning.pulse',
     ])
   })

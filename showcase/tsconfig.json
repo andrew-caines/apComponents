@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // One copy of the React types. This app installs its own `@types/react`, but
+    // `@ap/react` is a `file:` link to ../../packages/react, whose source (and
+    // Base UI's declarations) resolve `react` by walking up to the monorepo
+    // root's node_modules — a second, same-version copy. TypeScript loads both,
+    // and `Ref<T>`'s callback return type is keyed on a `unique symbol`, so any
+    // ref crossing the boundary fails with "Two different types with this name
+    // exist, but they are unrelated". A real consumer never sees this: the
+    // vendored submodule (ADR-0002) has no node_modules of its own, so
+    // resolution walks straight into the consumer's single copy. The root
+    // node_modules masks that here, in type-space, exactly as it masks
+    // `@ap/react`'s runtime dependency closure (see the gate 8 test).
+    "paths": {
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"]
+    },
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "include": ["app", "*.ts"]
+}

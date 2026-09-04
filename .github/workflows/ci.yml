@@ -85,7 +85,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm --prefix fixtures/ssr-app install
+      - run: npm --prefix fixtures/ssr-app run typecheck
       - run: npm run test:ssr
+      - run: npm run test:spa
       - run: npx --prefix fixtures/ssr-app playwright install --with-deps chromium
       - run: npm run test:hydration
       - uses: actions/upload-artifact@v4
@@ -93,3 +95,18 @@ jobs:
         with:
           name: playwright-report
           path: fixtures/ssr-app/playwright-report/
+
+  showcase:
+    name: Showcase smoke and accessibility (gates 4-5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run showcase:install
+      - run: npm --prefix showcase run typecheck
+      - run: npx --prefix showcase playwright install --with-deps chromium
+      - run: npm run showcase:test

@@ -236,6 +236,41 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // identically to a build where the recipe is emitted unlayered.
     expect(css).toMatch(/@layer ap\.components\s*\{[\s\S]*?--ap-surface-bg-canvas/)
   })
+
+  it('serves the form route with a real form and a labelled control in the markup', async () => {
+    const res = await fetchAsBrowser(`${base}/form`)
+    expect(res.status).toBe(200)
+    const html = await res.text()
+
+    // A real form the browser can submit without any JavaScript — this is the
+    // markup ADR-0011 §4's progressive-enhancement claim rests on.
+    expect(html).toContain('method="post"')
+    expect(html).toContain('name="email"')
+
+    // The label-to-control wiring is derived during render, so it survives to
+    // the server response. `aria-describedby` deliberately is NOT asserted:
+    // Base UI's description/error ids register from a layout effect, so the
+    // attribute legitimately appears only after hydration.
+    //
+    // Anchored to an `<input>` specifically, not a bare `toContain(id=...)`:
+    // the served label carries an id of the same generated form
+    // (`<label id="base-ui-…" for="base-ui-…">` — its own id comes from
+    // `useRegisteredLabelId`, a different generated value of the same shape),
+    // so a regression where `for` pointed at the label itself, or at the
+    // `Field` wrapper `<div>`, would still satisfy an unanchored substring
+    // search for `id="<labelFor>"` anywhere in the document. Requiring the id
+    // on an `<input>` element specifically is what actually distinguishes a
+    // correct label->control pairing from a self-referential one.
+    const labelFor = /<label[^>]*\sfor="([^"]+)"/.exec(html)?.[1]
+    expect(labelFor, 'no for attribute on the server-rendered label').toBeDefined()
+    // `labelFor` is extracted from the response, so it is untrusted input to
+    // this RegExp. Base UI's ids are `base-ui-…` today and contain nothing
+    // special, but escaping costs one line and removes the class of failure
+    // where a changed id format turns this assertion into a different pattern
+    // than the one it reads as.
+    const escapedLabelFor = labelFor!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${escapedLabelFor}"`))
+  })
 })
 
 describe(
@@ -271,12 +306,28 @@ describe(
       // Prove the CSS is genuinely wired at the manifest level, and that the
       // referenced file on disk actually contains Surface's compiled rules
       // — even though the static bootstrap shell doesn't link it directly.
+      // Collected across EVERY manifest chunk rather than from the `home`
+      // chunk specifically. Which chunk owns a component's CSS is a Vite
+      // code-splitting decision, not a property of our build: the moment a
+      // second route imported `Surface`, its CSS was hoisted into a shared
+      // chunk and a `home`-pinned assertion failed while nothing was actually
+      // wrong. Reading from the manifest (rather than globbing the directory)
+      // keeps the real guarantee — the file is REACHABLE from the build, not
+      // merely present on disk as an orphan.
       const manifest = readClientManifest()
-      const rootCss = findManifestChunk(manifest, 'root').css?.[0]
-      expect(rootCss, 'root chunk should have an associated css file in the manifest').toBeTruthy()
-      const homeCss = findManifestChunk(manifest, 'home').css?.[0]
-      expect(homeCss, 'home chunk should have an associated css file in the manifest').toBeTruthy()
-      const cssOnDisk = readFileSync(join(APP, 'build/client', homeCss!), 'utf8')
+      const cssFiles = [
+        ...new Set(
+          Object.values(manifest).flatMap((chunk) => (chunk as { css?: string[] }).css ?? []),
+        ),
+      ]
+      expect(cssFiles.length, 'no chunk in the client manifest references any css').toBeGreaterThan(0)
+
+      const cssOnDisk = cssFiles
+        .map((f) => readFileSync(join(APP, 'build/client', f), 'utf8'))
+        .join('\n')
+      // The silent-CSS-loss defect this exists for: a recipe that compiles to
+      // nothing, or a vanilla-extract transform that never ran, leaves the SPA
+      // booting perfectly with no component styling at all.
       expect(cssOnDisk).toMatch(/\._[0-9a-z]+\{[^}]*--ap-surface-bg-canvas/)
       expect(cssOnDisk).toMatch(/@layer ap\.components\s*\{[\s\S]*?--ap-surface-bg-canvas/)
     })

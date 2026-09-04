@@ -1,0 +1,415 @@
+<meta charset="utf-8">
+<title>Input &amp; Field — apComponents</title>
+<link rel="stylesheet" href="../packages/react/src/theme/fonts.css">
+<link rel="stylesheet" href="../packages/react/src/theme/theme.css">
+<!-- The motion tokens. Without this the spinner renders but never animates, and
+     reduced-motion degradation has nothing to degrade. -->
+<link rel="stylesheet" href="../packages/motion/src/motion.css">
+<style>
+/* The components' own stylesheet, compiled from the real .css.ts sources by
+   scripts/input-demo/build.ts. Everything below the marker is this page's own
+   chrome and styles nothing inside a .specimen. */
+@layer ap.components{.teqgwu0{box-sizing:border-box;justify-content:center;align-items:center;gap:var(--ap-space-2);font-family:var(--ap-font-body);border-radius:var(--ap-button-radius,var(--ap-radius-md));cursor:pointer;border-style:solid;border-width:1px;text-decoration:none;display:inline-flex}.teqgwu0:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-button-focus-ring,var(--ap-color-focus-ring));outline-offset:var(--ap-focus-ring-offset)}.teqgwu0[data-disabled]{cursor:default;opacity:.6}.teqgwu1{padding-inline:var(--ap-space-3);padding-block:var(--ap-space-1);font-size:var(--ap-text-sm-size);line-height:var(--ap-text-sm-lh)}.teqgwu2{padding-inline:var(--ap-space-4);padding-block:var(--ap-space-2);font-size:var(--ap-text-md-size);line-height:var(--ap-text-md-lh)}.teqgwu3{padding-inline:var(--ap-space-5);padding-block:var(--ap-space-3);font-size:var(--ap-text-lg-size);line-height:var(--ap-text-lg-lh)}.teqgwu9{background:var(--ap-button-action-bg,var(--ap-color-action-bg));color:var(--ap-button-action-on-solid,var(--ap-color-action-on-solid));border-color:#0000}.teqgwu9:hover{background:var(--ap-button-action-bg-hover,var(--ap-color-action-bg-hover))}.teqgwua{background:var(--ap-button-danger-bg,var(--ap-color-danger-bg));color:var(--ap-button-danger-on-solid,var(--ap-color-danger-on-solid));border-color:#0000}.teqgwua:hover{background:var(--ap-button-danger-bg-hover,var(--ap-color-danger-bg-hover))}.teqgwub{color:var(--ap-button-action-text,var(--ap-color-action-text));border-color:var(--ap-button-border,var(--ap-color-border-interactive));background:0 0}.teqgwub:hover{background:var(--ap-button-action-subtle,var(--ap-color-action-bg-subtle))}.teqgwuc{color:var(--ap-button-danger-text,var(--ap-color-danger-text));border-color:var(--ap-button-border,var(--ap-color-border-interactive));background:0 0}.teqgwuc:hover{background:var(--ap-button-danger-subtle,var(--ap-color-danger-bg-subtle))}.teqgwud{color:var(--ap-button-action-text,var(--ap-color-action-text));background:0 0;border-color:#0000}.teqgwud:hover{background:var(--ap-button-action-subtle,var(--ap-color-action-bg-subtle))}.teqgwue{color:var(--ap-button-danger-text,var(--ap-color-danger-text));background:0 0;border-color:#0000}.teqgwue:hover{background:var(--ap-button-danger-subtle,var(--ap-color-danger-bg-subtle))}.znh0mz0{box-sizing:border-box;inline-size:100%;font-family:var(--ap-font-body);color:var(--ap-input-text,var(--ap-color-text-primary));background:var(--ap-input-bg,var(--ap-color-bg-surface));border-style:solid;border-width:1px;border-color:var(--ap-input-border,var(--ap-color-border-normal));border-radius:var(--ap-input-radius,var(--ap-radius-md))}.znh0mz0::placeholder{color:var(--ap-input-placeholder,var(--ap-color-text-secondary));opacity:1}.znh0mz0:hover:not([data-disabled]){border-color:var(--ap-input-border-hover,var(--ap-color-border-interactive))}.znh0mz0:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-input-focus-ring,var(--ap-color-focus-ring));outline-offset:var(--ap-focus-ring-offset)}.znh0mz0[data-invalid]{border-color:var(--ap-input-border-invalid,var(--ap-color-danger-border))}.znh0mz0[data-disabled]{cursor:default;opacity:.6}.znh0mz1{padding-inline-start:var(--ap-space-3);padding-inline-end:var(--ap-space-3);padding-block:var(--ap-space-1);font-size:var(--ap-text-sm-size);line-height:var(--ap-text-sm-lh)}.znh0mz2{padding-inline-start:var(--ap-space-4);padding-inline-end:var(--ap-space-4);padding-block:var(--ap-space-2);font-size:var(--ap-text-md-size);line-height:var(--ap-text-md-lh)}.znh0mz3{padding-inline-start:var(--ap-space-5);padding-inline-end:var(--ap-space-5);padding-block:var(--ap-space-3);font-size:var(--ap-text-lg-size);line-height:var(--ap-text-lg-lh)}.znh0mz8{padding-inline-start:calc(var(--ap-input-icon-gap,var(--ap-space-2)) + var(--ap-input-icon-slot,var(--ap-hit-target)) + var(--ap-input-icon-gap,var(--ap-space-2)))}.znh0mz9{padding-inline-end:calc(var(--ap-input-icon-gap,var(--ap-space-2)) + var(--ap-input-icon-slot,var(--ap-hit-target)) + var(--ap-input-icon-gap,var(--ap-space-2)))}.znh0mza{inline-size:100%;display:block;position:relative}.znh0mzb{inline-size:var(--ap-input-icon-slot,var(--ap-hit-target));color:var(--ap-input-icon,var(--ap-color-text-secondary));justify-content:center;align-items:center;display:flex;position:absolute;inset-block:0;inset-inline-start:var(--ap-input-icon-gap,var(--ap-space-2))}.znh0mzc{inline-size:var(--ap-input-icon-slot,var(--ap-hit-target));color:var(--ap-input-icon,var(--ap-color-text-secondary));justify-content:center;align-items:center;display:flex;position:absolute;inset-block:0;inset-inline-end:var(--ap-input-icon-gap,var(--ap-space-2))}.znh0mzd{pointer-events:none}.znh0mze{font:inherit;cursor:pointer;background:0 0;border:0;margin:0;padding:0}.znh0mze:focus-visible{outline-width:var(--ap-focus-ring-width);outline-style:solid;outline-color:var(--ap-input-focus-ring,var(--ap-color-focus-ring));outline-offset:-4px}.znh0mze:disabled{cursor:default;opacity:.6}.znh0mzf{padding:var(--ap-space-2);border-radius:var(--ap-radius-sm);justify-content:center;align-items:center;display:flex}.znh0mze:hover:not(:disabled) .znh0mzf{color:var(--ap-input-icon-hover,var(--ap-color-text-primary));background:var(--ap-input-icon-hover-bg,var(--ap-color-action-bg-subtle))}._170e0e10{animation:var(--ap-motion-spinner-rotate);flex-shrink:0;display:inline-block}.acdsev0{gap:var(--ap-field-gap,var(--ap-space-2));font-family:var(--ap-font-body);flex-direction:column;display:flex}.acdsev1{color:var(--ap-field-label-text,var(--ap-color-text-primary));font-size:var(--ap-field-label-size,var(--ap-text-sm-size));line-height:var(--ap-field-label-line-height,var(--ap-text-sm-lh));font-weight:500}.acdsev2{color:var(--ap-field-description-text,var(--ap-color-text-secondary));font-size:var(--ap-field-description-size,var(--ap-text-xs-size));line-height:var(--ap-field-description-line-height,var(--ap-text-xs-lh));margin:0}.acdsev3{align-items:flex-start;gap:var(--ap-field-error-gap,var(--ap-space-1));color:var(--ap-field-error-text,var(--ap-color-danger-text));font-size:var(--ap-field-error-size,var(--ap-text-xs-size));line-height:var(--ap-field-error-line-height,var(--ap-text-xs-lh));display:flex}.acdsev4{flex-shrink:0;margin-block-start:.15em}}
+/*$vite$:1*/
+/* ---- page chrome ---- */
+:root { color-scheme: light dark; }
+body {
+  margin: 0; padding: 0 0 6rem;
+  background: var(--ap-color-bg-canvas);
+  color: var(--ap-color-text-primary);
+  font-family: var(--ap-font-body);
+  font-size: var(--ap-text-md-size); line-height: var(--ap-text-md-lh);
+}
+.wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.5rem; }
+h1 { font-size: var(--ap-text-2xl-size); line-height: var(--ap-text-2xl-lh); margin: 2rem 0 .5rem; }
+h2 { font-size: var(--ap-text-lg-size); line-height: var(--ap-text-lg-lh); margin: 0 0 .35rem; }
+h2 a { color: inherit; text-decoration: none; }
+h2 a:hover { text-decoration: underline; }
+.sub, .note { color: var(--ap-color-text-secondary); margin: 0 0 1rem; }
+.note { font-size: var(--ap-text-sm-size); line-height: var(--ap-text-sm-lh); max-width: 60ch; }
+code { font-family: var(--ap-font-mono); font-size: .9em; }
+.toolbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; gap: .75rem; align-items: center; flex-wrap: wrap;
+  padding: .6rem 1.5rem;
+  background: var(--ap-color-bg-surface);
+  border-block-end: 1px solid var(--ap-color-border-subtle);
+}
+.seg { display: inline-flex; border: 1px solid var(--ap-color-border-interactive); border-radius: var(--ap-radius-md); overflow: hidden; }
+.seg button {
+  font: inherit; font-size: var(--ap-text-sm-size);
+  padding: .25rem .7rem; border: 0; cursor: pointer;
+  background: var(--ap-color-bg-surface); color: var(--ap-color-text-primary);
+}
+.seg button[aria-pressed="true"] { background: var(--ap-color-action-bg); color: var(--ap-color-action-on-solid); }
+.tag { font-size: var(--ap-text-xs-size); color: var(--ap-color-text-secondary); }
+nav.toc { display: flex; flex-wrap: wrap; gap: .35rem .75rem; margin: 0 0 2.5rem; }
+nav.toc a { font-size: var(--ap-text-sm-size); color: var(--ap-color-action-text); }
+section { margin: 0 0 3rem; scroll-margin-top: 4rem; }
+.pair { display: grid; grid-template-columns: minmax(18rem, 1fr) minmax(20rem, 1.15fr); gap: 1rem; align-items: start; }
+@media (max-width: 60rem) { .pair { grid-template-columns: 1fr; } }
+.cap {
+  font-size: var(--ap-text-fine-print-size); line-height: var(--ap-text-fine-print-lh);
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ap-color-text-secondary); margin: 0 0 .4rem;
+}
+.specimen {
+  display: flex; flex-direction: column; gap: 1rem;
+  padding: 1.25rem;
+  background: var(--ap-color-bg-surface);
+  border: 1px solid var(--ap-color-border-subtle);
+  border-radius: var(--ap-radius-lg);
+}
+.specimen form { display: flex; flex-direction: column; gap: 1rem; margin: 0; align-items: stretch; }
+/* A submit control should be its own width, not the form's. Fields stay full
+   width because Input sets inline-size: 100% itself. */
+.specimen form > button { align-self: flex-start; }
+pre.code {
+  margin: 0; padding: 1rem; overflow-x: auto;
+  /* Wrap rather than clip: these samples sit in a column narrower than a
+     comfortable line of JSX, and a reader should never have to scroll
+     sideways to discover that a prop they needed was off the edge. */
+  white-space: pre-wrap; overflow-wrap: break-word;
+  background: var(--ap-color-bg-raised);
+  border: 1px solid var(--ap-color-border-subtle);
+  border-radius: var(--ap-radius-lg);
+  font-family: var(--ap-font-mono);
+  font-size: var(--ap-text-sm-size); line-height: var(--ap-text-sm-lh);
+}
+pre.code b { font-weight: 400; }
+pre.code .t { color: var(--ap-color-action-text); }
+pre.code .s { color: var(--ap-color-success-text); }
+pre.code .a { color: var(--ap-color-info-text); }
+pre.code .e { color: var(--ap-color-warning-text); }
+table { border-collapse: collapse; width: 100%; font-size: var(--ap-text-sm-size); }
+th, td { text-align: start; padding: .35rem .6rem; border-block-end: 1px solid var(--ap-color-border-subtle); vertical-align: top; }
+th { color: var(--ap-color-text-secondary); font-weight: 600; }
+th.grp { white-space: nowrap; border-inline-end: 1px solid var(--ap-color-border-subtle); }
+.mono { font-family: var(--ap-font-mono); }
+.dim { color: var(--ap-color-text-secondary); }
+:root[data-ap-scheme="light"] { color-scheme: light; }
+:root[data-ap-scheme="dark"] { color-scheme: dark; }
+</style>
+
+<div class="toolbar">
+  <div class="seg" id="scheme" role="group" aria-label="Colour scheme">
+    <button type="button" data-scheme="light" aria-pressed="false">Light</button>
+    <button type="button" data-scheme="system" aria-pressed="true">System</button>
+    <button type="button" data-scheme="dark" aria-pressed="false">Dark</button>
+  </div>
+  <span class="tag">Sets <code>data-ap-scheme</code> on the root, the same attribute
+    <code>ThemeProvider</code> writes.</span>
+</div>
+
+<div class="wrap">
+<h1>Input &amp; Field</h1>
+<p class="sub">GENERATED by <code>scripts/gen-input-demo.ts</code> — do not edit.
+  Regenerate with <code>npm run gen:input-demo</code>.
+  Every specimen below is <code>renderToString</code> output from the real components, styled by a
+  real vanilla-extract compile of their <code>.css.ts</code> sources; every code block is read back
+  out of <code>scripts/input-demo/examples.tsx</code>'s AST — the same expression that produced the
+  markup beside it. The inputs are genuine <code>&lt;input&gt;</code> elements: type in them, hover
+  them, tab through them. Only behaviour that needs React — validation firing, an error appearing on
+  blur — is inert here, and those states are shown as rendered specimens instead.</p>
+
+<p class="sub">Everything is imported from one place:</p>
+<pre class="code"><code>import <b class="e">{ Field, Input, Button }</b> from '@ap/react'</code></pre>
+
+<nav class="toc"><a href="#basic">A labelled field</a><a href="#error">An error from the server</a><a href="#sizes">Sizes</a><a href="#states">States</a><a href="#types">Native input types</a><a href="#adornments">Icons inside the field</a><a href="#loading">Loading</a><a href="#compound">The compound API, when layout needs controlling</a><a href="#uncontrolled">Uncontrolled, so it submits before hydration</a><a href="#standalone">An input on its own</a></nav>
+
+<section id="basic">
+  <h2><a href="#basic">A labelled field</a></h2>
+  <p class="note">The common case. <code>label</code> is required, because an unlabelled field is a defect rather than a style choice. Nothing here passes an <code>id</code>: the label, the control and the hint wire their own <code>for</code>, <code>id</code> and <code>aria-describedby</code> through context.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="basic"><div class="acdsev0"><label id="base-ui-_basic-R_3_" for="base-ui-_basic-R_0_" class="acdsev1">Email</label><input id="base-ui-_basic-R_0_" type="email" placeholder="you@example.com" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="email"/><p id="base-ui-_basic-R_7_" class="acdsev2">We never share this.</p></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Email"</b> <b class="a">hint</b>=<b class="s">"We never share this."</b>&gt;
+  &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"email"</b> <b class="a">type</b>=<b class="s">"email"</b> <b class="a">placeholder</b>=<b class="s">"you@example.com"</b> /&gt;
+&lt;/<b class="t">Field</b>&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="error">
+  <h2><a href="#error">An error from the server</a></h2>
+  <p class="note">Passing <code>error</code> marks the field invalid and shows the message. The icon is not optional and not a prop — it is part of what <code>Field.Error</code> renders, so an error can never reach a user as colour alone (WCAG 1.4.1).</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="error"><div data-invalid="" class="acdsev0"><label data-invalid="" id="base-ui-_error-R_3_" for="base-ui-_error-R_0_" class="acdsev1">Email</label><input data-invalid="" id="base-ui-_error-R_0_" type="email" aria-invalid="true" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="email" value="taken@example.com"/><p data-invalid="" id="base-ui-_error-R_7_" class="acdsev2">We never share this.</p><div data-invalid="" id="base-ui-_error-R_9_" class="acdsev3"><svg class="acdsev4" style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 8v5M12 16h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg><div>That address is already in use.</div></div></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Email"</b> <b class="a">hint</b>=<b class="s">"We never share this."</b> <b class="a">error</b>=<b class="s">"That address is already in use."</b>&gt;
+  &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"email"</b> <b class="a">type</b>=<b class="s">"email"</b> <b class="a">defaultValue</b>=<b class="s">"taken@example.com"</b> /&gt;
+&lt;/<b class="t">Field</b>&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="sizes">
+  <h2><a href="#sizes">Sizes</a></h2>
+  <p class="note"><code>size</code> is a recipe variant — <code>sm</code>, <code>md</code>, <code>lg</code> — not the legacy HTML width-in-characters attribute, which it deliberately displaces. Padding and type step together.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="sizes"><div class="acdsev0"><label id="base-ui-_sizes-R_d_" for="base-ui-_sizes-R_1_" class="acdsev1">Small</label><input id="base-ui-_sizes-R_1_" class="znh0mz0 znh0mz1 znh0mz5 znh0mz7" name="s" value="size=sm"/></div><div class="acdsev0"><label id="base-ui-_sizes-R_e_" for="base-ui-_sizes-R_2_" class="acdsev1">Medium (default)</label><input id="base-ui-_sizes-R_2_" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="m" value="size=md"/></div><div class="acdsev0"><label id="base-ui-_sizes-R_f_" for="base-ui-_sizes-R_3_" class="acdsev1">Large</label><input id="base-ui-_sizes-R_3_" class="znh0mz0 znh0mz3 znh0mz5 znh0mz7" name="l" value="size=lg"/></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Small"</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"s"</b> <b class="a">size</b>=<b class="s">"sm"</b> <b class="a">defaultValue</b>=<b class="s">"size=sm"</b> /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Medium (default)"</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"m"</b> <b class="a">defaultValue</b>=<b class="s">"size=md"</b> /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Large"</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"l"</b> <b class="a">size</b>=<b class="s">"lg"</b> <b class="a">defaultValue</b>=<b class="s">"size=lg"</b> /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+&lt;/&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="states">
+  <h2><a href="#states">States</a></h2>
+  <p class="note">Rest, disabled and invalid. Hover and focus are not pinned specimens here — every input on this page is a real one, so hover and tab through them to see those states directly.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="states"><div class="acdsev0"><label id="base-ui-_states-R_d_" for="base-ui-_states-R_1_" class="acdsev1">Rest</label><input id="base-ui-_states-R_1_" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="a" value="Editable"/></div><div class="acdsev0"><label id="base-ui-_states-R_e_" for="base-ui-_states-R_2_" class="acdsev1">Disabled</label><input data-disabled="" id="base-ui-_states-R_2_" disabled="" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="b" value="Not editable"/></div><div data-invalid="" class="acdsev0"><label data-invalid="" id="base-ui-_states-R_f_" for="base-ui-_states-R_3_" class="acdsev1">Invalid</label><input data-invalid="" id="base-ui-_states-R_3_" aria-invalid="true" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="c" value="Rejected"/><div data-invalid="" id="base-ui-_states-R_17_" class="acdsev3"><svg class="acdsev4" style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 8v5M12 16h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg><div>Something is wrong with this value.</div></div></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Rest"</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"a"</b> <b class="a">defaultValue</b>=<b class="s">"Editable"</b> /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Disabled"</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"b"</b> <b class="a">defaultValue</b>=<b class="s">"Not editable"</b> disabled /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Invalid"</b> <b class="a">error</b>=<b class="s">"Something is wrong with this value."</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"c"</b> <b class="a">defaultValue</b>=<b class="s">"Rejected"</b> /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+&lt;/&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="types">
+  <h2><a href="#types">Native input types</a></h2>
+  <p class="note">Uncontrolled and native by default, so every <code>&lt;input&gt;</code> type works as it always did, along with the browser’s own validation and autofill.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="types"><div class="acdsev0"><label id="base-ui-_types-R_d_" for="base-ui-_types-R_1_" class="acdsev1">Password</label><input id="base-ui-_types-R_1_" type="password" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="pw" value="hunter2"/></div><div class="acdsev0"><label id="base-ui-_types-R_e_" for="base-ui-_types-R_2_" class="acdsev1">Number</label><input id="base-ui-_types-R_2_" type="number" min="0" max="10" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="qty" value="3"/></div><div class="acdsev0"><label id="base-ui-_types-R_f_" for="base-ui-_types-R_3_" class="acdsev1">Search</label><input id="base-ui-_types-R_3_" type="search" placeholder="Search employees" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="q"/></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Password"</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"pw"</b> <b class="a">type</b>=<b class="s">"password"</b> <b class="a">defaultValue</b>=<b class="s">"hunter2"</b> /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Number"</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"qty"</b> <b class="a">type</b>=<b class="s">"number"</b> <b class="a">defaultValue</b>=<b class="s">"3"</b> <b class="a">min</b>=<b class="e">{0}</b> <b class="a">max</b>=<b class="e">{10}</b> /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Search"</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"q"</b> <b class="a">type</b>=<b class="s">"search"</b> <b class="a">placeholder</b>=<b class="s">"Search employees"</b> /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+&lt;/&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="adornments">
+  <h2><a href="#adornments">Icons inside the field</a></h2>
+  <p class="note">An icon inside the control, at the inline start or end. <code>start</code> and <code>end</code> rather than left and right, because the position is set with <code>inset-inline-*</code> — in an RTL locale a <code>startIcon</code> renders on the right and the name stays true. Give the adornment an <code>onClick</code> and it becomes a real <code>&lt;button type="button"&gt;</code>; the type then requires a <code>label</code>, because a button with no accessible name is unusable by anyone not looking at it. Without <code>onClick</code> the icon is decorative and transparent to clicks, so tapping the currency symbol puts the caret in the field behind it. <code>color</code> takes a semantic role — every option is a foreground token the contrast gate covers, so none of them is unreadable. The hit area is the full height of the control; only the smaller chip inside it is painted, so a hover background never runs into the border.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="adornments"><div class="acdsev0"><label id="base-ui-_adornments-R_d_" for="base-ui-_adornments-R_1_" class="acdsev1">Amount</label><span class="znh0mza"><span class="znh0mzb znh0mzd" aria-hidden="true"><span>€</span></span><input id="base-ui-_adornments-R_1_" class="znh0mz0 znh0mz2 znh0mz4 znh0mz7 znh0mz8" name="amount" value="1250.00"/></span><p id="base-ui-_adornments-R_t_" class="acdsev2">Decorative — clicking the symbol focuses the field.</p></div><div class="acdsev0"><label id="base-ui-_adornments-R_e_" for="base-ui-_adornments-R_2_" class="acdsev1">API key</label><span class="znh0mza"><input id="base-ui-_adornments-R_2_" class="znh0mz0 znh0mz2 znh0mz5 znh0mz6 znh0mz9" name="key" value="sk-live-4f9a2c"/><button type="button" class="znh0mzc znh0mze" aria-label="Clear the API key"><span class="znh0mzf"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg></span></button></span><p id="base-ui-_adornments-R_u_" class="acdsev2">The clear button is a real button: tab to it, press Enter.</p></div><div class="acdsev0"><label id="base-ui-_adornments-R_f_" for="base-ui-_adornments-R_3_" class="acdsev1">Both ends, with semantic colours</label><span class="znh0mza"><span class="znh0mzb znh0mzd" style="--ap-input-icon:var(--ap-color-info-text);--ap-input-icon-hover:var(--ap-color-info-text)" aria-hidden="true"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16v-5M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg></span><input id="base-ui-_adornments-R_3_" class="znh0mz0 znh0mz2 znh0mz4 znh0mz6 znh0mz8 znh0mz9" name="search" value="quarterly report"/><button style="--ap-input-icon:var(--ap-color-success-text);--ap-input-icon-hover:var(--ap-color-success-text)" type="button" class="znh0mzc znh0mze" aria-label="Apply filter"><span class="znh0mzf"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg></span></button></span></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Amount"</b> <b class="a">hint</b>=<b class="s">"Decorative — clicking the symbol focuses the field."</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"amount"</b> <b class="a">defaultValue</b>=<b class="s">"1250.00"</b> <b class="a">startIcon</b>={<b class="e">{ icon: &lt;span&gt;€&lt;/span&gt; }</b>} /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"API key"</b> <b class="a">hint</b>=<b class="s">"The clear button is a real button: tab to it, press Enter."</b>&gt;
+    &lt;<b class="t">Input</b>
+      <b class="a">name</b>=<b class="s">"key"</b>
+      <b class="a">defaultValue</b>=<b class="s">"sk-live-4f9a2c"</b>
+      <b class="a">endIcon</b>={{
+        icon: &lt;<b class="t">Icon</b> <b class="a">name</b>=<b class="s">"close"</b> /&gt;,
+        onClick: () =&gt; <b class="e">{}</b>,
+        label: 'Clear the API key',
+      }}
+    /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Both ends, with semantic colours"</b>&gt;
+    &lt;<b class="t">Input</b>
+      <b class="a">name</b>=<b class="s">"search"</b>
+      <b class="a">defaultValue</b>=<b class="s">"quarterly report"</b>
+      <b class="a">startIcon</b>={<b class="e">{ icon: &lt;Icon name="info" /&gt;, color: 'info' }</b>}
+      <b class="a">endIcon</b>={{
+        icon: &lt;<b class="t">Icon</b> <b class="a">name</b>=<b class="s">"check"</b> /&gt;,
+        color: 'success',
+        onClick: () =&gt; <b class="e">{}</b>,
+        label: 'Apply filter',
+      }}
+    /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+&lt;/&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="loading">
+  <h2><a href="#loading">Loading</a></h2>
+  <p class="note">While <code>loading</code> is true the field is read-only, carries <code>aria-busy</code>, and shows a spinner where <code>endIcon</code> would be. Read-only rather than disabled on purpose: a disabled field drops out of the tab order AND out of form submission, so a form posted mid-check would silently lose the value. The spinner animation comes from <code>@ap/motion</code>’s <code>spinner.rotate</code>, so under <code>prefers-reduced-motion</code> the rotation drops away and only a gentle opacity breath remains — handled entirely at the token layer, with no media query in the component.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="loading"><div class="acdsev0"><label id="base-ui-_loading-R_d_" for="base-ui-_loading-R_1_" class="acdsev1">IBAN</label><span class="znh0mza"><input id="base-ui-_loading-R_1_" readOnly="" aria-busy="true" class="znh0mz0 znh0mz2 znh0mz5 znh0mz6 znh0mz9" name="iban" value="GB33BUKB20201555555555"/><span class="znh0mzc znh0mzd" aria-hidden="true"><svg class="_170e0e10" style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="var(--ap-spinner-width, 2px)" stroke-dasharray="var(--ap-spinner-dash, 42 15)" stroke-linecap="round"></circle></svg></span></span><p id="base-ui-_loading-R_t_" class="acdsev2">Checked against the bank directory as you type.</p></div><div class="acdsev0"><label id="base-ui-_loading-R_e_" for="base-ui-_loading-R_2_" class="acdsev1">Not loading, for comparison</label><span class="znh0mza"><input id="base-ui-_loading-R_2_" class="znh0mz0 znh0mz2 znh0mz5 znh0mz6 znh0mz9" name="iban2" value="GB33BUKB20201555555555"/><button type="button" class="znh0mzc znh0mze" aria-label="Clear"><span class="znh0mzf"><svg style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg></span></button></span></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"IBAN"</b> <b class="a">hint</b>=<b class="s">"Checked against the bank directory as you type."</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"iban"</b> <b class="a">defaultValue</b>=<b class="s">"GB33BUKB20201555555555"</b> loading /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Not loading, for comparison"</b>&gt;
+    &lt;<b class="t">Input</b>
+      <b class="a">name</b>=<b class="s">"iban2"</b>
+      <b class="a">defaultValue</b>=<b class="s">"GB33BUKB20201555555555"</b>
+      <b class="a">endIcon</b>={{ icon: &lt;<b class="t">Icon</b> <b class="a">name</b>=<b class="s">"close"</b> /&gt;, onClick: () =&gt; <b class="e">{}</b>, label: 'Clear' }}
+    /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+&lt;/&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="compound">
+  <h2><a href="#compound">The compound API, when layout needs controlling</a></h2>
+  <p class="note">The same parts the convenience component is built from. Reach for these when the order or the markup between them has to change. <code>Field.Root invalid</code> is the one route to an invalid state without a message — and it makes you render your own <code>Field.Error</code>, which is why the convenience component does not expose <code>invalid</code> at all.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="compound"><div class="acdsev0"><label id="base-ui-_compound-R_3_" for="base-ui-_compound-R_0_" class="acdsev1">Employee ID</label><p id="base-ui-_compound-R_5_" class="acdsev2">Six digits, no prefix.</p><input id="base-ui-_compound-R_0_" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="employee-id" value="004512"/><div id="base-ui-_compound-R_9_" class="acdsev3"><svg class="acdsev4" style="width:var(--ap-icon-md);height:var(--ap-icon-md)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 8v5M12 16h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg><div>Not a known employee.</div></div></div></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;<b class="t">Field.Root</b>&gt;
+  &lt;<b class="t">Field.Label</b>&gt;Employee ID&lt;/<b class="t">Field.Label</b>&gt;
+  &lt;<b class="t">Field.Description</b>&gt;Six digits, no prefix.&lt;/<b class="t">Field.Description</b>&gt;
+  &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"employee-id"</b> <b class="a">defaultValue</b>=<b class="s">"004512"</b> /&gt;
+  &lt;<b class="t">Field.Error</b> match&gt;Not a known employee.&lt;/<b class="t">Field.Error</b>&gt;
+&lt;/<b class="t">Field.Root</b>&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="uncontrolled">
+  <h2><a href="#uncontrolled">Uncontrolled, so it submits before hydration</a></h2>
+  <p class="note">The value lives in the DOM, not in React state. That is what lets a real form post run its server action before any JavaScript has loaded — the claim <code>test:hydration</code> proves in a browser with every client bundle blocked. Type into this one and submit it: it navigates, because it is a real form.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="uncontrolled"><form method="get"><div class="acdsev0"><label id="base-ui-_uncontrolled-R_d_" for="base-ui-_uncontrolled-R_1_" class="acdsev1">Full name</label><input id="base-ui-_uncontrolled-R_1_" required="" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="fullName" value="Ada Lovelace"/><p id="base-ui-_uncontrolled-R_t_" class="acdsev2">Appears on the employee record.</p></div><button type="submit" tabindex="0" class="teqgwu0 teqgwu4 teqgwu2 teqgwu7 teqgwu9">Save</button></form></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>
+&lt;<b class="t">form</b> <b class="a">method</b>=<b class="s">"get"</b>&gt;
+  &lt;<b class="t">Field</b> <b class="a">label</b>=<b class="s">"Full name"</b> <b class="a">hint</b>=<b class="s">"Appears on the employee record."</b>&gt;
+    &lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"fullName"</b> <b class="a">defaultValue</b>=<b class="s">"Ada Lovelace"</b> required /&gt;
+  &lt;/<b class="t">Field</b>&gt;
+  &lt;<b class="t">Button</b> <b class="a">type</b>=<b class="s">"submit"</b>&gt;Save&lt;/<b class="t">Button</b>&gt;
+&lt;/<b class="t">form</b>&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="standalone">
+  <h2><a href="#standalone">An input on its own</a></h2>
+  <p class="note"><code>Input</code> works outside a <code>Field</code>. It then carries no label for you, so give it one — an <code>aria-label</code> here, or a <code>&lt;label for&gt;</code> you write yourself.</p>
+  <div class="pair">
+    <div class="live">
+      <div class="cap">live output</div>
+      <div class="specimen" data-example="standalone"><input id="base-ui-_standalone-R_0_" aria-label="Filter" placeholder="Filter results" class="znh0mz0 znh0mz2 znh0mz5 znh0mz7" name="filter"/></div>
+    </div>
+    <div class="src">
+      <div class="cap">source</div>
+      <pre class="code"><code>&lt;<b class="t">Input</b> <b class="a">name</b>=<b class="s">"filter"</b> <b class="a">aria-label</b>=<b class="s">"Filter"</b> <b class="a">placeholder</b>=<b class="s">"Filter results"</b> /&gt;</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="tokens">
+  <h2><a href="#tokens">Tier 3 override tokens</a></h2>
+  <p class="note">Set any of these custom properties to restyle just these components; each falls
+    back to the Tier 2 semantic token shown beside it, so overriding Tier 2 instead moves the whole
+    theme (ADR-0007). Read directly off <code>INPUT_TOKENS</code> and <code>FIELD_TOKENS</code>.</p>
+  <table>
+    <thead><tr><th>Component</th><th>Key</th><th>Resolves to</th></tr></thead>
+    <tbody>
+<tr><th rowspan="13" class="grp">Input</th><td class="mono">bg</td><td class="mono dim">var(--ap-input-bg, var(--ap-color-bg-surface))</td></tr>
+<tr><td class="mono">text</td><td class="mono dim">var(--ap-input-text, var(--ap-color-text-primary))</td></tr>
+<tr><td class="mono">placeholder</td><td class="mono dim">var(--ap-input-placeholder, var(--ap-color-text-secondary))</td></tr>
+<tr><td class="mono">border</td><td class="mono dim">var(--ap-input-border, var(--ap-color-border-normal))</td></tr>
+<tr><td class="mono">borderHover</td><td class="mono dim">var(--ap-input-border-hover, var(--ap-color-border-interactive))</td></tr>
+<tr><td class="mono">borderInvalid</td><td class="mono dim">var(--ap-input-border-invalid, var(--ap-color-danger-border))</td></tr>
+<tr><td class="mono">radius</td><td class="mono dim">var(--ap-input-radius, var(--ap-radius-md))</td></tr>
+<tr><td class="mono">focusRing</td><td class="mono dim">var(--ap-input-focus-ring, var(--ap-color-focus-ring))</td></tr>
+<tr><td class="mono">iconSlot</td><td class="mono dim">var(--ap-input-icon-slot, var(--ap-hit-target))</td></tr>
+<tr><td class="mono">iconGap</td><td class="mono dim">var(--ap-input-icon-gap, var(--ap-space-2))</td></tr>
+<tr><td class="mono">icon</td><td class="mono dim">var(--ap-input-icon, var(--ap-color-text-secondary))</td></tr>
+<tr><td class="mono">iconHover</td><td class="mono dim">var(--ap-input-icon-hover, var(--ap-color-text-primary))</td></tr>
+<tr><td class="mono">iconHoverBg</td><td class="mono dim">var(--ap-input-icon-hover-bg, var(--ap-color-action-bg-subtle))</td></tr>
+<tr><th rowspan="11" class="grp">Field</th><td class="mono">gap</td><td class="mono dim">var(--ap-field-gap, var(--ap-space-2))</td></tr>
+<tr><td class="mono">labelText</td><td class="mono dim">var(--ap-field-label-text, var(--ap-color-text-primary))</td></tr>
+<tr><td class="mono">labelSize</td><td class="mono dim">var(--ap-field-label-size, var(--ap-text-sm-size))</td></tr>
+<tr><td class="mono">labelLineHeight</td><td class="mono dim">var(--ap-field-label-line-height, var(--ap-text-sm-lh))</td></tr>
+<tr><td class="mono">descriptionText</td><td class="mono dim">var(--ap-field-description-text, var(--ap-color-text-secondary))</td></tr>
+<tr><td class="mono">descriptionSize</td><td class="mono dim">var(--ap-field-description-size, var(--ap-text-xs-size))</td></tr>
+<tr><td class="mono">descriptionLineHeight</td><td class="mono dim">var(--ap-field-description-line-height, var(--ap-text-xs-lh))</td></tr>
+<tr><td class="mono">errorText</td><td class="mono dim">var(--ap-field-error-text, var(--ap-color-danger-text))</td></tr>
+<tr><td class="mono">errorSize</td><td class="mono dim">var(--ap-field-error-size, var(--ap-text-xs-size))</td></tr>
+<tr><td class="mono">errorLineHeight</td><td class="mono dim">var(--ap-field-error-line-height, var(--ap-text-xs-lh))</td></tr>
+<tr><td class="mono">errorGap</td><td class="mono dim">var(--ap-field-error-gap, var(--ap-space-1))</td></tr>
+<tr><th rowspan="2" class="grp">Spinner</th><td class="mono">width</td><td class="mono dim">var(--ap-spinner-width, 2px)</td></tr>
+<tr><td class="mono">dash</td><td class="mono dim">var(--ap-spinner-dash, 42 15)</td></tr>
+    </tbody>
+  </table>
+</section>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement
+    var bar = document.getElementById('scheme')
+    bar.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-scheme]')
+      if (!b) return
+      if (b.dataset.scheme === 'system') root.removeAttribute('data-ap-scheme')
+      else root.setAttribute('data-ap-scheme', b.dataset.scheme)
+      bar.querySelectorAll('button').forEach(function (el) {
+        el.setAttribute('aria-pressed', String(el === b))
+      })
+    })
+  })()
+</script>

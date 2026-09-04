@@ -23,7 +23,7 @@ describe('generateTheme', () => {
     expect(resolveSemantic(theme, 'light', 'color-bg-canvas')).toBe(
       theme.ramps.light.neutral.steps[0]!.hex,
     )
-    expect(resolveSemantic(theme, 'light', 'color-action-text')).toBe(
+    expect(resolveSemantic(theme, 'light', 'color-action-on-solid')).toBe(
       theme.ramps.light.brand.onSolid,
     )
   })

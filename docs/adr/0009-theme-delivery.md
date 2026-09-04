@@ -38,6 +38,37 @@ The result is injected as CSS custom properties on a scoping element — either 
 
 `ThemeProvider` handles scoping and nesting. Because tokens are CSS custom properties, a nested `ThemeProvider` re-scopes everything beneath it with no React re-render.
 
+#### How it is actually implemented (Phase 4e)
+
+`<ThemeProvider theme={generateTheme({ brand })}>` renders a `<style>` in place and
+wraps its children in a scoping element. Four decisions are load-bearing:
+
+- **The scope class comes from `useId`.** It has to be identical in the server render
+  and the client hydration. A module-scope counter is not — the module is fresh per
+  request on the server and shared on the client — and a random value never is. A
+  mismatch is silent: the server ships CSS targeting one class, the client asks for
+  another, and the tokens quietly fall back to the build-time defaults after hydration.
+- **The `<style>` is rendered, not injected from an effect.** That is what puts the
+  tenant's tokens in the server response and makes the first paint correct. An
+  effect-injected sheet repaints after hydration, which is the flash this ADR exists
+  to prevent.
+- **`data-ap-scheme` goes on the scoped element, not `<html>`.** `toCssText`'s
+  `selector` option already expects it there. A scoped provider that also wrote the
+  global attribute would re-theme the whole page from inside a nested subtree — the
+  gap Phase 4a recorded when it shipped scoping-by-attribute only.
+- **The scoping element is `display: contents`,** so it generates no box and cannot
+  disturb the layout it wraps. Custom properties inherit through the DOM tree rather
+  than the box tree, so descendants still receive the tokens, and a plain `<div>`
+  carries no role for the missing box to strip from the accessibility tree.
+
+`generateTheme` and the `Theme` type are re-exported from `@ap/react`, so a product on
+this path needs one package rather than two.
+
+Proved end to end in `fixtures/ssr-app/e2e/theme.spec.ts`: the tokens are asserted in
+the raw server response, and `getComputedStyle` is read inside the scope, inside a
+nested scope, and outside every provider — the last of which is what would catch an
+override that leaked to `:root`, and does (verified by perturbation).
+
 ### Colour scheme selection
 
 Three-state: `light` / `dark` / `system`.

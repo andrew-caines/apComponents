@@ -39,6 +39,18 @@ beforeAll(() => {
 }, 180_000)
 
 describe('gate 8: a file:-protocol consumer builds against our source', () => {
+  it('typechecks against our source with a single copy of the React types', () => {
+    // The consumer installs its own `@types/react`; the linked `@ap/react`
+    // source (and Base UI's declarations) resolve the monorepo root's copy.
+    // Same version, but TypeScript still loads both, and `Ref<T>`'s callback
+    // return type is keyed on a `unique symbol`, so a Base UI `render` prop
+    // spread onto a `<div>` fails with "Two different types with this name
+    // exist". The fixture's tsconfig pins `react` to one copy (see the
+    // comment there). CI runs this typecheck as its own step; running it here
+    // too keeps the local gate honest about what CI checks.
+    execFileSync(npm, ['run', 'typecheck'], { cwd: APP, stdio: 'inherit', shell: isWin })
+  }, 120_000)
+
   it('produces a build', () => {
     expect(existsSync(join(DIST, 'index.html'))).toBe(true)
   })
@@ -65,6 +77,59 @@ describe('gate 8: a file:-protocol consumer builds against our source', () => {
     // The recipe's own declarations only exist if `.css.ts` was compiled,
     // rather than the package being externalised.
     expect(css).toMatch(/var\(--ap-surface-bg-surface,\s*var\(--ap-color-bg-surface\)\)/)
+  })
+
+  it("carries @ap/motion's keyframes through the @ap/react re-export (ADR-0010)", () => {
+    // `@ap/react/motion.css` is one line: `@import '@ap/motion/motion.css'`.
+    // If a bundler declined to resolve that bare specifier, or the export map
+    // entry went missing, the build still succeeds and every other assertion
+    // in this file still passes — the only symptom is a spinner that renders
+    // and never moves. Assert the keyframes themselves landed.
+    expect(css).toContain('@keyframes ap-spinner-rotate')
+    expect(css).toContain('--ap-motion-spinner-rotate:')
+  })
+
+  it('keeps the component bound to the motion variable rather than the keyframes name', () => {
+    // Spinner.css.ts derives its animation from `cssVarName('spinner.rotate')`.
+    // Hardcoding `animation: ap-spinner-rotate ...` in the component would
+    // satisfy the assertion above (motion.css still ships the keyframes) while
+    // silently opting out of the token layer — and with it the reduced-motion
+    // override, which lives on the variable, not on the keyframes.
+    expect(css).toMatch(/animation:\s*var\(--ap-motion-spinner-rotate\)/)
+  })
+
+  it('ships the reduced-motion keyframes, not just a reduced-motion media query', () => {
+    // This assertion replaces one that could not fail. The original was
+    //   /@media[^{]*prefers-reduced-motion[^{]*\{[\s\S]*?--ap-motion-spinner-rotate:/
+    // whose `[\s\S]*?` happily spans the whole stylesheet, so it matched
+    // theme.css's unrelated `@media (prefers-reduced-motion: reduce){:root{
+    // --ap-duration-*:1ms}}` followed, thousands of characters later, by the
+    // `--ap-motion-spinner-rotate:` declaration in the ordinary `:root` block.
+    // Deleting motion.css's reduced section entirely would have left it green.
+    //
+    // How the degradation actually works: motion.css REDEFINES each
+    // `@keyframes` by name inside the reduced-motion media query, and the later
+    // definition wins while the query matches. So the thing to assert is that
+    // two definitions ship and that the second one has had the movement taken
+    // out of it — which is the property a consumer's bundler could plausibly
+    // break by deduplicating same-named keyframes.
+    const parts = css.split('@keyframes ap-spinner-rotate')
+    expect(
+      parts.length - 1,
+      'expected two @keyframes ap-spinner-rotate definitions (full motion, then the reduced override)',
+    ).toBe(2)
+
+    const [, fullMotion, reduced] = parts
+    expect(fullMotion, 'the full-motion keyframes should rotate').toContain('rotate:')
+    expect(reduced, 'the reduced keyframes should still fade, so the state stays perceivable').toContain(
+      'opacity',
+    )
+    // The whole point: no rotation left in the reduced variant. `slice` bounds
+    // the search to this keyframes block rather than the rest of the sheet.
+    expect(
+      reduced!.slice(0, reduced!.indexOf('}}') + 2),
+      'the reduced keyframes still rotate — a bundler probably deduplicated them',
+    ).not.toContain('rotate:')
   })
 
   it('inlines the vendored font faces and no remote font URL', () => {

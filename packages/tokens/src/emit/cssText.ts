@@ -23,13 +23,14 @@ function tier2Lines(theme: Theme): string[] {
 }
 
 function scaleLines(theme: Theme, mode: Mode): string[] {
-  const { space, text, radius, elevation, z, misc, duration, ease } = theme.scales
+  const { space, text, radius, icon, elevation, z, misc, duration, ease } = theme.scales
   const lines: string[] = []
   for (const [k, v] of Object.entries(space)) lines.push(`--ap-space-${k}: ${v};`)
   for (const [k, v] of Object.entries(text)) {
     lines.push(`--ap-text-${k}-size: ${v.size};`, `--ap-text-${k}-lh: ${v.lineHeight};`)
   }
   for (const [k, v] of Object.entries(radius)) lines.push(`--ap-radius-${k}: ${v};`)
+  for (const [k, v] of Object.entries(icon)) lines.push(`--ap-icon-${k}: ${v};`)
   for (const [k, v] of Object.entries(elevation[mode])) lines.push(`--ap-shadow-${k}: ${v};`)
   for (const [k, v] of Object.entries(z)) lines.push(`--ap-z-${k}: ${v};`)
   for (const [k, v] of Object.entries(duration)) lines.push(`--ap-duration-${k}: ${v};`)

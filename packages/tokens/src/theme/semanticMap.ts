@@ -22,7 +22,14 @@ export const SEMANTIC_MAP: readonly SemanticEntry[] = Object.freeze([
   s('color-text-secondary', 'neutral', 11),
   s('color-action-bg', 'brand', 9),
   s('color-action-bg-hover', 'brand', 10),
-  s('color-action-text', 'brand', 'onSolid'),
+  // `-on-solid` is text drawn ON the solid background; `-text` is the ramp's
+  // colour used AS text on a neutral surface. The status ramps below have
+  // always drawn that line; brand previously used `-text` for the on-solid
+  // role, which meant the same suffix carried opposite meanings depending on
+  // the ramp. Renamed here, while no component consumes it yet.
+  s('color-action-on-solid', 'brand', 'onSolid'),
+  s('color-action-text', 'brand', 11),
+  s('color-action-bg-subtle', 'brand', 3),
   s('color-focus-ring', 'brand', 8),
   ...(['danger', 'warning', 'success', 'info'] as const).flatMap((name) => [
     s(`color-${name}-bg`, name, 9),
@@ -30,5 +37,6 @@ export const SEMANTIC_MAP: readonly SemanticEntry[] = Object.freeze([
     s(`color-${name}-border`, name, 7),
     s(`color-${name}-text`, name, 11),
     s(`color-${name}-on-solid`, name, 'onSolid'),
+    s(`color-${name}-bg-hover`, name, 10),
   ]),
 ])

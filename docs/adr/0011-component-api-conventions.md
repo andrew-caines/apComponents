@@ -78,9 +78,125 @@ There is no API by which a component renders an error, warning or success state 
 | `render` | element passthrough (Base UI) |
 | `data-*` | primitive state attributes always preserved |
 | `variant`, `size`, `tone` | typed recipe variants |
+| `startIcon`, `endIcon` | an adornment placed inside the control on the inline axis |
 | `asChild` | **not used** — `render` is the mechanism |
 
 Every component forwards refs and spreads unknown props to its root element.
+
+### 6.1 Direction is always logical, in prop names as well as in CSS
+
+A position-bearing prop is named for the **inline axis**, never for the screen:
+`startIcon`/`endIcon`, not `leftIcon`/`rightIcon`. The styling that places them
+uses `inset-inline-start`/`-end`, so under RTL a `startIcon` renders on the
+right and the name is still true; `leftIcon` would become a lie the first time
+a product ships Arabic or Hebrew.
+
+This is the same rule the style gate already enforces one level down — it
+rejects `padding-left` in favour of `padding-inline-start` — and Base UI, which
+these components wrap, ships a `DirectionProvider` for exactly this reason
+([ADR-0004](0004-base-ui-primitives.md)). A physical name in the public API
+would be the one place the system stopped agreeing with itself.
+
+### 6.2 An interactive adornment carries its accessible name in the type
+
+Where an adornment can be clicked, the prop takes a union, not a flat object:
+
+```ts
+type InputAdornment =
+  | { icon: ReactNode; onClick?: never; label?: never }
+  | { icon: ReactNode; onClick: () => void; label: string }
+```
+
+Supplying `onClick` without `label` is a compile error. This is deliberate and
+follows §5's logic: a clickable icon with no accessible name is invisible to
+screen-reader and voice-control users while looking perfect on screen, so the
+failure is one nobody catches by looking. Making it unrepresentable costs a
+union; making it a review item costs it every time somebody forgets.
+
+The same shape carries the other half of the contract. With `onClick`, the
+component renders a real `<button type="button">` — focusable, keyboard
+operable, sized to the `hit-target` token, disabled when the control is, and
+explicitly non-submitting so it cannot post the form it sits in. Without it,
+the icon is `aria-hidden` and transparent to pointer events, so clicking it
+puts the caret in the field behind it. A consumer never chooses between those
+two behaviours; the presence of a handler does.
+
+### 6.3 A colour prop takes a semantic role, never a value or the whole keyset
+
+`InputAdornment`'s `color` accepts `default | primary | action | danger |
+warning | success | info` — a curated list of **foreground** roles, not
+`keyof vars.color` and certainly not a hex.
+
+Exposing the full token keyset would make `color="bgCanvas"` (an invisible
+icon) and `color="borderSubtle"` (a 3:1 role doing a 4.5:1 job) type-legal.
+Every option in the curated list is a role the contrast gate already covers as
+text, so a product cannot pick an unreadable one — the same reasoning as
+[ADR-0007](0007-three-tier-token-contract.md)'s point that a semantic token
+carries its guarantee with it.
+
+The chosen role is applied by setting the component's own Tier 3 custom
+property inline, not by generating a class per role: that is
+[ADR-0003](0003-zero-runtime-styling.md)'s division — static styles stay static,
+dynamic values travel as custom properties — and it reuses the same
+`--ap-input-icon` hook a product already has for overriding the default.
+
+### 6.4 The hit area and the painted surface are allowed to differ
+
+An interactive adornment's `<button>` spans the full height of the control so
+the target is comfortably past WCAG 2.5.8, while the hover background and focus
+ring are drawn on a smaller box inside it. Painting the target itself put a
+background flush against the input's border at every size, and at `sm` the two
+requirements genuinely conflict: a 26px-tall field cannot contain a 24px target
+with visible clearance on both sides. Separating them satisfies both.
+
+Where a component does this, the focus ring stays on the focusable element and
+is inset with a negative `outline-offset`. Moving the ring to the inner box
+would require suppressing the button's own, which the style gate forbids with
+no exemption — correctly, since a text scan cannot tell a relocated ring from a
+deleted one.
+
+### 6.5 A pending control stays submittable
+
+`loading` on a form control makes it **read-only, not disabled**. A disabled
+field drops out of the tab order *and* out of form submission, so a form posted
+while one field was still validating would silently lose that field's value —
+the user sees a filled-in input and the server sees nothing. Read-only keeps the
+value in the payload and the field reachable by keyboard, while still refusing
+edits. `aria-busy` carries the pending state.
+
+The spinner **replaces** the trailing adornment rather than joining it: two
+glyphs competing in one slot at `sm` is not a layout worth having, and the
+adornment a control shows while pending is nearly always the one that acts on a
+value it does not have yet. Adornments on the other side stay, but an actionable
+one is disabled for the same reason.
+
+The spinner itself is decorative — `aria-hidden`, no label. `aria-busy` already
+announces the state; a labelled spinner beside it would announce it twice, and
+two announcements for one state is noise rather than redundancy. A spinner
+carries its own label only where it is the *sole* indication that something is
+happening.
+
+### 6.6 `size` means control height on a control, width cap on a container
+
+`Input`'s `size` steps padding and type; `Dialog`'s caps inline size. Same prop
+name, different axis — which is conventional, and is stated here so a reader
+does not have to infer it from two component docs that never mention each other.
+
+The rule: for a control, `size` is the ergonomic step (height, padding, type).
+For a container, `size` is the **maximum inline size**, never a fixed width, so
+the surface stays fluid below its cap and can never exceed its viewport.
+
+Containers additionally take a `fit` step — shrink-to-fit, bounded at both ends
+— and it is deliberately not the default. `fit-content` resolves against the
+content's *max-content* width, and a percentage-width child contributes nothing
+to max-content, so a `fit` container wrapping a form collapses to the width of
+its longest label and renders the inputs as slivers. `fit` is for content with
+intrinsic width (alerts, confirmations); the floor is what keeps the failure
+impossible rather than merely unlikely.
+
+Height is not a prop on a container at all. It grows to content, stops at the
+viewport, and scrolls internally with header and footer pinned. A height
+override is a way to push a dialog's own close control off-screen.
 
 ### 7. Every component ships with
 

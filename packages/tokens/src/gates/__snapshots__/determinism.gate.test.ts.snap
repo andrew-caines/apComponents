@@ -136,52 +136,52 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
         "onSolid": "#ffffff",
         "steps": [
           {
-            "hex": "#0f1115",
+            "hex": "#0d1214",
             "p3": null,
           },
           {
-            "hex": "#15191f",
+            "hex": "#121a1e",
             "p3": null,
           },
           {
-            "hex": "#1a2230",
+            "hex": "#13252d",
             "p3": null,
           },
           {
-            "hex": "#1e2b40",
+            "hex": "#112f3b",
             "p3": null,
           },
           {
-            "hex": "#223350",
+            "hex": "#0c384a",
             "p3": null,
           },
           {
-            "hex": "#294065",
+            "hex": "#06465d",
             "p3": null,
           },
           {
-            "hex": "#7899cd",
+            "hex": "#57a0c0",
             "p3": null,
           },
           {
-            "hex": "#749ee3",
+            "hex": "#41a8d3",
             "p3": null,
           },
           {
-            "hex": "#3e6fc2",
-            "p3": null,
+            "hex": "#007da4",
+            "p3": "color(display-p3 0.0412 0.4861 0.6795)",
           },
           {
-            "hex": "#3263b5",
-            "p3": null,
+            "hex": "#007094",
+            "p3": "color(display-p3 0 0.4377 0.6181)",
           },
           {
-            "hex": "#b4d1ff",
-            "p3": "color(display-p3 0.7186 0.814 1)",
+            "hex": "#88daff",
+            "p3": "color(display-p3 0.5876 0.8477 1)",
           },
           {
-            "hex": "#dbe9ff",
-            "p3": "color(display-p3 0.8651 0.9116 1)",
+            "hex": "#cceeff",
+            "p3": "color(display-p3 0.817 0.9313 1)",
           },
         ],
       },
@@ -456,52 +456,52 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
         "onSolid": "#ffffff",
         "steps": [
           {
-            "hex": "#fcfdff",
+            "hex": "#fbfeff",
             "p3": null,
           },
           {
-            "hex": "#f5f9ff",
+            "hex": "#f1faff",
             "p3": null,
           },
           {
-            "hex": "#e8f1ff",
+            "hex": "#dff4ff",
             "p3": null,
           },
           {
-            "hex": "#dae8ff",
+            "hex": "#ccedfe",
             "p3": null,
           },
           {
-            "hex": "#cbdfff",
+            "hex": "#b8e5fb",
             "p3": null,
           },
           {
-            "hex": "#b6d2ff",
+            "hex": "#a1daf5",
             "p3": null,
           },
           {
-            "hex": "#7191c6",
+            "hex": "#5199ba",
             "p3": null,
           },
           {
-            "hex": "#628bce",
+            "hex": "#2a95bf",
             "p3": null,
           },
           {
-            "hex": "#3e6fc2",
-            "p3": null,
+            "hex": "#007da4",
+            "p3": "color(display-p3 0.0412 0.4861 0.6795)",
           },
           {
-            "hex": "#3263b5",
-            "p3": null,
+            "hex": "#007094",
+            "p3": "color(display-p3 0 0.4377 0.6181)",
           },
           {
-            "hex": "#2d589f",
-            "p3": null,
+            "hex": "#006080",
+            "p3": "color(display-p3 0 0.377 0.5351)",
           },
           {
-            "hex": "#071e44",
-            "p3": null,
+            "hex": "#002432",
+            "p3": "color(display-p3 0 0.14 0.2114)",
           },
         ],
       },
@@ -692,6 +692,14 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
         "3": "0 8px 16px rgb(0 0 0 / 0.10), 0 12px 32px rgb(0 0 0 / 0.14)",
       },
     },
+    "icon": {
+      "2xl": "2em",
+      "lg": "1.25em",
+      "md": "1em",
+      "sm": "0.875em",
+      "xl": "1.5em",
+      "xs": "0.75em",
+    },
     "misc": {
       "focus-ring-offset": "2px",
       "focus-ring-width": "2px",
@@ -720,12 +728,16 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
     },
     "text": {
       "2xl": {
-        "lineHeight": "32px",
-        "size": "24px",
+        "lineHeight": "40px",
+        "size": "32px",
+      },
+      "fine-print": {
+        "lineHeight": "16px",
+        "size": "11px",
       },
       "lg": {
         "lineHeight": "28px",
-        "size": "18px",
+        "size": "20px",
       },
       "md": {
         "lineHeight": "24px",
@@ -736,8 +748,8 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
         "size": "14px",
       },
       "xl": {
-        "lineHeight": "28px",
-        "size": "20px",
+        "lineHeight": "32px",
+        "size": "24px",
       },
       "xs": {
         "lineHeight": "16px",
@@ -810,7 +822,17 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
     {
       "ramp": "brand",
       "step": "onSolid",
+      "token": "color-action-on-solid",
+    },
+    {
+      "ramp": "brand",
+      "step": 11,
       "token": "color-action-text",
+    },
+    {
+      "ramp": "brand",
+      "step": 3,
+      "token": "color-action-bg-subtle",
     },
     {
       "ramp": "brand",
@@ -843,6 +865,11 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
       "token": "color-danger-on-solid",
     },
     {
+      "ramp": "danger",
+      "step": 10,
+      "token": "color-danger-bg-hover",
+    },
+    {
       "ramp": "warning",
       "step": 9,
       "token": "color-warning-bg",
@@ -866,6 +893,11 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
       "ramp": "warning",
       "step": "onSolid",
       "token": "color-warning-on-solid",
+    },
+    {
+      "ramp": "warning",
+      "step": 10,
+      "token": "color-warning-bg-hover",
     },
     {
       "ramp": "success",
@@ -893,6 +925,11 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
       "token": "color-success-on-solid",
     },
     {
+      "ramp": "success",
+      "step": 10,
+      "token": "color-success-bg-hover",
+    },
+    {
       "ramp": "info",
       "step": 9,
       "token": "color-info-bg",
@@ -916,6 +953,11 @@ exports[`gate 1: determinism > the full theme matches the committed snapshot 1`]
       "ramp": "info",
       "step": "onSolid",
       "token": "color-info-on-solid",
+    },
+    {
+      "ramp": "info",
+      "step": 10,
+      "token": "color-info-bg-hover",
     },
   ],
 }

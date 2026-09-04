@@ -5,7 +5,7 @@ const v = toMotionVariants()
 
 describe('toMotionVariants', () => {
   it('emits a variant for every motion', () => {
-    expect(Object.keys(v)).toHaveLength(12)
+    expect(Object.keys(v)).toHaveLength(14)
   })
 
   it('resolves duration tokens to seconds', () => {
