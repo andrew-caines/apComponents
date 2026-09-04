@@ -61,3 +61,15 @@ h2 { font-family: var(--ap-font-heading); font-size: var(--ap-text-lg-size); mar
   background: var(--ap-color-action-bg-subtle); border-radius: var(--ap-radius-sm);
 }
 .mono { font-family: var(--ap-font-mono); font-size: var(--ap-text-xs-size); color: var(--ap-color-text-secondary); }
+
+/* Comparison tables. Spacing lives here rather than on each cell so a new table
+   cannot ship with its columns touching, which is exactly how this one shipped. */
+table { border-collapse: collapse; }
+table th,
+table td {
+  text-align: start;
+  vertical-align: top;
+  padding-inline-end: var(--ap-space-5);
+  padding-block: var(--ap-space-1);
+}
+table th { font-weight: var(--ap-font-weight-semibold); }

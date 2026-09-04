@@ -45,6 +45,12 @@ export const SECTIONS: readonly Section[] = [
     blurb: 'Semantic colour roles in both schemes — every pairing CI checks for contrast.',
   },
   {
+    slug: 'theming',
+    title: 'Theming',
+    file: 'routes/theming.tsx',
+    blurb: 'How ThemeProvider works: the build-time default, the runtime override, and colour scheme.',
+  },
+  {
     slug: 'icons',
     title: 'Icons',
     file: 'routes/icons.tsx',
