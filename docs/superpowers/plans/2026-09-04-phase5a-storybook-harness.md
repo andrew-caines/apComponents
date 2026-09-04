@@ -275,7 +275,7 @@ export default preview
       "react/jsx-runtime": ["../node_modules/@types/react/jsx-runtime"]
     }
   },
-  "include": [".storybook", "docs", "../packages/react/src/**/*.stories.tsx"]
+  "include": [".storybook/**/*", "docs/**/*", "../packages/react/src/**/*.stories.tsx"]
 }
 ```
 
