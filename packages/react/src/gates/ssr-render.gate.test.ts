@@ -306,12 +306,28 @@ describe(
       // Prove the CSS is genuinely wired at the manifest level, and that the
       // referenced file on disk actually contains Surface's compiled rules
       // — even though the static bootstrap shell doesn't link it directly.
+      // Collected across EVERY manifest chunk rather than from the `home`
+      // chunk specifically. Which chunk owns a component's CSS is a Vite
+      // code-splitting decision, not a property of our build: the moment a
+      // second route imported `Surface`, its CSS was hoisted into a shared
+      // chunk and a `home`-pinned assertion failed while nothing was actually
+      // wrong. Reading from the manifest (rather than globbing the directory)
+      // keeps the real guarantee — the file is REACHABLE from the build, not
+      // merely present on disk as an orphan.
       const manifest = readClientManifest()
-      const rootCss = findManifestChunk(manifest, 'root').css?.[0]
-      expect(rootCss, 'root chunk should have an associated css file in the manifest').toBeTruthy()
-      const homeCss = findManifestChunk(manifest, 'home').css?.[0]
-      expect(homeCss, 'home chunk should have an associated css file in the manifest').toBeTruthy()
-      const cssOnDisk = readFileSync(join(APP, 'build/client', homeCss!), 'utf8')
+      const cssFiles = [
+        ...new Set(
+          Object.values(manifest).flatMap((chunk) => (chunk as { css?: string[] }).css ?? []),
+        ),
+      ]
+      expect(cssFiles.length, 'no chunk in the client manifest references any css').toBeGreaterThan(0)
+
+      const cssOnDisk = cssFiles
+        .map((f) => readFileSync(join(APP, 'build/client', f), 'utf8'))
+        .join('\n')
+      // The silent-CSS-loss defect this exists for: a recipe that compiles to
+      // nothing, or a vanilla-extract transform that never ran, leaves the SPA
+      // booting perfectly with no component styling at all.
       expect(cssOnDisk).toMatch(/\._[0-9a-z]+\{[^}]*--ap-surface-bg-canvas/)
       expect(cssOnDisk).toMatch(/@layer ap\.components\s*\{[\s\S]*?--ap-surface-bg-canvas/)
     })

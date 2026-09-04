@@ -5,10 +5,12 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
+import { toCssText, type Theme } from '@ap/tokens'
 
 export type ColorScheme = 'light' | 'dark' | 'system'
 
@@ -28,6 +30,21 @@ export interface ThemeProviderProps {
   defaultScheme?: ColorScheme
   /** localStorage key for persisting an explicit choice. */
   storageKey?: string
+  /**
+   * A generated theme (`generateTheme({ brand })`). Supplying one switches this
+   * provider to the RUNTIME path of ADR-0009: it emits that theme's tokens as
+   * custom properties scoped to an element it renders, instead of relying on
+   * the build-time `theme.css` already on the page.
+   *
+   * Omit it — the default — and the provider emits no CSS at all and renders no
+   * element. That is the path almost every product wants: zero runtime cost, no
+   * wrapper, and dark mode that works with JavaScript disabled.
+   *
+   * Reach for this when the palette is not knowable at build time — a per-tenant
+   * brand colour read from the request. Nesting works through the cascade, so a
+   * panel themed differently from its page is just a nested provider.
+   */
+  theme?: Theme
   children: ReactNode
 }
 
@@ -44,6 +61,7 @@ export function ThemeProvider({
   scheme: controlled,
   defaultScheme = 'system',
   storageKey = DEFAULT_SCHEME_STORAGE_KEY,
+  theme,
   children,
 }: ThemeProviderProps) {
   const [uncontrolled, setUncontrolled] = useState<ColorScheme>(defaultScheme)
@@ -58,8 +76,12 @@ export function ThemeProvider({
   }, [controlled, storageKey])
 
   useEffect(() => {
+    // Only the unscoped provider owns `<html>`. A scoped one renders the
+    // attribute on its own element instead (see `ScopedTheme`), so writing here
+    // as well would leak a nested subtree's scheme to the entire page.
+    if (theme !== undefined) return
     applyScheme(scheme)
-  }, [scheme])
+  }, [scheme, theme])
 
   const setScheme = useCallback(
     (next: ColorScheme) => {
@@ -78,7 +100,77 @@ export function ThemeProvider({
 
   const value = useMemo<ThemeContextValue>(() => ({ scheme, setScheme }), [scheme, setScheme])
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  return (
+    <ThemeContext.Provider value={value}>
+      {theme === undefined ? children : <ScopedTheme theme={theme} scheme={scheme}>{children}</ScopedTheme>}
+    </ThemeContext.Provider>
+  )
+}
+
+/**
+ * The runtime path. Rendered only when a `theme` is supplied.
+ *
+ * Split into its own component so the default path calls one fewer hook and
+ * renders one fewer element — the common case pays nothing for this.
+ */
+function ScopedTheme({
+  theme,
+  scheme,
+  children,
+}: {
+  theme: Theme
+  scheme: ColorScheme
+  children: ReactNode
+}) {
+  // `useId` rather than a counter or a random value: it is stable across the
+  // server render and the client hydration, which a counter in module scope is
+  // not (the module is fresh per request on the server, shared on the client)
+  // and a random value can never be. A mismatched scope class would mean the
+  // server sent CSS targeting one name and the client asked for another —
+  // tokens silently falling back to the build-time defaults after hydration.
+  //
+  // React's ids contain punctuation that is not valid in a class name, so they
+  // are stripped rather than escaped; the id only has to be unique, not legible.
+  const scope = `ap-t-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+
+  // `toCssText`'s `selector` option rewrites every `:root` in the sheet, and
+  // deliberately expects `data-ap-scheme` ON the scoped element rather than on
+  // an ancestor — which is what makes nesting work and what this component has
+  // to honour below.
+  const css = useMemo(() => toCssText(theme, { selector: `.${scope}` }), [theme, scope])
+
+  return (
+    <>
+      {/*
+        A plain <style>, rendered in place, not injected from an effect. The
+        tokens are then in the SERVER response, so a per-tenant palette paints
+        correctly on first paint with no flash and nothing to hydrate. An
+        effect-injected stylesheet would repaint after hydration, which is the
+        exact failure ADR-0009 exists to avoid.
+      */}
+      <style dangerouslySetInnerHTML={{ __html: css }} />
+      {/*
+        `display: contents` so the scoping element generates no box and cannot
+        disturb the layout it wraps. Custom properties inherit through the DOM
+        tree rather than the box tree, so the tokens still reach every
+        descendant. A plain <div> carries no role, so removing its box removes
+        nothing from the accessibility tree either.
+
+        `data-ap-scheme` goes HERE, not on <html>: a scoped provider that wrote
+        the global attribute would re-theme the whole page from inside a nested
+        subtree, which is the gap Phase 4a recorded and this closes. Rendered as
+        an attribute rather than applied in an effect, so it is correct in the
+        server HTML too.
+      */}
+      <div
+        className={scope}
+        style={{ display: 'contents' }}
+        {...(scheme === 'system' ? {} : { 'data-ap-scheme': scheme })}
+      >
+        {children}
+      </div>
+    </>
+  )
 }
 
 function persistScheme(key: string, scheme: ColorScheme): void {

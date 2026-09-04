@@ -16,7 +16,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 
 | Command | What it does |
 |---|---|
-| `npm test` | Full Vitest suite |
+| `npm test` / `npm run test:unit` | Full Vitest suite (gate 4) |
 | `npm run typecheck` | `tsc -b` across all packages |
 | `npm run test:gates` | Token, contrast, gamut, sweep, freshness, guard, contract and motion gates |
 | `npm run test:motion` | `@ap/motion`'s own suite: unit tests plus its equivalence, reduced-motion, freshness and isolation gates |
@@ -24,6 +24,8 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run test:ssr` | Builds and serves the RR8 fixture, asserts SSR markup and streaming |
 | `npm run test:hydration` | Playwright: zero hydration warnings, tokens resolve, no third-party requests, and the pre-hydration submit proof — `/form` submits and its action runs with every client bundle blocked |
 | `npm run test:consumer` | Builds the `file:`-protocol consumer fixture |
+| `npm run test:spa` | Gate 7 only: the same fixture built with `ssr: false` boots, and component CSS is still wired through the build |
+| `npm run test:a11y` | Gate 5: axe over every showcase section, plus an OPEN dialog and a field in its error state |
 | `npm run report:contrast` | Writes `reports/contrast.md` (the WCAG compliance artifact) |
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
 | `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
@@ -229,6 +231,29 @@ That indirection is the whole design. A showcase whose nav is maintained by hand
 drifts from its routes, and once it has lied to you twice nobody trusts it again.
 Deriving both from one list makes "the nav advertises a page that does not exist"
 and "a page exists that the nav never mentions" unrepresentable.
+
+### Gate 5 lives here too
+
+`npm run test:a11y` runs axe-core over every section, and over two states a page
+load cannot reach on its own: an **open** dialog (while closed, the popup is not
+in the DOM, so scanning `/dialog` proves nothing about the modal, its focus trap
+or the `aria-hidden` treatment behind it) and a field showing an error.
+
+The spec (§7.1) originally put this gate in Storybook. The showcase did not exist
+then; it now renders every component and variant in a real browser and is already
+walked by a spec, so axe rides along for the cost of one file. The deviation is
+recorded in the spec's §9.
+
+**Read the result narrowly.** It proves zero MACHINE-DETECTABLE violations —
+roughly 30–40% of WCAG issue types. It cannot tell you whether a label is
+meaningful, whether focus order makes sense, or whether an error message is
+comprehensible. The manual screen-reader pass per component is still owed. A
+green gate named "accessibility" is the most inviting thing in this repository to
+over-read.
+
+Each per-page assertion is paired with `expect(results.passes.length)
+.toBeGreaterThan(0)`, because a run that checked nothing reports zero violations
+exactly like a clean page does.
 
 ### What the smoke test does
 

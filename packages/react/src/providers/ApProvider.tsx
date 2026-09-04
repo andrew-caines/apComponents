@@ -23,6 +23,7 @@ export function ApProvider({
   scheme,
   defaultScheme,
   storageKey,
+  theme,
   locale,
   timeZone,
   currency,
@@ -35,6 +36,7 @@ export function ApProvider({
       {...(scheme !== undefined ? { scheme } : {})}
       {...(defaultScheme !== undefined ? { defaultScheme } : {})}
       {...(storageKey !== undefined ? { storageKey } : {})}
+      {...(theme !== undefined ? { theme } : {})}
     >
       <LocaleProvider
         {...(locale !== undefined ? { locale } : {})}

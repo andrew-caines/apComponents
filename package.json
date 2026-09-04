@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "test": "vitest run",
+    "test:unit": "vitest run",
     "test:watch": "vitest",
     "test:tokens": "vitest run packages/tokens/src/gates/determinism.gate.test.ts",
     "test:contrast": "vitest run packages/tokens/src/gates/contrast.gate.test.ts",
@@ -25,8 +26,10 @@
     "showcase": "npm --prefix showcase run serve",
     "showcase:build": "npm --prefix showcase run build",
     "showcase:test": "npm --prefix showcase run test:e2e",
+    "test:a11y": "npm --prefix showcase run test:a11y",
     "test:ssr": "vitest run --config vitest.gates.config.ts packages/react/src/gates/ssr-render.gate.test.ts",
     "test:consumer": "vitest run --config vitest.gates.config.ts packages/react/src/gates/consumer-build.gate.test.ts",
+    "test:spa": "vitest run --config vitest.gates.config.ts packages/react/src/gates/ssr-render.gate.test.ts -t \"gate 7\"",
     "test:hydration": "npm --prefix fixtures/ssr-app run test:e2e",
     "typecheck": "tsc -b packages/tokens packages/motion packages/react packages/vite",
     "report:contrast": "tsx scripts/contrast-report.ts",

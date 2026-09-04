@@ -1,4 +1,10 @@
 export { vars } from './theme/contract.css.js'
+// Re-exported so ADR-0009's runtime theming path is reachable from ONE package.
+// `ThemeProvider`'s `theme` prop is typed as `Theme`, so without this a product
+// doing per-tenant theming would have to add `@ap/tokens` to its own manifest
+// just to name the type it is passing us.
+export { generateTheme } from '@ap/tokens'
+export type { Theme, ThemeSeed } from '@ap/tokens'
 export { tier3 } from './theme/tier3.js'
 export { Surface, SURFACE_TOKENS } from './components/Surface/index.js'
 export type { SurfaceProps } from './components/Surface/index.js'
