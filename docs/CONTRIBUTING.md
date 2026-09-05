@@ -710,3 +710,24 @@ SPA-mode build renders root's `HydrateFallback` rather than root itself, so its
 shell legitimately contains no stylesheet link. See
 [`rr8-fixture-notes.md`](./rr8-fixture-notes.md) before changing an assertion in
 `ssr-render.gate.test.ts`.
+
+### Gate 5 runs inside the story run
+
+Axe runs as part of `test:stories` via `@storybook/addon-a11y`, configured with
+`parameters.a11y.test: 'error'` so a violation fails the run rather than
+warning in the UI. The tag set is `wcag2a, wcag2aa, wcag21a, wcag21aa`, the
+same set the retired showcase spec used.
+
+This was proven to fail, not assumed: a story rendering `<button type="button" />`
+with no accessible name produces `button-name (critical)` and fails the run.
+A mechanism that checks nothing reports success exactly like a clean run, so
+re-prove it the same way if the wiring is ever touched.
+
+The order inside `setProjectAnnotations` in `vitest.setup.ts` is load-bearing.
+`@storybook/addon-a11y/preview` ships its own default parameter,
+`a11y.test: 'todo'`, and Storybook's merge takes whichever entry is listed
+last when two sources conflict. The addon's annotations must come first and
+the project's `preview` must come last, so `'error'` wins. Get that order
+backwards and nothing errors, nothing warns, and every story still passes —
+the gate silently stops checking anything while looking exactly like a clean
+run.
