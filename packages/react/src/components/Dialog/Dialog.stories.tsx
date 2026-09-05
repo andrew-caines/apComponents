@@ -44,6 +44,25 @@ export const Opened: Story = {
   },
 }
 
+export const OpenForA11yScan: Story = {
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole('button', { name: 'Delete…' })
+    await userEvent.click(trigger)
+    // Deliberately left open. The addon-a11y scan runs in an afterEach, i.e.
+    // after this play function returns — so any story whose play closes its
+    // dialog is scanned only in the closed state, and the closed state proves
+    // nothing: the focus trap, the dialog's accessible name and the
+    // background's aria-hidden treatment all only exist while it is open.
+    // This story is the replacement for the open-dialog scan that
+    // showcase/e2e/a11y.spec.ts used to perform before Phase 5a retired it.
+    // Do NOT "tidy" this by adding a step that closes the dialog before
+    // returning — that would delete this coverage, not clean it up, and the
+    // story would keep passing while scanning nothing that matters.
+    // The popup is portalled to the body, so query the document, not the canvas.
+    await within(document.body).findByRole('dialog')
+  },
+}
+
 export const WithFooter: Story = {
   args: {
     footer: (
