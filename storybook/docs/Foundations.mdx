@@ -1,0 +1,57 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+import { vars } from '@ap/react'
+import './docs.css'
+
+<Meta title="Foundations/Scales" />
+
+# Foundations
+
+The scales everything else is built from: space, radius, icon sizes and elevation.
+
+## Space
+
+A ratio-derived ramp. Every gap, pad and offset in the library is one of these
+ten steps, so a density change later is a scale change rather than an audit.
+
+<div className="stack">
+  {[0,1,2,3,4,5,6,7,8,9].map((step) => (
+    <div key={step} className="row">
+      <div className="mono">{step}</div>
+      <div style={{ height: 12, width: vars.space[step], background: 'var(--ap-color-action-bg)' }} />
+    </div>
+  ))}
+</div>
+
+## Radius
+
+<div className="grid">
+  {['sm','md','lg','xl','full'].map((r) => (
+    <div key={r} className="swatch" style={{ borderRadius: vars.radius[r] }}>
+      <div className="mono">{r}</div>
+    </div>
+  ))}
+</div>
+
+## Icon sizes
+
+Icon sizes are in `em`, so an icon inside a control scales with that control's
+text rather than needing its own size prop.
+
+<div className="row">
+  {['xs','sm','md','lg','xl','2xl'].map((s) => (
+    <div key={s} className="stack">
+      <div className="chip" style={{ width: vars.icon[s], height: vars.icon[s] }} />
+      <div className="mono">{s}</div>
+    </div>
+  ))}
+</div>
+
+## Elevation
+
+<div className="grid">
+  {['1','2','3'].map((s) => (
+    <div key={s} className="swatch" style={{ boxShadow: vars.shadow[s] }}>
+      <div className="mono">shadow {s}</div>
+    </div>
+  ))}
+</div>

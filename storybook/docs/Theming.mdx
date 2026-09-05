@@ -1,0 +1,158 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+import { generateTheme, ThemeProvider, Surface, Button, vars } from '@ap/react'
+import './docs.css'
+
+export const PINK = generateTheme({ brand: '#c2185b' })
+export const TEAL = generateTheme({ brand: '#00897b' })
+
+<Meta title="Foundations/Theming" />
+
+# Theming
+
+How ThemeProvider works: the build-time default, the runtime override, and colour scheme.
+
+## Two delivery paths
+
+Theming is a build-time concern by default, with a runtime path you opt into.
+The split exists because generating a theme in the browser costs JavaScript
+before anything can paint, and under SSR the server would have to guess.
+
+<table>
+  <thead>
+    <tr>
+      <th>&nbsp;</th>
+      <th>Build-time (default)</th>
+      <th>Runtime override</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>You write</td>
+      <td><code className="mono">&lt;ThemeProvider&gt;</code></td>
+      <td><code className="mono">&lt;ThemeProvider theme=&#123;…&#125;&gt;</code></td>
+    </tr>
+    <tr>
+      <td>Tokens come from</td>
+      <td><code className="mono">@ap/react/theme.css</code></td>
+      <td>a generated theme, emitted inline</td>
+    </tr>
+    <tr>
+      <td>Renders</td>
+      <td>nothing — context only</td>
+      <td>a <code className="mono">&lt;style&gt;</code> and a scoping element</td>
+    </tr>
+    <tr>
+      <td>Cost</td>
+      <td>zero</td>
+      <td>the generator in your bundle, one sheet per provider</td>
+    </tr>
+    <tr>
+      <td>Use when</td>
+      <td>the palette is known when you build</td>
+      <td>it is not — a per-tenant brand from the request</td>
+    </tr>
+  </tbody>
+</table>
+
+## The default path costs nothing
+
+With no `theme` prop the provider emits no CSS and adds no element to the
+DOM. Everything below this heading is on that path — the tokens come from
+the stylesheet already on the page. That is also why dark mode keeps working
+with JavaScript disabled: nothing about it depends on React.
+
+<Surface tone="raised" pad="md">
+  <div className="row">
+    <Button>Default</Button>
+    <Button variant="outline">Outline</Button>
+    <Button variant="ghost">Ghost</Button>
+    <span className="mono" style={{ color: vars.color.actionText }}>action text</span>
+  </div>
+</Surface>
+
+## The runtime override
+
+Pass a generated theme and the provider emits that theme's tokens scoped to
+an element it wraps your children in. Same components, same classes, no
+props threaded anywhere — the buttons below are identical to the ones above.
+
+```tsx
+import { ThemeProvider, generateTheme } from '@ap/react'
+
+const theme = generateTheme({ brand: tenant.brandColour })
+
+<ThemeProvider theme={theme}>
+  <App />
+</ThemeProvider>
+```
+
+<ThemeProvider theme={PINK}>
+  <Surface tone="raised" pad="md">
+    <div className="row">
+      <Button>brand #c2185b</Button>
+      <Button variant="outline">Outline</Button>
+      <Button variant="ghost">Ghost</Button>
+      <span className="mono" style={{ color: vars.color.actionText }}>action text</span>
+    </div>
+  </Surface>
+</ThemeProvider>
+
+## Nesting re-scopes
+
+Because the tokens are CSS custom properties, a nested provider simply wins
+for its own subtree through the cascade. No React re-render, no context
+gymnastics, and the outer theme is untouched — which is what makes a
+differently-branded panel inside a page possible.
+
+<ThemeProvider theme={PINK}>
+  <div className="stack">
+    <Surface tone="raised" pad="md">
+      <div className="row">
+        <Button>outer</Button>
+        <Button variant="outline">Outline</Button>
+        <Button variant="ghost">Ghost</Button>
+        <span className="mono" style={{ color: vars.color.actionText }}>action text</span>
+      </div>
+    </Surface>
+    <ThemeProvider theme={TEAL}>
+      <Surface tone="raised" pad="md">
+        <div className="row">
+          <Button>nested</Button>
+          <Button variant="outline">Outline</Button>
+          <Button variant="ghost">Ghost</Button>
+          <span className="mono" style={{ color: vars.color.actionText }}>action text</span>
+        </div>
+      </Surface>
+    </ThemeProvider>
+  </div>
+</ThemeProvider>
+
+## Colour scheme
+
+`ThemeProvider` (and the standalone `useTheme()` / `useColorScheme()` hooks)
+expose the active scheme so a consumer can read it rather than re-deriving it
+from the media query itself.
+
+Three states, not two. `light` and `dark` set `data-ap-scheme` on the root;
+`system` is expressed by the *absence* of that attribute, so the
+`prefers-color-scheme` media query decides. Writing
+`data-ap-scheme="system"` would match neither selector and silently pin
+everything to light.
+
+A *scoped* provider puts that attribute on its own element instead of the
+document root. Anything else would let a nested subtree re-theme the entire
+page.
+
+## Getting it right on the server
+
+The provider renders its `<style>` in place rather than injecting it from an
+effect, so a per-tenant palette is already in the server response and the
+first paint is correct. Injecting after hydration would repaint — a visible
+flash of the wrong brand.
+
+For the colour scheme, read the user's choice from a cookie server-side and
+render the attribute into the initial HTML; no script is needed at all. In a
+client-only app there is nothing to read it from, so `<ThemeScript />` puts a
+tiny synchronous script in the head. It blocks by necessity, and that is the
+one place blocking is the right answer — any deferred script paints the
+wrong theme first.

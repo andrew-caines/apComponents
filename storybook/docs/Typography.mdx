@@ -1,0 +1,55 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+import { vars } from '@ap/react'
+import './docs.css'
+
+<Meta title="Foundations/Typography" />
+
+# Typography
+
+The type scale, the font stacks, and the metric-matched fallback.
+
+## The scale
+
+Each step pairs a size with its own line height, so the two can never be
+mixed up between components.
+
+<div className="stack">
+  {['finePrint', 'xs', 'sm', 'md', 'lg', 'xl', '2xl'].map((step) => (
+    <div key={step}>
+      <div className="mono">{`text.${step}`}</div>
+      <div style={{ fontSize: vars.text[step].size, lineHeight: vars.text[step].lineHeight }}>
+        The quick brown fox jumps over the lazy dog
+      </div>
+    </div>
+  ))}
+</div>
+
+## Font stacks
+
+<div className="stack">
+  {['body', 'heading', 'mono'].map((f) => (
+    <div key={f}>
+      <div className="mono">{`font.${f}`}</div>
+      <div style={{ fontFamily: vars.font[f], fontSize: vars.text.lg.size }}>
+        Handgloves 0123456789
+      </div>
+    </div>
+  ))}
+</div>
+
+## Weights
+
+<div className="row">
+  {['weightRegular', 'weightMedium', 'weightSemibold'].map((w) => (
+    <div key={w}>
+      <div style={{ fontWeight: vars.font[w], fontSize: vars.text.lg.size }}>Handgloves</div>
+      <div className="mono">{w}</div>
+    </div>
+  ))}
+</div>
+
+## The fallback
+
+Inter is self-hosted and paired with a metric-matched local fallback, so the
+page does not reflow when the web font finishes loading. Throttle the network
+and reload to see how little moves.
