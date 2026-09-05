@@ -29,6 +29,17 @@ export default defineConfig({
       {
         extends: true,
         plugins: [storybookTest({ configDir: './storybook/.storybook' })],
+        // Pre-declares a dependency Vite otherwise only discovers once a
+        // story imports it, mid-run, on a cold cache. Vite's browser-mode
+        // optimizer then re-bundles and reloads modules in flight, which can
+        // corrupt whichever test file is mid-import at that moment (seen once
+        // in CI as `docs/Theming.mdx` failing with "Cannot read properties of
+        // undefined (reading 'config')", alongside Vite's own
+        // "unexpectedly reloaded a test" warning). Listing it here lets Vite
+        // bundle it up front instead of discovering it mid-run.
+        optimizeDeps: {
+          include: ['@vanilla-extract/recipes/createRuntimeFn'],
+        },
         test: {
           name: 'storybook',
           // Leaving setupFiles unset lets the plugin compose preview.tsx and each
