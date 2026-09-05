@@ -1433,4 +1433,184 @@ Ordered; each is a command whose output is the evidence. Success signals name th
 
 ## What actually happened
 
-*(Written during execution. Record deviations, unfalsifiable checks, harness bugs, and anything the plan got wrong.)*
+**The plan was wrong four times, and a different mechanism caught each one.**
+
+Task 1's Step 1 baselined the unit suite at 61 test files. The real number was
+59, and the implementer correctly held 59 → 59 rather than forcing the plan's
+number — but the commit message it had been told to use verbatim then claimed
+"61 files pass" into the permanent record. Caught by the task review reading
+the commit against the actual run. Fixed by amending the (unpushed) commit
+message and the plan's own Step 1/Step 4 text, including a fourth occurrence
+buried in Task 2's embedded commit template that the implementer found and
+fixed unrequested.
+
+Task 2's `storybook/tsconfig.json` listed `".storybook"` in its `include`
+array to typecheck `main.ts` and `preview.tsx`. It typechecked nothing.
+TypeScript's implicit `<dir>/**/*` expansion for a bare directory entry does
+not descend into dot-prefixed directories, so the entry matched zero files.
+This was invisible at first because Task 2's own build step failed for an
+unrelated reason (see below) and masked it; the next task's story file would
+have made the symptom disappear by giving the build something else to index,
+leaving `main.ts` and `preview.tsx` permanently unchecked with no visible
+sign. Caught by the task reviewer reproducing it with `tsc --listFiles`. Fixed
+by widening the include array and verifying with a real
+`npm --prefix storybook run typecheck`, confirmed by re-running `--listFiles`
+and seeing both files appear as real inputs.
+
+Task 3's `vitest.setup.ts` was briefed at
+`./storybook/.storybook/vitest.setup.ts`, matching the repo-root-relative
+paths every other setup file uses. It doesn't work: `storybookTest({
+configDir })` relocates the storybook project's Vite root to
+`storybook/`, so a path already anchored at `storybook/` doubles into
+`storybook/storybook/.storybook/vitest.setup.ts`, which does not exist. The
+implementer used `./.storybook/vitest.setup.ts` instead — correct, but a
+silent wrong path here would have failed with no error and left axe unwired
+in Task 4 while every story kept passing, which is exactly the trap the next
+finding fell into by a different route. Caught, in this case, before it could
+bite: the reviewer confirmed the setup file was genuinely being read by
+checking for the addon's own log line ("Found a setup file with
+setProjectAnnotations"), which only appears when the path resolves and the
+content matches.
+
+Task 6's `docs.css` referenced `var(--ap-text-fine-print)`. That token does
+not exist — the generated theme only defines `--ap-text-fine-print-size` and
+`--ap-text-fine-print-lh`, a compound token with no bare shorthand. This one
+came from the plan's own supplied code block, not an implementer's
+improvisation, and the implementer used it as given while flagging it, which
+this repo treats as correct: a brief with complete code is the authority, and
+silently second-guessing it is worse than surfacing the disagreement. Caught
+by grepping `packages/react/src/theme/theme.css` for the real token names,
+confirmed by the task review. Left as a deferred minor rather than fixed
+in-place, since it's cosmetic and the page still renders (the browser
+resolves an undefined custom property to nothing, which for a `font-size` is
+merely "inherit").
+
+**The accessibility gate was silently disabled — the most important finding
+on this branch.** `@storybook/addon-a11y/preview` ships its own default
+parameter, `parameters.a11y.test: 'todo'` (warn-only, never fails a run).
+`setProjectAnnotations` resolves a conflicting scalar parameter by letting the
+*last* entry in its array win. The plan's Task 3 wired
+`setProjectAnnotations([preview, a11yAnnotations])` — our preview file first,
+the addon's annotations last — so the addon's `'todo'` silently overrode our
+`parameters.a11y.test: 'error'`. Every story passed regardless of what axe
+found; the gate looked wired and was not. Nothing detected this
+automatically: no test failed, no type error, no warning. It surfaced only
+because Task 4 exists for exactly one purpose — render a button with no
+accessible name and require the run to fail — and the implementer, finding it
+passed, refused to write the CONTRIBUTING paragraph the brief asked for
+claiming the gate worked. The fix was to reverse the array to
+`[a11yAnnotations, preview]`, which also happens to be Storybook's own
+composer order. If you meet this again: a passing a11y run proves nothing by
+itself, because a run that checks nothing looks identical to one that
+checked and found no violations — the only trustworthy proof is a deliberate
+violation that the run refuses to let through, re-run any time the wiring
+changes.
+
+**The setup file was deleted anyway — and the stated reason was false.** Task
+5 unilaterally deleted `storybook/.storybook/vitest.setup.ts` and its
+`setupFiles` reference, on the claim that the manual `setProjectAnnotations`
+call was *suppressing* the addon's own automatic provisioning, so the
+`ApProvider` decorator never reached any story. That explanation was written
+into `vitest.config.ts` as a code comment, stated as fact. The task reviewer
+(escalated to opus, because this changed the harness the whole gate rests on)
+disproved the consequence half by restoring the deleted file, keeping
+everything else Task 5 had added, and getting all 6 files / 28 tests green,
+including `Dialog > Opened` — meaning the manual call had been delivering
+decorators correctly all along. What had actually broken `Dialog > Opened`
+was the module-duplication problem below, unrelated to the setup file. The
+mechanism half of the claim was real — the addon's source does skip its own
+auto-provisioning when a setup file at `configDir` contains the string
+`setProjectAnnotations` — but the conclusion drawn from it was not. The
+deletion itself was still correct to keep: since Storybook 10.3 the addon
+auto-applies preview annotations, so the manual call is redundant, and Task
+3's review had already flagged it as a removal candidate. Both things are
+true at once — the file was safe and correct to delete, and the comment
+explaining why was false — and the fix round corrected the comment and a
+stale CONTRIBUTING passage describing the deleted file, without touching the
+deletion.
+
+**A real module-duplication bug**, exposed once the setup file was
+temporarily restored: `Dialog > Opened` failed with "useLocale must be used
+inside `<LocaleProvider>`" even with decorators demonstrably applied, because
+`@ap/react` was being loaded as two separate module instances — one import
+graph saw the provider's context, the other didn't. Task 5's fix was a
+`resolve.alias` in `main.ts` pointing `@ap/react` straight at its source, and
+the reviewer proved it load-bearing by stripping it and reproducing the
+failure. The code comment attributed this to "the symlink hop" in the
+workspace link; a later review pass found `realpath` actually returns
+`D:\dev\...` while Vitest's root reports `D:/DEV/...` — the more likely cause
+is Windows drive-letter/path casing divergence, not symlink resolution. Left
+as a deferred correction to the comment; the alias itself is unaffected
+either way.
+
+**Deleting the old accessibility suite lost a state nobody had noticed was
+load-bearing.** `showcase/e2e/a11y.spec.ts`, retired in Task 7, had scanned a
+dialog while it was *open* — the focus trap, the popup's accessible name, and
+the backdrop's `aria-hidden` are only observable in that state. The
+replacement `Dialog.stories.tsx` from Task 5 has exactly one interactive
+story, and its `play` function opens the dialog, asserts, presses Escape, and
+awaits its removal — all before returning. Because `addon-a11y` scans in an
+`afterEach`, i.e. after `play` returns, axe only ever saw the dialog closed.
+The gap survived a task-level review and was caught only by Task 7's own
+review, which had been briefed specifically to chase this because deleting
+the spec was known to be the risky half of that task. Fixed forward rather
+than by restoring the old spec (restoring it would have re-split gate 5
+across two toolchains, the thing this whole plan exists to end): a new story
+was added whose `play` opens the dialog and returns while it is still open,
+with a comment warning that "tidying" it by adding a close step deletes the
+coverage again. Proven non-vacuous by temporarily injecting a violation that
+only exists in the open state (an unlabelled element inside the dialog body)
+and watching it fail, naming the new story.
+
+**The cold-start bundler race** appeared once locally during Task 3 — a
+"Vitest failed to find the runner" flake on the very first run after
+installing Chromium, self-resolved, and never recurred across three fresh
+runs. It was deferred rather than chased, with a note to revisit once CI
+wired these scripts up. It then reappeared in Task 8's first CI run, in the
+new `storybook` job, with a different symptom (Theming.mdx failing to import,
+"Cannot read properties of undefined (reading 'config')") but the same root
+cause: Vite's browser-mode dependency crawler only discovers statically
+reachable dependencies at startup, and one reached lazily forces a mid-run
+re-bundle that corrupts whatever was importing at that moment. The fix was
+not a retry or a warm-up step — it was pre-declaring the dependency to Vite's
+optimizer (an out-of-brief change, disclosed by the implementer as a
+concern), which is the remedy Vite's own warning names. The reviewer treated
+this as a genuine fix rather than a race papered over, on the grounds that a
+one-time discovery gap closes permanently once the dependency is
+pre-declared, and confirmed it by comparing the two CI runs: the same 29
+tests both times, with Theming.mdx moving from a hard failure to a normal
+skip like its four siblings.
+
+**The architecture records were overwritten, not amended — which their own
+immutability rule forbids.** Task 9 edited ADR-0011 §7 and ADR-0014's gate
+table in place, each with a dated amendment note appended below, and its own
+task-level reviewer accepted this as a legitimate additive clarification. The
+final whole-branch review disagreed: both edits also deleted the prior text
+they were amending, so the original decision is unrecoverable from the file —
+exactly what this repository's ADR-immutability rule exists to prevent,
+regardless of how accurate or well-intentioned the replacement text is. This
+was a must-fix in the final review, fixed by restoring the original passages
+byte-for-byte alongside the amendment notes (diffed against the branch base
+to confirm), and it was caught only because the whole-branch review re-read
+the ADRs against the immutability rule directly rather than trusting the
+task-level review's sign-off. The other three must-fixes from that same
+final pass: `Icon` is a public export whose only axe coverage was the
+showcase `/icons` route, deleted in Task 7 with no replacement story (MDX
+pages are never scanned); CONTRIBUTING and `preview.tsx` both claimed the
+accessibility guarantee "does not quietly narrow" in the move, when the
+surface scanned did narrow even though the tag set held; and the `main.ts`
+alias added in Task 5 does a string-prefix match rather than an exact one,
+which works today only because the three CSS subpaths happen to be listed
+before it, and was promoted from a deferred minor to a must-fix because the
+next plan in this phase adds exactly the subpaths it would misroute.
+
+**What is left open**, all inherited or pre-existing rather than introduced
+by this branch: ADR-0001 and ADR-0013 both call the Storybook workspace
+`docs` when the real directory is `storybook/`; `Icons.mdx` says "Three icons
+today" against five that actually exist, a sentence carried over verbatim
+from the showcase route it replaced; `Theming.mdx`'s "two delivery paths"
+comparison table is raw HTML rather than a native Markdown table, because no
+`remark-gfm` plugin is registered — cosmetic, the content is
+byte-equivalent; and CONTRIBUTING's showcase section still has a "Dev
+server... live" row that has been stale since an unrelated commit
+(`84a4f62`) predating this plan. None of these have an assigned owner.
