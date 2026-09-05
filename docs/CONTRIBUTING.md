@@ -723,11 +723,16 @@ with no accessible name produces `button-name (critical)` and fails the run.
 A mechanism that checks nothing reports success exactly like a clean run, so
 re-prove it the same way if the wiring is ever touched.
 
-The order inside `setProjectAnnotations` in `vitest.setup.ts` is load-bearing.
-`@storybook/addon-a11y/preview` ships its own default parameter,
-`a11y.test: 'todo'`, and Storybook's merge takes whichever entry is listed
-last when two sources conflict. The addon's annotations must come first and
-the project's `preview` must come last, so `'error'` wins. Get that order
-backwards and nothing errors, nothing warns, and every story still passes —
-the gate silently stops checking anything while looking exactly like a clean
-run.
+The `storybook` project in `vitest.config.ts` deliberately has no `setupFiles`.
+Since Storybook 10.3 `@storybook/addon-vitest` composes the preview annotations
+itself — `preview.tsx` plus every addon's own preview, addon-first — and that
+order is load-bearing: `@storybook/addon-a11y/preview` ships a default
+`a11y.test: 'todo'`, and Storybook's merge takes the last conflicting entry, so
+`preview.tsx`'s `'error'` only wins by coming after it. The addon gets that
+right; a hand-written `setProjectAnnotations` call in a setup file does not
+have to. Worse, the plugin *skips* its own provisioning entirely the moment it
+finds a setup file at `configDir` containing the string
+`setProjectAnnotations` (`requiresProjectAnnotations`, in the plugin's
+`vitest-plugin/index.js`), so a hand-rolled file silently owns the whole wiring.
+Do not add one. Whatever the wiring, a gate that checks nothing reports success
+exactly like a clean run — re-prove it with the nameless button above.

@@ -31,22 +31,11 @@ export default defineConfig({
         plugins: [storybookTest({ configDir: './storybook/.storybook' })],
         test: {
           name: 'storybook',
-          // No custom setupFiles here, deliberately: @storybook/addon-vitest
-          // auto-provisions the preview annotations (decorators, a11y
-          // parameters) straight from `configDir` since Storybook 10.3. A
-          // manual `setProjectAnnotations` call in a setup file at configDir
-          // makes the plugin skip that auto-provisioning — but
-          // `setProjectAnnotations` (from `@storybook/react-vite`) only
-          // registers `globalThis.globalProjectAnnotations` for portable
-          // stories' `composeStory`, not the project annotations this
-          // harness's own story renderer reads. That mismatch silently
-          // dropped every decorator, including `ApProvider` — proven via
-          // Dialog.Dismiss throwing "useLocale must be used inside
-          // <LocaleProvider>" even though the manual call reported 7
-          // decorators registered. Leaving setupFiles unset lets the plugin
-          // compose `storybook/.storybook/preview.tsx` and the a11y addon's
-          // own preview automatically, in the addon-then-preview order the
-          // scalar `a11y.test` merge in preview.tsx relies on.
+          // Leaving setupFiles unset lets the plugin compose preview.tsx and each
+          // addon's own preview automatically, in the addon-then-preview order the
+          // scalar a11y.test merge in preview.tsx relies on — so the ordering trap
+          // that a hand-written setProjectAnnotations call could get backwards is no
+          // longer reachable.
           browser: {
             enabled: true,
             headless: true,
