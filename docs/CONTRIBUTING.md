@@ -25,7 +25,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run test:hydration` | Playwright: zero hydration warnings, tokens resolve, no third-party requests, and the pre-hydration submit proof — `/form` submits and its action runs with every client bundle blocked |
 | `npm run test:consumer` | Builds the `file:`-protocol consumer fixture |
 | `npm run test:spa` | Gate 7 only: the same fixture built with `ssr: false` boots, and component CSS is still wired through the build |
-| `npm run test:a11y` | Gate 5: axe over every showcase section, plus an OPEN dialog and a field in its error state |
+| `npm run test:stories` / `npm run test:a11y` | Gate 4/5: every story and its `play` function in headless Chromium, with axe running inside the same run. The two commands are aliases of each other |
 | `npm run report:contrast` | Writes `reports/contrast.md` (the WCAG compliance artifact) |
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
 | `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
@@ -196,10 +196,19 @@ same file set plus one split, and the split is the point:
   one, so adding the feature moved nothing a consumer already styles or queries.
   `Input.test.tsx` asserts both shapes.
 
-- **Add a section to the showcase.** A component nobody can look at is a component
-  nobody reviews. It is one entry in `showcase/app/sections.ts` and one route file —
-  see "The showcase" below. The smoke test walks that list, so the new page is
-  covered the moment it is added.
+- **A story file**, `<Name>.stories.tsx`, beside the component. Controls for
+  every union prop, one story per meaningful state, and a grid story rather
+  than one story per cross-product combination. `play` functions assert the
+  contract the component was built for, not merely that it rendered. This is
+  where the component gets looked at and reviewed — Storybook is the gallery
+  now, not the showcase.
+
+- **A showcase section** — renders only, no prose. It exists to prove the
+  component server-renders in a real browser, not to be browsed or reviewed;
+  that job now belongs to the story file above. It is one entry in
+  `showcase/app/sections.ts` and one route file — see "The showcase" below.
+  The smoke test walks that list, so the new page is covered the moment it is
+  added. Prose belongs in a Storybook MDX docs page.
 
 Import the shared `componentsLayer` from `packages/react/src/theme/layers.css.ts` and
 wrap every style object (base, each variant, each compound variant) in
@@ -210,8 +219,10 @@ statement names, or the cascade guarantee silently breaks.
 
 ## The showcase
 
-A small React Router 8 app at `showcase/` that renders every component against the
-real generated theme. It is where you look at what you built; it is not a gate.
+The showcase is an SSR smoke harness, not a gallery. It server-renders each
+component through a real React Router 8 pipeline and Playwright checks the
+response, hydration and console. Storybook is the gallery: stories, controls,
+interaction tests, axe, and the MDX docs pages.
 
     npm run showcase:install     # once
     npm run showcase             # dev server
@@ -236,28 +247,23 @@ drifts from its routes, and once it has lied to you twice nobody trusts it again
 Deriving both from one list makes "the nav advertises a page that does not exist"
 and "a page exists that the nav never mentions" unrepresentable.
 
-### Gate 5 lives here too
+### Gate 5 no longer lives here
 
-`npm run test:a11y` runs axe-core over every section, and over two states a page
-load cannot reach on its own: an **open** dialog (while closed, the popup is not
-in the DOM, so scanning `/dialog` proves nothing about the modal, its focus trap
-or the `aria-hidden` treatment behind it) and a field showing an error.
+`npm run test:a11y` does not touch the showcase. Phase 4e put gate 5 here
+temporarily because Storybook did not exist yet, running axe-core over every
+section plus two states a page load cannot reach on its own — an **open**
+dialog and a field showing an error. Phase 5a closed that deviation: axe now
+runs inside the story run (see "Gate 5 runs inside the story run" below), and
+the open-dialog and error-field states are covered by dedicated stories
+(`Dialog`'s `OpenForA11yScan`, `Field`'s `WithError`) instead of showcase
+routes. `npm run test:a11y` is now an alias for `npm run test:stories`.
 
-The spec (§7.1) originally put this gate in Storybook. The showcase did not exist
-then; it now renders every component and variant in a real browser and is already
-walked by a spec, so axe rides along for the cost of one file. The deviation is
-recorded in the spec's §9.
-
-**Read the result narrowly.** It proves zero MACHINE-DETECTABLE violations —
-roughly 30–40% of WCAG issue types. It cannot tell you whether a label is
-meaningful, whether focus order makes sense, or whether an error message is
-comprehensible. The manual screen-reader pass per component is still owed. A
-green gate named "accessibility" is the most inviting thing in this repository to
-over-read.
-
-Each per-page assertion is paired with `expect(results.passes.length)
-.toBeGreaterThan(0)`, because a run that checked nothing reports zero violations
-exactly like a clean page does.
+**Read the result narrowly, wherever it runs.** It proves zero
+MACHINE-DETECTABLE violations — roughly 30–40% of WCAG issue types. It cannot
+tell you whether a label is meaningful, whether focus order makes sense, or
+whether an error message is comprehensible. The manual screen-reader pass per
+component is still owed. A green gate named "accessibility" is the most
+inviting thing in this repository to over-read.
 
 ### What the smoke test does
 

@@ -24,13 +24,19 @@ Ten gates, in dependency order. Each has one concrete signal. Gates 1–8 block 
 | 1 | **Token engine** | `test:tokens` | `generateTheme(seed)` snapshot is deterministic across runs and platforms |
 | 2 | **Contrast** | `test:contrast` | Every Tier 2 semantic pairing, both modes, meets WCAG 2.1 AA. Emits `reports/contrast.md` |
 | 3 | **Gamut** | `test:gamut` | Every emitted sRGB value is in gamut; P3 values are valid |
-| 4 | **Unit + interaction** | `test:unit` | Vitest + Testing Library; interaction tests via Storybook `play` functions |
-| 5 | **Accessibility** | `test:a11y` | axe over every Storybook story, zero violations. See the honesty note below |
+| 4 | **Unit + interaction** | `test:unit` | Vitest, two projects: node/jsdom component tests, and stories with their `play` functions in headless Chromium |
+| 5 | **Accessibility** | `test:a11y` | axe over every story, inside the same browser run, `parameters.a11y.test: 'error'`. Zero violations. See the honesty note below |
 | 6 | **SSR smoke** | `test:ssr` | See below |
 | 7 | **SPA smoke** | `test:spa` | Same app with `ssr: false` boots and renders every component |
 | 8 | **Consumer integration** | `test:consumer` | See below |
 | 9 | Visual regression | `test:visual` | Storybook snapshot diffs; reviewed, not blocking |
 | 10 | Bundle budget | `size-limit` | Per-entry-point size budgets; warns on regression |
+
+**Amended 2026-09-04 (Phase 5a).** Gates 4 and 5 are one mechanism: axe runs
+inside the story run, so `test:a11y` and `test:stories` are the same command.
+Phase 4e's deviation — hosting gate 5 in the showcase because Storybook did not
+exist yet — is closed. The honesty note is unchanged and still applies: this
+proves zero machine-detectable violations, not accessibility.
 
 ### Gate 6 — the SSR smoke test
 

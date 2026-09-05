@@ -200,9 +200,17 @@ override is a way to push a dialog's own close control off-screen.
 
 ### 7. Every component ships with
 
-- A `.stories.tsx` (gallery entry, controls, axe run)
+- A `.stories.tsx` beside the component — gallery entry, controls, `play`
+  interactions, and the axe run (gates 4 and 5)
+- A section in the showcase app — the SSR smoke proof, in a real browser,
+  with no prose (gate 6's browser-level counterpart)
 - An SSR render assertion
 - Documented Tier 3 override tokens ([ADR-0007](0007-three-tier-token-contract.md))
+
+**Amended 2026-09-04 (Phase 5a).** The two jobs are named separately because
+they are now separate artifacts. Phase 4e briefly hosted the axe run in the
+showcase, which is why the showcase section used to carry prose; that prose
+now lives in Storybook's MDX docs pages and the showcase section is smoke only.
 
 ### v1 scope — forms and feedback core (~15)
 
