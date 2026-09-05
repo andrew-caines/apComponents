@@ -75,7 +75,8 @@ on-solid foreground — so a component never has to pick a shade. The four
 status tones carry this full set. `action` deliberately has no border token —
 it is an interaction colour, not a status, and nothing in the library draws an
 "action border" — which is why it is shown separately above rather than
-folded into this loop.
+folded into this loop, so the gap is visible rather than hidden behind a
+fallback.
 
 <div className="stack">
   {['danger', 'warning', 'success', 'info'].map((tone) => (
