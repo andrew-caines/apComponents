@@ -14,8 +14,9 @@ const preview: Preview = {
       // 'error' fails the test run on a violation. 'todo' only warns in the
       // UI, which would make gate 5 a suggestion.
       test: 'error',
-      // The same tag set the retired showcase spec used, so the guarantee
-      // does not quietly narrow in the move.
+      // The same WCAG tag set the retired showcase spec used — unchanged by
+      // this move. (The scanned surface did change: see CONTRIBUTING's
+      // "Gate 5 no longer lives here".)
       options: { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } },
     },
   },

@@ -46,13 +46,28 @@ const config: StorybookConfig = {
           // Dialog.Dismiss throwing "useLocale must be used inside
           // <LocaleProvider>" even with the ApProvider decorator wired up
           // correctly in preview.tsx and confirmed present in the composed
-          // project annotations. Aliasing the bare specifiers straight to
-          // their real source files removes the symlink hop entirely, so both
-          // import styles resolve to the identical id.
+          // project annotations. The actual mechanism is a casing divergence,
+          // not the symlink resolution itself: Vitest reports its root as
+          // `D:/DEV/work/apComponents` (realpathed, uppercased) while the
+          // project path is `D:\dev\work\apComponents`, and that mismatch is
+          // what gives the two import styles two module identities — plain
+          // symlink resolution alone would have converged them. Aliasing the
+          // bare specifiers straight to their real source files sidesteps the
+          // casing divergence entirely, so both import styles resolve to the
+          // identical id.
           { find: '@ap/react/theme.css', replacement: join(reactPkgRoot, 'src/theme/theme.css') },
           { find: '@ap/react/fonts.css', replacement: join(reactPkgRoot, 'src/theme/fonts.css') },
           { find: '@ap/react/motion.css', replacement: join(reactPkgRoot, 'src/theme/motion.css') },
-          { find: '@ap/react', replacement: join(reactPkgRoot, 'src/index.ts') },
+          // Anchored to the bare specifier exactly, rather than the plain
+          // string `'@ap/react'` Rollup would otherwise match with
+          // `importee === pattern || importee.startsWith(pattern + '/')`.
+          // The next plan in this phase adds `@ap/react/hooks` and
+          // `@ap/react/format` subpath exports; a string alias here would
+          // catch those too and rewrite them to `<pkg>/src/index.ts/hooks`
+          // and `<pkg>/src/index.ts/format`, failing as module-not-found in
+          // files that never touch this comment. The CSS subpath entries
+          // above stay ordered before this one, so they still win first.
+          { find: /^@ap\/react$/, replacement: join(reactPkgRoot, 'src/index.ts') },
         ],
       },
     })

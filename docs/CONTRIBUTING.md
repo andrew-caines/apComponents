@@ -258,6 +258,20 @@ the open-dialog and error-field states are covered by dedicated stories
 (`Dialog`'s `OpenForA11yScan`, `Field`'s `WithError`) instead of showcase
 routes. `npm run test:a11y` is now an alias for `npm run test:stories`.
 
+That is only the half of the move that gained coverage. Five showcase routes
+lost it: `foundations`, `typography`, `colour`, `theming` and `icons` are now
+Storybook MDX documentation pages, and MDX docs pages are never
+accessibility-scanned — axe runs over stories, not docs. Those five pages
+are gone from `test:a11y`'s reach and nothing replaces that scan. This is an
+accepted trade, not an oversight: gate 2 (`test:contrast`) independently
+checks every Tier 2 semantic pairing in both light and dark, which is the
+largest single thing those pages were demonstrating, and the components
+whose stories those pages merely narrated (`Icon`, the type scale, the
+colour scale) are still exercised through their own component stories where
+they exist. What is genuinely lost is any machine check on the prose pages
+themselves — heading structure, link text, and the rest of what axe would
+have caught incidentally by scanning a page that happened to contain them.
+
 **Read the result narrowly, wherever it runs.** It proves zero
 MACHINE-DETECTABLE violations — roughly 30–40% of WCAG issue types. It cannot
 tell you whether a label is meaningful, whether focus order makes sense, or

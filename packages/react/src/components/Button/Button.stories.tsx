@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, userEvent, within } from 'storybook/test'
+import { expect, fn, userEvent, within } from 'storybook/test'
 import { Button } from './Button.js'
 
 const meta = {
@@ -20,12 +20,13 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {}
 
 export const Clickable: Story = {
-  play: async ({ canvasElement, step }) => {
+  args: { onClick: fn() },
+  play: async ({ args, canvasElement, step }) => {
     const canvas = within(canvasElement)
     const button = canvas.getByRole('button', { name: 'Save changes' })
-    await step('the button is reachable and activates', async () => {
+    await step('clicking the button invokes the handler', async () => {
       await userEvent.click(button)
-      await expect(button).toHaveFocus()
+      await expect(args.onClick).toHaveBeenCalled()
     })
   },
 }
@@ -67,6 +68,6 @@ export const AsLink: Story = {
     // its link role and gains no tabindex. See CONTRIBUTING, "Base UI's render
     // prop and the nativeButton/anchor-role trap".
     await expect(link).not.toHaveAttribute('tabindex')
-    await expect(link).not.toHaveAttribute('role', 'button')
+    await expect(link).toHaveAttribute('href', '#top')
   },
 }

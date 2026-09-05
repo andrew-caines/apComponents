@@ -30,6 +30,7 @@ export const WithError: Story = {
     await expect(input).toHaveAttribute('aria-invalid', 'true')
     // An error is an icon and text, never colour alone (ADR-0011 §5).
     await expect(within(canvasElement).getByText('That address is already in use.')).toBeVisible()
+    await expect(canvasElement.querySelector('svg[aria-hidden="true"]')).toBeTruthy()
   },
 }
 

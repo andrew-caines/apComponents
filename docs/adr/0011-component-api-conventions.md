@@ -200,8 +200,7 @@ override is a way to push a dialog's own close control off-screen.
 
 ### 7. Every component ships with
 
-- A `.stories.tsx` beside the component — gallery entry, controls, `play`
-  interactions, and the axe run (gates 4 and 5)
+- A `.stories.tsx` (gallery entry, controls, axe run)
 - A section in the showcase app — the SSR smoke proof, in a real browser,
   with no prose (gate 6's browser-level counterpart)
 - An SSR render assertion
