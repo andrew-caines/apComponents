@@ -96,14 +96,30 @@ jobs:
           name: playwright-report
           path: fixtures/ssr-app/playwright-report/
 
-  showcase:
-    name: Showcase smoke and accessibility (gates 4-5)
+  storybook:
+    name: Stories and accessibility (gates 4 and 5)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix storybook run typecheck
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:stories
+      - name: Build the static Storybook
+        run: npm --prefix storybook run build
+
+  showcase:
+    name: Showcase SSR smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - run: npm run showcase:install

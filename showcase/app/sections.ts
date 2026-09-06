@@ -11,8 +11,9 @@
  * The smoke test in `e2e/smoke.spec.ts` walks this array, so a new section is
  * covered the moment it is added, with no test to update.
  *
- * Ordering is foundations first, then components — roughly the order someone
- * meeting the library should read them in, not alphabetical.
+ * The prose foundations pages (colour, typography, theming, icons and the
+ * scales page) live in Storybook now, as MDX docs — this list is only the
+ * components, so it is not alphabetical, just the order they were added in.
  */
 export interface Section {
   /** URL path and the anchor the nav links to. */
@@ -26,36 +27,6 @@ export interface Section {
 }
 
 export const SECTIONS: readonly Section[] = [
-  {
-    slug: 'foundations',
-    title: 'Foundations',
-    file: 'routes/foundations.tsx',
-    blurb: 'The scales everything else is built from: space, radius, icon sizes and elevation.',
-  },
-  {
-    slug: 'typography',
-    title: 'Typography',
-    file: 'routes/typography.tsx',
-    blurb: 'The type scale, the font stacks, and the metric-matched fallback.',
-  },
-  {
-    slug: 'colour',
-    title: 'Colour',
-    file: 'routes/colour.tsx',
-    blurb: 'Semantic colour roles in both schemes — every pairing CI checks for contrast.',
-  },
-  {
-    slug: 'theming',
-    title: 'Theming',
-    file: 'routes/theming.tsx',
-    blurb: 'How ThemeProvider works: the build-time default, the runtime override, and colour scheme.',
-  },
-  {
-    slug: 'icons',
-    title: 'Icons',
-    file: 'routes/icons.tsx',
-    blurb: 'The icon set, its sizes, and the decorative-versus-labelled contract.',
-  },
   {
     slug: 'button',
     title: 'Button',

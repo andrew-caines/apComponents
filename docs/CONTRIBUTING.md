@@ -25,13 +25,17 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run test:hydration` | Playwright: zero hydration warnings, tokens resolve, no third-party requests, and the pre-hydration submit proof — `/form` submits and its action runs with every client bundle blocked |
 | `npm run test:consumer` | Builds the `file:`-protocol consumer fixture |
 | `npm run test:spa` | Gate 7 only: the same fixture built with `ssr: false` boots, and component CSS is still wired through the build |
-| `npm run test:a11y` | Gate 5: axe over every showcase section, plus an OPEN dialog and a field in its error state |
+| `npm run test:stories` / `npm run test:a11y` | Gate 4/5: every story and its `play` function in headless Chromium, with axe running inside the same run. The two commands are aliases of each other |
 | `npm run report:contrast` | Writes `reports/contrast.md` (the WCAG compliance artifact) |
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
 | `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
 | `npm run gen:input-demo` | Regenerates `examples/InputFields.html` — renders the real components, compiles their real CSS, reads every code sample out of the AST, then runs six browser checks |
 | `npm run showcase` | Dev server for the showcase app — every component, live, in both schemes |
 | `npm run showcase:test` | Smoke-tests every showcase section: 200, server-rendered heading, nav state, zero console output |
+
+`npm run test:watch` only watches in an interactive terminal. Vitest 4 defaults
+`watch` to off when stdin is not a TTY or when it detects an agent, so in CI or
+an agent shell the same command runs once and exits.
 
 ## Generated files
 
@@ -192,10 +196,19 @@ same file set plus one split, and the split is the point:
   one, so adding the feature moved nothing a consumer already styles or queries.
   `Input.test.tsx` asserts both shapes.
 
-- **Add a section to the showcase.** A component nobody can look at is a component
-  nobody reviews. It is one entry in `showcase/app/sections.ts` and one route file —
-  see "The showcase" below. The smoke test walks that list, so the new page is
-  covered the moment it is added.
+- **A story file**, `<Name>.stories.tsx`, beside the component. Controls for
+  every union prop, one story per meaningful state, and a grid story rather
+  than one story per cross-product combination. `play` functions assert the
+  contract the component was built for, not merely that it rendered. This is
+  where the component gets looked at and reviewed — Storybook is the gallery
+  now, not the showcase.
+
+- **A showcase section** — renders only, no prose. It exists to prove the
+  component server-renders in a real browser, not to be browsed or reviewed;
+  that job now belongs to the story file above. It is one entry in
+  `showcase/app/sections.ts` and one route file — see "The showcase" below.
+  The smoke test walks that list, so the new page is covered the moment it is
+  added. Prose belongs in a Storybook MDX docs page.
 
 Import the shared `componentsLayer` from `packages/react/src/theme/layers.css.ts` and
 wrap every style object (base, each variant, each compound variant) in
@@ -206,8 +219,10 @@ statement names, or the cascade guarantee silently breaks.
 
 ## The showcase
 
-A small React Router 8 app at `showcase/` that renders every component against the
-real generated theme. It is where you look at what you built; it is not a gate.
+The showcase is an SSR smoke harness, not a gallery. It server-renders each
+component through a real React Router 8 pipeline and Playwright checks the
+response, hydration and console. Storybook is the gallery: stories, controls,
+interaction tests, axe, and the MDX docs pages.
 
     npm run showcase:install     # once
     npm run showcase             # dev server
@@ -232,28 +247,37 @@ drifts from its routes, and once it has lied to you twice nobody trusts it again
 Deriving both from one list makes "the nav advertises a page that does not exist"
 and "a page exists that the nav never mentions" unrepresentable.
 
-### Gate 5 lives here too
+### Gate 5 no longer lives here
 
-`npm run test:a11y` runs axe-core over every section, and over two states a page
-load cannot reach on its own: an **open** dialog (while closed, the popup is not
-in the DOM, so scanning `/dialog` proves nothing about the modal, its focus trap
-or the `aria-hidden` treatment behind it) and a field showing an error.
+`npm run test:a11y` does not touch the showcase. Phase 4e put gate 5 here
+temporarily because Storybook did not exist yet, running axe-core over every
+section plus two states a page load cannot reach on its own — an **open**
+dialog and a field showing an error. Phase 5a closed that deviation: axe now
+runs inside the story run (see "Gate 5 runs inside the story run" below), and
+the open-dialog and error-field states are covered by dedicated stories
+(`Dialog`'s `OpenForA11yScan`, `Field`'s `WithError`) instead of showcase
+routes. `npm run test:a11y` is now an alias for `npm run test:stories`.
 
-The spec (§7.1) originally put this gate in Storybook. The showcase did not exist
-then; it now renders every component and variant in a real browser and is already
-walked by a spec, so axe rides along for the cost of one file. The deviation is
-recorded in the spec's §9.
+That is only the half of the move that gained coverage. Five showcase routes
+lost it: `foundations`, `typography`, `colour`, `theming` and `icons` are now
+Storybook MDX documentation pages, and MDX docs pages are never
+accessibility-scanned — axe runs over stories, not docs. Those five pages
+are gone from `test:a11y`'s reach and nothing replaces that scan. This is an
+accepted trade, not an oversight: gate 2 (`test:contrast`) independently
+checks every Tier 2 semantic pairing in both light and dark, which is the
+largest single thing those pages were demonstrating, and the components
+whose stories those pages merely narrated (`Icon`, the type scale, the
+colour scale) are still exercised through their own component stories where
+they exist. What is genuinely lost is any machine check on the prose pages
+themselves — heading structure, link text, and the rest of what axe would
+have caught incidentally by scanning a page that happened to contain them.
 
-**Read the result narrowly.** It proves zero MACHINE-DETECTABLE violations —
-roughly 30–40% of WCAG issue types. It cannot tell you whether a label is
-meaningful, whether focus order makes sense, or whether an error message is
-comprehensible. The manual screen-reader pass per component is still owed. A
-green gate named "accessibility" is the most inviting thing in this repository to
-over-read.
-
-Each per-page assertion is paired with `expect(results.passes.length)
-.toBeGreaterThan(0)`, because a run that checked nothing reports zero violations
-exactly like a clean page does.
+**Read the result narrowly, wherever it runs.** It proves zero
+MACHINE-DETECTABLE violations — roughly 30–40% of WCAG issue types. It cannot
+tell you whether a label is meaningful, whether focus order makes sense, or
+whether an error message is comprehensible. The manual screen-reader pass per
+component is still owed. A green gate named "accessibility" is the most
+inviting thing in this repository to over-read.
 
 ### What the smoke test does
 
@@ -706,3 +730,29 @@ SPA-mode build renders root's `HydrateFallback` rather than root itself, so its
 shell legitimately contains no stylesheet link. See
 [`rr8-fixture-notes.md`](./rr8-fixture-notes.md) before changing an assertion in
 `ssr-render.gate.test.ts`.
+
+### Gate 5 runs inside the story run
+
+Axe runs as part of `test:stories` via `@storybook/addon-a11y`, configured with
+`parameters.a11y.test: 'error'` so a violation fails the run rather than
+warning in the UI. The tag set is `wcag2a, wcag2aa, wcag21a, wcag21aa`, the
+same set the retired showcase spec used.
+
+This was proven to fail, not assumed: a story rendering `<button type="button" />`
+with no accessible name produces `button-name (critical)` and fails the run.
+A mechanism that checks nothing reports success exactly like a clean run, so
+re-prove it the same way if the wiring is ever touched.
+
+The `storybook` project in `vitest.config.ts` deliberately has no `setupFiles`.
+Since Storybook 10.3 `@storybook/addon-vitest` composes the preview annotations
+itself — `preview.tsx` plus every addon's own preview, addon-first — and that
+order is load-bearing: `@storybook/addon-a11y/preview` ships a default
+`a11y.test: 'todo'`, and Storybook's merge takes the last conflicting entry, so
+`preview.tsx`'s `'error'` only wins by coming after it. The addon gets that
+right; a hand-written `setProjectAnnotations` call in a setup file does not
+have to. Worse, the plugin *skips* its own provisioning entirely the moment it
+finds a setup file at `configDir` containing the string
+`setProjectAnnotations` (`requiresProjectAnnotations`, in the plugin's
+`vitest-plugin/index.js`), so a hand-rolled file silently owns the whole wiring.
+Do not add one. Whatever the wiring, a gate that checks nothing reports success
+exactly like a clean run — re-prove it with the nameless button above.

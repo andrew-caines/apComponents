@@ -11,5 +11,6 @@ fixtures/*/dist/
 showcase/node_modules/
 showcase/build/
 showcase/.react-router/
+storybook/storybook-static/
 test-results/
 playwright-report/

@@ -32,6 +32,12 @@ Ten gates, in dependency order. Each has one concrete signal. Gates 1–8 block 
 | 9 | Visual regression | `test:visual` | Storybook snapshot diffs; reviewed, not blocking |
 | 10 | Bundle budget | `size-limit` | Per-entry-point size budgets; warns on regression |
 
+**Amended 2026-09-04 (Phase 5a).** Gates 4 and 5 are one mechanism: axe runs
+inside the story run, so `test:a11y` and `test:stories` are the same command.
+Phase 4e's deviation — hosting gate 5 in the showcase because Storybook did not
+exist yet — is closed. The honesty note is unchanged and still applies: this
+proves zero machine-detectable violations, not accessibility.
+
 ### Gate 6 — the SSR smoke test
 
 A minimal React Router 8 framework-mode application in `fixtures/ssr-app` that server-renders **every** component in the library, tested through **the real RR8 pipeline** — the fixture's server entry (`createRequestHandler`, which streams via `renderToPipeableStream`) is booted and pages are requested over HTTP. `renderToString` assertions remain as fast unit-level checks, but the gate exercises what production actually runs, including one page that places components inside a deliberately slow `<Suspense>` boundary so streamed-late content is covered.
