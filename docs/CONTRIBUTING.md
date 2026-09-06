@@ -30,7 +30,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
 | `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
 | `npm run gen:input-demo` | Regenerates `examples/InputFields.html` — renders the real components, compiles their real CSS, reads every code sample out of the AST, then runs six browser checks |
-| `npm run showcase` | Dev server for the showcase app — every component, live, in both schemes |
+| `npm run showcase` | Builds and serves the showcase app — every component, server-rendered, in both schemes |
 | `npm run showcase:test` | Smoke-tests every showcase section: 200, server-rendered heading, nav state, zero console output |
 
 `npm run test:watch` only watches in an interactive terminal. Vitest 4 defaults
@@ -225,7 +225,7 @@ response, hydration and console. Storybook is the gallery: stories, controls,
 interaction tests, axe, and the MDX docs pages.
 
     npm run showcase:install     # once
-    npm run showcase             # dev server
+    npm run showcase             # build + serve (no HMR — re-run after an edit)
     npm run showcase:test        # the smoke test described below
 
 ### Adding a section is one entry and one file
