@@ -36,6 +36,11 @@ Docs are versioned by deploying tagged releases to versioned paths, so a product
 - **Cost:** Storybook is a heavy dependency with a nontrivial upgrade cadence. It stays confined to the private `docs` workspace and never enters a published package.
 - GitHub Pages is public. Nothing confidential goes in a story, and this must be stated in contribution guidelines rather than assumed.
 
+**Amended 2026-09-06 (Phase 5a).** The workspace above was implemented as
+`storybook/` (package name `ap-storybook`), not `docs`. The decision itself —
+that Storybook stays confined to a private workspace and never enters a
+published package — is unchanged and still honoured.
+
 ## Alternatives considered
 
 - **Docusaurus.** Far better for prose and versioned narrative docs. Rejected as the primary: live playgrounds, props tables and a11y testing would all have to be hand-built, and none of it would feed CI.

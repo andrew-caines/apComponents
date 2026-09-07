@@ -20,6 +20,11 @@ One repository, npm workspaces, five packages:
 | `@ap/vite` | Vite plugin preset for consumers | `@vanilla-extract/vite-plugin` |
 | `docs` (private) | Storybook | all of the above |
 
+**Amended 2026-09-06 (Phase 5a).** The Storybook workspace was implemented as
+`storybook/` (package name `ap-storybook`), not `docs`. The decision itself —
+a private workspace holding Storybook, never part of a published package — is
+unchanged and still honoured.
+
 Two boundaries are enforced by dependency lint rules rather than convention:
 
 1. `@ap/tokens` must not depend on React, the DOM, or any bundler.
