@@ -285,7 +285,12 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // not a `value` attribute. Captured, not just matched, because phase 2
     // reuses this exact string rather than retyping it.
     const textareaMatch = /<textarea[^>]*\sname="message"[^>]*>([^<]*)<\/textarea>/.exec(html)
-    expect(textareaMatch, 'no <textarea name="message"> in server HTML').toBeDefined()
+    // `.not.toBeNull()`, NOT `.toBeDefined()`: `RegExp.exec` returns `null` on
+    // no match, and `null` satisfies `toBeDefined()` — so the guard was dead
+    // and a missing textarea would have died one line later on the non-null
+    // assertion instead, with no message. The `find()`-based guards below are
+    // correct as written, because `find` returns `undefined`.
+    expect(textareaMatch, 'no <textarea name="message"> in server HTML').not.toBeNull()
     const messageValue = textareaMatch![1]!
     expect(messageValue).toBe('Tell us more about your request.')
 

@@ -56,11 +56,23 @@ export const Invalid: Story = {
 
 /**
  * Renders inside a real `<form>` so the play function can prove a negative:
- * Base UI gates its Enter-to-commit path on `tagName === 'INPUT'`
- * (`field/control/FieldControl.js:138`), so Enter in a real `<textarea>`
- * inserts a newline and never reaches that path at all. The marker only
- * appears if `onSubmit` fires, which is the observable proof the form did not
- * submit.
+ * Enter in a `<textarea>` inserts a newline and does not submit the form.
+ *
+ * Be precise about WHY, because two separate mechanisms are easy to conflate
+ * here and only one of them is about submission:
+ *
+ *  - The reason the form does not submit is native HTML implicit-submission
+ *    semantics. Enter submits from a text-like `<input>`; it never does from a
+ *    `<textarea>`, where it is a newline. No JavaScript is involved.
+ *  - Base UI's `tagName === 'INPUT'` gate
+ *    (`field/control/FieldControl.js:138`) is a different thing entirely: it
+ *    decides whether Enter runs `validation.commit`. That handler never calls
+ *    `preventDefault` and never suppresses a submission, so it is not what
+ *    keeps this form from posting. What the gate DOES mean for a textarea is
+ *    that blur is its only validation-commit path.
+ *
+ * The marker below only appears if `onSubmit` fires, which is the observable
+ * proof either way.
  */
 function EnterStaysInFieldDemo() {
   const [submitted, setSubmitted] = useState(false)

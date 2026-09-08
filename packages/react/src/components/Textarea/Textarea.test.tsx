@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { createRef } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Field } from '../Field/Field.js'
@@ -53,6 +54,32 @@ describe('Textarea', () => {
     )
     fireEvent.submit(container.querySelector('form')!)
     expect(seen).toHaveBeenCalledWith('hello')
+  })
+
+  /**
+   * `Textarea.tsx` forwards its ref through `ref as Ref<HTMLInputElement>` —
+   * a hand-written cast under a public `forwardRef<HTMLTextAreaElement, …>`,
+   * because `FieldControl`'s ref is typed for the `<input>` it usually
+   * renders and a mutable ref is invariant in its element type.
+   *
+   * A cast asserts something TypeScript cannot check, so the only thing that
+   * can catch it being wrong is a ref that receives a real node and reports
+   * its `tagName`. Asserting the TAG, not just non-nullness: a bare
+   * `not.toBeNull()` would pass for a ref pointed at the wrong element
+   * entirely, which is precisely what a cast can cause. Same shape as
+   * Input.test.tsx:48-51, FieldParts.test.tsx:198-256 and
+   * RadioGroupParts.test.tsx's ref-forwarding block.
+   */
+  it('forwards its ref to the real textarea element, across the cast', () => {
+    const ref = createRef<HTMLTextAreaElement>()
+    render(<Textarea aria-label="Notes" ref={ref} />)
+    expect(ref.current).not.toBeNull()
+    expect(ref.current?.tagName).toBe('TEXTAREA')
+    // And it is the element a form reads, not a wrapper: the value round-trips
+    // through the node the ref points at.
+    ref.current!.value = 'typed'
+    expect(screen.getByRole('textbox')).toBe(ref.current)
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('typed')
   })
 
   it('merges a consumer className rather than replacing the recipe', () => {
