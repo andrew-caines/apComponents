@@ -7,6 +7,7 @@ export const textareaRecipe = recipe({
   base: {
     '@layer': {
       [componentsLayer]: {
+        boxSizing: 'border-box',
         display: 'block',
         inlineSize: '100%',
         fontFamily: vars.font.body,
@@ -24,7 +25,15 @@ export const textareaRecipe = recipe({
         selectors: {
           '&::placeholder': { color: t.placeholder },
           '&:hover': { borderColor: t.borderHover },
-          '&:focus-visible': { outline: `2px solid ${t.focusRing}`, outlineOffset: '1px' },
+          // Longhand, matching Input.css.ts: `outline`, never `boxShadow` — an
+          // outline survives forced-colors mode (Windows High Contrast), where
+          // box-shadow is dropped entirely. The style-rules gate enforces this.
+          '&:focus-visible': {
+            outlineWidth: vars.misc.focusRingWidth,
+            outlineStyle: 'solid',
+            outlineColor: t.focusRing,
+            outlineOffset: vars.misc.focusRingOffset,
+          },
           // Base UI's own attributes. Never invent our own state hooks.
           '&[data-invalid]': { borderColor: t.borderInvalid },
           '&[data-disabled]': { opacity: 0.6, cursor: 'not-allowed' },
