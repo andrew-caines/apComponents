@@ -59,8 +59,15 @@ export const Toggles: Story = {
     await expect(sw).toHaveAttribute('aria-checked', 'false')
     await userEvent.click(sw)
     await expect(sw).toHaveAttribute('aria-checked', 'true')
-    // A switch has no third state — never `mixed`, unlike Checkbox's
-    // indeterminate.
-    await expect(sw).not.toHaveAttribute('aria-checked', 'mixed')
+    // Back to 'false' on a second click. This replaces a
+    // `not.toHaveAttribute('aria-checked', 'mixed')` that sat one line after
+    // asserting the same attribute IS 'true' — an assertion that could not
+    // fail, so it asserted nothing. "A switch has no third state" is a claim
+    // about the PROP SURFACE, and `Switch.test.tsx` makes it where it can
+    // actually be made: a compile-time test that there is no `indeterminate`
+    // prop to reach a mixed state with. What a browser can usefully add is
+    // that the toggle is a real round trip rather than a one-way latch.
+    await userEvent.click(sw)
+    await expect(sw).toHaveAttribute('aria-checked', 'false')
   },
 }

@@ -21,8 +21,23 @@ import { vars } from '../../theme/contract.css.js'
  * `focusRing` falls back to `vars.color.focusRing` — the dedicated Tier 2
  * role, not `borderInteractive` — matching `Input`/`Button`/`Textarea`/
  * `Checkbox`.
+ *
+ * The `label*` roles are the ROW — the `<label>` wrapping the track and its
+ * text — and they deliberately carry the same values as
+ * `CHECKBOX_TOKENS`'s `label*` and `RADIO_GROUP_TOKENS`'s `option*`, which
+ * in turn mirror `FIELD_TOKENS`'s `label*` triple. A form that mixes a
+ * `Switch`, a `Checkbox`, a `RadioGroup` and a `Field`-wrapped `Input` has to
+ * read as one form: same gap between control and copy, same type size for a
+ * control's own label as for a field's. They are still distinct tokens so
+ * any one of the four can be overridden alone.
  */
 export const SWITCH_TOKENS = {
+  /** Between the track and its label text. Matches Checkbox's `labelGap`. */
+  labelGap: tier3('switch-label-gap', vars.space['2']),
+  labelText: tier3('switch-label-text', vars.color.textPrimary),
+  labelSize: tier3('switch-label-size', vars.text.sm.size),
+  labelLineHeight: tier3('switch-label-line-height', vars.text.sm.lineHeight),
+
   trackBg: tier3('switch-track-bg', vars.color.borderNormal),
   trackBgChecked: tier3('switch-track-bg-checked', vars.color.actionBg),
   thumbBg: tier3('switch-thumb-bg', vars.color.bgSurface),

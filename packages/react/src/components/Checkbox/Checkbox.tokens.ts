@@ -17,8 +17,23 @@ import { vars } from '../../theme/contract.css.js'
  * and Base UI's own `data-invalid` attribute both need somewhere to read a
  * colour from, and inventing a fresh pattern for just this component would
  * break with what every other control in this library already does.
+ *
+ * The `label*` roles are the ROW — the `<label>` wrapping the box and its
+ * text — and they deliberately carry the same values as
+ * `RADIO_GROUP_TOKENS`'s `optionGap`/`optionText`/`optionSize`/
+ * `optionLineHeight` and, one hop further back, `FIELD_TOKENS`'s `label*`
+ * triple. A form that mixes a `Checkbox`, a `Switch`, a `RadioGroup` and a
+ * `Field`-wrapped `Input` has to read as one form: same gap between control
+ * and copy, same type size for a control's own label as for a field's. They
+ * are still distinct tokens so any one of the four can be overridden alone.
  */
 export const CHECKBOX_TOKENS = {
+  /** Between the box and its label text. Matches RadioGroup's `optionGap`. */
+  labelGap: tier3('checkbox-label-gap', vars.space['2']),
+  labelText: tier3('checkbox-label-text', vars.color.textPrimary),
+  labelSize: tier3('checkbox-label-size', vars.text.sm.size),
+  labelLineHeight: tier3('checkbox-label-line-height', vars.text.sm.lineHeight),
+
   bg: tier3('checkbox-bg', vars.color.bgSurface),
   bgChecked: tier3('checkbox-bg-checked', vars.color.actionBg),
   border: tier3('checkbox-border', vars.color.borderNormal),

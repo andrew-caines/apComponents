@@ -1,7 +1,47 @@
+import { style } from '@vanilla-extract/css'
 import { recipe } from '@vanilla-extract/recipes'
 import { vars } from '../../theme/contract.css.js'
 import { componentsLayer } from '../../theme/layers.css.js'
 import { SWITCH_TOKENS as t } from './Switch.tokens.js'
+
+/**
+ * The clickable row: the `<label>` wrapping the track and the label text, and
+ * the element this component renders at its root.
+ *
+ * Identical declarations to `checkboxLabelClass`, reading from this
+ * component's own tokens — a `Switch` and a `Checkbox` stacked in one form
+ * have to line up, and the two token sets carry the same values for exactly
+ * that reason (see `Switch.tokens.ts`).
+ *
+ * `align-items: flex-start`, not `center`: a label that wraps to two lines
+ * should keep its track beside the FIRST line rather than floating it against
+ * the middle of the block. Same choice as `radioGroupOptionClass`.
+ *
+ * No `cursor` here, deliberately — the pointer lives on the TRACK, which is
+ * also the element that flips to `cursor: default` under `[data-disabled]`.
+ * See the longer note on `Checkbox.css.ts`.
+ */
+export const switchLabelClass = style({
+  '@layer': {
+    [componentsLayer]: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: t.labelGap,
+      fontFamily: vars.font.body,
+    },
+  },
+})
+
+/** The label's own text, inside the `<label>` and beside the track. */
+export const switchLabelTextClass = style({
+  '@layer': {
+    [componentsLayer]: {
+      color: t.labelText,
+      fontSize: t.labelSize,
+      lineHeight: t.labelLineHeight,
+    },
+  },
+})
 
 /**
  * The gap between the track's edge and the thumb, on every side, at every

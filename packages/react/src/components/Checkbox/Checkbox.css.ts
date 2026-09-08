@@ -5,6 +5,47 @@ import { componentsLayer } from '../../theme/layers.css.js'
 import { CHECKBOX_TOKENS as t } from './Checkbox.tokens.js'
 
 /**
+ * The clickable row: the `<label>` wrapping the box and the label text, and
+ * the element this component renders at its root.
+ *
+ * Without this rule the row was a bare `<label>`: an `inline-flex` box abutting
+ * its own text with no gap at all, baseline-aligned, and the text at whatever
+ * size it inherited — beside `Field` labels at `text.sm` in the same form.
+ *
+ * `align-items: flex-start`, not `center`: a label that wraps to two lines
+ * should keep its box beside the FIRST line rather than floating it against
+ * the middle of the block. Same choice, same reason, as
+ * `radioGroupOptionClass` and `fieldErrorClass`.
+ *
+ * No `cursor` here, deliberately — the pointer lives on the CONTROL, which is
+ * also the element that flips to `cursor: default` under `[data-disabled]`. A
+ * pointer declared on the label would sit over a disabled control's text
+ * contradicting it, and the label carries no state attribute of its own to key
+ * an override on. `RadioGroup.css.ts` records the same decision.
+ */
+export const checkboxLabelClass = style({
+  '@layer': {
+    [componentsLayer]: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: t.labelGap,
+      fontFamily: vars.font.body,
+    },
+  },
+})
+
+/** The label's own text, inside the `<label>` and beside the box. */
+export const checkboxLabelTextClass = style({
+  '@layer': {
+    [componentsLayer]: {
+      color: t.labelText,
+      fontSize: t.labelSize,
+      lineHeight: t.labelLineHeight,
+    },
+  },
+})
+
+/**
  * The box itself: `Checkbox.Root`, a `<span role="checkbox">`.
  *
  * The UNCHECKED look is styled here, on the base rule, rather than as a

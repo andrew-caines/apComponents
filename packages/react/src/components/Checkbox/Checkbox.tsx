@@ -1,9 +1,15 @@
 'use client'
 
-import { forwardRef } from 'react'
+import { forwardRef, type CSSProperties } from 'react'
 import { Checkbox as BaseCheckbox } from '@base-ui/react/checkbox'
 import type { CheckboxRootProps } from '@base-ui/react/checkbox'
-import { checkboxRecipe, checkboxIndicator, checkboxIndeterminateBar } from './Checkbox.css.js'
+import {
+  checkboxIndeterminateBar,
+  checkboxIndicator,
+  checkboxLabelClass,
+  checkboxLabelTextClass,
+  checkboxRecipe,
+} from './Checkbox.css.js'
 import { Icon } from '../../icons/Icon.js'
 
 export { CHECKBOX_TOKENS } from './Checkbox.tokens.js'
@@ -16,7 +22,7 @@ export { CHECKBOX_TOKENS } from './Checkbox.tokens.js'
  * than forwarded at Base UI's default.
  */
 export interface CheckboxProps
-  extends Omit<CheckboxRootProps, 'className' | 'render' | 'nativeButton'> {
+  extends Omit<CheckboxRootProps, 'className' | 'render' | 'nativeButton' | 'style'> {
   /** Size of the box. Defaults to `md`. */
   size?: 'sm' | 'md' | 'lg'
   /**
@@ -35,19 +41,69 @@ export interface CheckboxProps
    */
   indeterminate?: boolean
   className?: string
+  /**
+   * Narrowed to a plain style object. Base UI also accepts a
+   * `(state) => CSSProperties` callback on `Checkbox.Root`, but this
+   * component renders TWO elements and the callback is typed against the
+   * checkbox's state — it could only ever be evaluated for one of them. So
+   * the callback form is dropped rather than silently applied to whichever
+   * element won, exactly as `RadioGroupRootProps` narrows its own `style`.
+   */
+  style?: CSSProperties
 }
 
-export const Checkbox = forwardRef<HTMLElement, CheckboxProps>(function Checkbox(
-  { size = 'md', label, indeterminate = false, className, ...rest },
+/**
+ * This component renders two boxes a caller could plausibly mean — the outer
+ * `<label>` row and the inner `<span role="checkbox">` — so the split is
+ * stated here in full and pinned by `Checkbox.test.tsx`'s "props land on the
+ * elements this component documents" test:
+ *
+ *  - **`className`, `style` and `ref` address the `<label>`.** It is the
+ *    element this component renders at its root and the one carrying the row
+ *    layout — the gap between box and text, the alignment, the type. Before
+ *    this was decided, all three went to the inner box while the actual
+ *    layout box was unreachable, so a caller's margin or width applied to the
+ *    icon-sized square rather than to the row they could see. `RadioGroupItem`
+ *    reached the same contract from the same defect (commit `0ab9b90`), and
+ *    the wording there is deliberately the same: the three
+ *    presentation/identity props never disagree about which box they mean.
+ *  - **Every other prop addresses `Checkbox.Root`.** Those are Base UI's
+ *    checkbox props (`name`, `value`, `checked`/`defaultChecked`,
+ *    `onCheckedChange`, `disabled`, `readOnly`, `required`, `inputRef`, and
+ *    this component's `indeterminate`/`size`) plus the remaining DOM
+ *    passthrough — `id`, `data-*`, `aria-*`, event handlers — which travel
+ *    with them so there is no hand-maintained list of prop names here to
+ *    drift out of step with Base UI's own type.
+ *
+ * `id` in particular belongs on the control, not the label: Base UI feeds it
+ * to `useLabelableId` as the hidden input's id override, so it is the
+ * identity a surrounding `Field` registers this control under rather than a
+ * styling hook. The hidden `<input>` a form actually posts stays reachable
+ * through Base UI's own `inputRef`, forwarded untouched.
+ *
+ * A handler passed here still sees every event this component can raise even
+ * though it sits on the inner element: all of them originate at or below the
+ * control, and React's synthetic `onFocus`/`onBlur` bubble too.
+ */
+export const Checkbox = forwardRef<HTMLLabelElement, CheckboxProps>(function Checkbox(
+  { size = 'md', label, indeterminate = false, className, style, ...rest },
   ref,
 ) {
   return (
-    <label>
+    <label
+      ref={ref}
+      className={[checkboxLabelClass, className].filter(Boolean).join(' ')}
+      // Conditionally SPREAD, never `style={style}`. Under
+      // `exactOptionalPropertyTypes` an explicit `undefined` is not the same
+      // as an omitted prop, and Base UI's own merge lets an explicit
+      // `undefined` win — so the same discipline applies on both elements
+      // even though this one is a plain host tag.
+      {...(style !== undefined ? { style } : {})}
+    >
       <BaseCheckbox.Root
         {...rest}
         indeterminate={indeterminate}
-        ref={ref}
-        className={[checkboxRecipe({ size }), className].filter(Boolean).join(' ')}
+        className={checkboxRecipe({ size })}
       >
         <BaseCheckbox.Indicator className={checkboxIndicator}>
           {indeterminate ? (
@@ -63,7 +119,12 @@ export const Checkbox = forwardRef<HTMLElement, CheckboxProps>(function Checkbox
           )}
         </BaseCheckbox.Indicator>
       </BaseCheckbox.Root>
-      {label}
+      {/*
+        A span, not a bare text node: the row is a flex container, and a text
+        node becomes an anonymous flex item that no rule can reach. The
+        label's own typography lives on this element.
+      */}
+      <span className={checkboxLabelTextClass}>{label}</span>
     </label>
   )
 })
