@@ -59,6 +59,10 @@ const TS_EXEMPTIONS: Array<{ path: string; why: string }> = [
     path: join(SRC, 'components', 'Field', 'Field.tokens.ts'),
     why: 'a frozen object of Tier 3 token strings, built with tier3() — pure data like Input.tokens.ts',
   },
+  {
+    path: join(SRC, 'components', 'Textarea', 'Textarea.tokens.ts'),
+    why: 'Tier 3 token declarations — a plain object of strings, no React, no client behaviour.',
+  },
 ]
 
 // Barrels (index.ts) only re-export; they hold no behaviour of their own to

@@ -38,6 +38,8 @@ export type {
   FieldDescriptionProps,
   FieldErrorProps,
 } from './components/Field/index.js'
+export { Textarea, TEXTAREA_TOKENS } from './components/Textarea/index.js'
+export type { TextareaProps } from './components/Textarea/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,
