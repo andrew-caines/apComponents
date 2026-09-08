@@ -40,6 +40,8 @@ export type {
 } from './components/Field/index.js'
 export { Textarea, TEXTAREA_TOKENS } from './components/Textarea/index.js'
 export type { TextareaProps } from './components/Textarea/index.js'
+export { Checkbox, CHECKBOX_TOKENS } from './components/Checkbox/index.js'
+export type { CheckboxProps } from './components/Checkbox/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,
