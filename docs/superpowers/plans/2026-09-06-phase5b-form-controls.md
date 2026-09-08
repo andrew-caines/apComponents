@@ -809,4 +809,325 @@ Ordered; each is a command whose output is the evidence. Success signals name th
 
 ## What actually happened
 
-*(Written during execution. Record deviations, unfalsifiable checks, harness bugs, and anything the plan got wrong.)*
+Eight tasks, thirteen commits, then a single fix wave after the whole-branch
+review. Every task passed its own review and the full local suite was green
+before that review — which is the first thing worth recording, because the
+review still found one Critical, five Important and seven must-fix minors. A
+green suite meant "nothing this plan thought to check is broken," not "this is
+correct."
+
+Twenty-two controller rulings were made during execution. They live in the
+execution ledger, which is gitignored, so the ones that change how the next
+plan should be written are recorded here.
+
+### The plan's literal code was wrong in nine places, and its prose was right in all nine
+
+This is the single largest lesson from Phase 5b. The plan embedded long,
+complete code blocks — recipes, tests, token files, components — none of which
+had ever been typechecked or run. Nine of them were wrong:
+
+- **`toHaveAttribute` throughout Tasks 1, 2 and 4** (R8). This repo does not
+  install `@testing-library/jest-dom` and `vitest.setup.ts` imports no
+  matchers; `Input.test.tsx:139` already carried the comment saying so. The
+  plan's test code could never have run as written. Found by Task 1's
+  implementer, verified, and carried into every later dispatch.
+- **Bare `'::placeholder'` / `':hover'` / `':focus-visible'` keys** mixed with
+  `&`-prefixed attribute keys at the top level of a style object (R9). Does not
+  typecheck against vanilla-extract's `StyleRule`; the whole set has to sit
+  inside a `selectors: { … }` block with every key `&`-prefixed, matching
+  `Input.css.ts:31`. Also found by Task 1's implementer.
+- **`vars.color.dangerBg` for the invalid border** (R1), where the prose
+  immediately above it said Textarea borrows Input's roles deliberately, and
+  `Input.tokens.ts` carries a comment explaining that `dangerBorder` is the
+  border role gated for 3:1 non-text contrast per ADR-0008 and `dangerBg`
+  explicitly is not it.
+- **`vars.color.borderInteractive` for every focus ring** (R2), where a
+  dedicated Tier 2 `focusRing` role exists and both Input and Button use it.
+  Following the literal code would have made these four the only components in
+  the library with a non-`focusRing` focus ring.
+- **`vars.color.actionText` for the checked glyph** (R5), which is
+  action-coloured text for a normal background. The glyph sits on the solid
+  `actionBg` fill, so the role is `actionOnSolid` — a distinction
+  `Button.tokens.ts` already draws. The literal would have been a contrast
+  failure that `test:contrast` may not have caught, since that gate pairs roles
+  against the canvas.
+- **A bare relative string for the `TS_EXEMPTIONS` entry** (R4). The gate builds
+  a Set from `e.path` and filters full paths from `sourceFiles(SRC)`, and a
+  further test asserts every exemption path was actually found — so a bare
+  string fails both. The plan's prose said "matching the existing entries'
+  shape", which was right.
+- **No `boxSizing: 'border-box'` in the recipe base** (R10), while combining
+  `inlineSize: '100%'` with non-zero `paddingInline` and a border. There is no
+  global box-sizing reset anywhere in `packages/react/src/theme`, so in the
+  default content-box model that renders wider than its container — a visible
+  overflow bug in the ordinary bounded-width form case. The plan's own Step 1
+  named deviation from `Input.css.ts` as a review finding, and `Input.css.ts:22`
+  sets `boxSizing` explicitly.
+- **Hardcoded `outline: '2px solid …'` with `outlineOffset: '1px'`** (R11). The
+  system's real values are width 2px and offset 2px, so the literal already
+  diverged, and neither literal would follow a retint of the focus-ring tokens.
+- **A synchronous arrow-key assertion** (R14). Base UI's composite root defers
+  the focus move to `queueMicrotask`
+  (`internals/composite/root/useCompositeRoot.js:195`) and selection follows
+  focus, so the plan's test read the DOM one microtask too early and could not
+  pass at all. It had to become `await waitFor`.
+
+Every one of these was caught, so the branch is not carrying them. But look at
+the pattern: in **every** case the plan's surrounding prose stated the correct
+rule, and the embedded literal contradicted it. The prose said "borrow Input's
+roles"; the code named a different token. The prose said "matching the existing
+entries' shape"; the code didn't match it. The prose said "deviating from
+`Input.css.ts` is a review finding"; the code deviated.
+
+**For the six remaining plans in this phase: state the rule and cite the
+precedent file. Do not embed long literal code that has never been typechecked
+or run.** A brief with complete code is treated by this repo as the authority,
+which means wrong code costs an implementer's round trip and a reviewer's seat
+every time. A rule plus a pointer costs neither and is harder to get wrong,
+because it cannot silently disagree with itself.
+
+### The verification plan was not a superset of CI, and that was this branch's Critical
+
+`test:hydration` (`npm --prefix fixtures/ssr-app run test:e2e`) appears **zero
+times** in Task 8's sweep list. Neither does `npm --prefix fixtures/ssr-app run
+typecheck`. Both are steps in `ci.yml`'s `ssr` job.
+
+Task 6 edited `fixtures/ssr-app/app/routes/form.tsx` — the exact route
+`fixtures/ssr-app/e2e/progressive-enhancement.spec.ts` exercises — and added a
+`RadioGroup` option labelled `'Email'` to a form whose e2e spec located the
+email field with `page.getByLabel('Email')`. `getByLabel` is a
+case-insensitive **substring** match and Playwright treats every `<input>`
+whose `type !== 'hidden'` as labelable, including the visually hidden
+`<input type="radio">` that `Radio.Root` renders inside our option `<label>`.
+Two matches, and strict mode fails both `expect(locator)` and `fill()`.
+Reproduced in isolation with this repo's own Playwright: `getByLabel('Email')`
+count 2, `getByRole('textbox', { name: 'Email' })` count 1.
+
+So the branch reached the end of its plan with every task review clean, the
+full documented sweep green, and one CI job that could not pass. Nothing in the
+process was capable of noticing, because the process's definition of "green"
+came from the plan rather than from CI.
+
+**Two rules for the remaining plans.** First, derive Task 8's command list
+mechanically from `ci.yml` rather than writing it by hand — every job, every
+step, in order. Second, any task that touches a fixture must list that
+fixture's own e2e suite in its own verification block, not defer it to a final
+sweep, because the sweep is where an omission is invisible.
+
+### Per-component token enumerations were treated as binding, and were mutually inconsistent
+
+The plan enumerated token roles per component: seven for Checkbox, five for
+Switch. Both enumerations were treated as binding by their implementers, which
+is the correct reading of a brief that names a list. The two lists disagreed
+about the same underlying question, and both consequences shipped:
+
+- Checkbox's implementer added `borderHover` and `borderInvalid` beyond the
+  seven, following `Input.tokens.ts`, and flagged it. The reviewer agreed the
+  additions were justified.
+- Switch's implementer did **not** add a hover role, because the brief's list
+  of five named none — and the reviewer sided with them on exactly that
+  reasoning: the enumeration is itself binding, and adding a sixth token to
+  enable a hover rule would violate it. Switch also therefore has no
+  `[data-invalid]` rule, alone among the four, which its `Invalid` story now
+  documents in a comment.
+
+Neither implementer nor reviewer did anything wrong. The plan asked two
+components the same question and gave them different answers.
+
+**For the remaining plans: define the shared control-state token contract once,
+in §4.1, and have each component reference it.** A per-component enumeration is
+a place for the same decision to be made twice, differently.
+
+### The label row was never specified at all
+
+The plan said "wrap in a `<label>` so the text is clickable" for both Checkbox
+and Switch. It said nothing about gap, alignment or typography — so both
+shipped a bare `<label>`: an `inline-flex` control abutting its own text with
+zero gap, baseline-aligned, at whatever type size it inherited, sitting beside
+`Field` labels at `text.sm` in the same form. There is no global label rule in
+`packages/react/src/theme` to fall back on.
+
+`RadioGroup`, whose brief said nothing about it either, got a full row
+treatment — `display: flex`, `align-items: flex-start`, a gap token, and a text
+role mirroring `FIELD_TOKENS.label*` — because its implementer worked it out.
+Its comment even records that it was looking at Checkbox and Switch while doing
+so. One of three implementers filling a gap is not a specification.
+
+Fixed in the fix wave, with the values deliberately shared across all three so
+a form mixing them lines up. **A component that renders more than the control
+itself needs its surrounding layout specified**, or you get three answers.
+
+### Two more things the plan said that were not true
+
+**Verification row 10** claims Enter-in-a-textarea not submitting is the payoff
+of Base UI gating Enter-to-commit on `tagName === 'INPUT'`. Those are two
+different mechanisms. The gate decides whether Enter runs
+`validation.commit`; that handler never calls `preventDefault` and never
+suppresses a submission. A `<textarea>` does not submit on Enter because of
+native HTML implicit-submission semantics, which never apply to a textarea.
+The conflation propagated from the plan into `Textarea.stories.tsx`'s comment,
+was caught as a Task 5 minor, and both are now corrected.
+
+**`size` was never required to be asserted anywhere.** Three of the four
+components shipped with an entirely untested variant prop, including
+`RadioGroup`, where `size` is a group-level prop the convenience component
+*maps onto every option* — a mapping that could have silently reverted to each
+option's default with every other test in the file still passing. All four are
+now asserted against their recipes' own output, differentially.
+
+### The unfalsifiable-assertion class, four times
+
+This branch kept writing assertions that could not fail. It also kept catching
+them, which is the encouraging half:
+
+1. Task 2's SSR test asserted `toContain('checked')` against the whole
+   document. The attribute *name* `aria-checked` contains the substring, and it
+   renders unconditionally — so the assertion was satisfied with no
+   `defaultChecked` at all. Found by Task 2's review; fixed by scoping to the
+   `<input …>` tag and adding the zero case.
+2. Task 6's gate test carried a comment claiming its POST body was "anchored"
+   to the markup its first phase extracted. It was not: the two were
+   independent literals that happened to match. Found by Task 6's review, and
+   fixed by genuinely coupling them (R18) rather than softening the comment —
+   a real browser serialises what the server rendered, so building the post
+   from the extracted markup is the more faithful model, and it closes the drift
+   hazard. The literal assertions stay in phase 1, which is what keeps it
+   non-circular.
+3. `expect(textareaMatch, '…').toBeDefined()` on a `RegExp.exec` result.
+   `exec` returns **`null`**, which satisfies `toBeDefined()`, so the guard was
+   dead and a missing textarea would have died on the following non-null
+   assertion with no message. Found by the whole-branch review. Now
+   `.not.toBeNull()`. The neighbouring `find()`-based guards are correct,
+   because `find` returns `undefined` — the two are one line apart and behave
+   differently, which is exactly why this one slipped.
+4. `expect(...).not.toBe('mixed')` one line after asserting the same value IS
+   `'true'`, in both `Switch.test.tsx` and `Switch.stories.tsx`. Cannot fail.
+   The claim it reached for is a claim about the prop surface, so it is now a
+   compile-time test that `Switch` has no `indeterminate` prop, plus a real
+   round-trip toggle in the story.
+
+Three of these four are the same shape: an assertion written to express a
+belief, in a form that cannot test the belief. Reviews caught all four, which
+is the process working — but the cheapest fix is at authoring time. **When
+writing an assertion, name the perturbation that makes it fail.** If you
+cannot, it is decoration.
+
+### Deviations from the plan, and why
+
+- **R13 — indeterminate is a CSS bar, not a `minus` icon.** The plan offered
+  either. The icon route touches `icons/paths.ts` and the hardcoded five-name
+  list at `Icon.test.tsx:38`, both outside Task 2's declared file set, and the
+  second would have silently stopped covering the registry. Verified alongside
+  it: `CheckboxIndicator.js:31` mounts the indicator on `checked ||
+  indeterminate`, so the check glyph must be suppressed under the
+  indeterminate state or an indeterminate box shows a tick.
+- **R15 — `Fieldset.Root`, `Fieldset.Legend` and `Field.Root` live in
+  `RadioGroupParts.tsx`, not in the convenience component** as Step 5 implied.
+  `FieldItem.js:33` calls `useFieldRootContext(false)`, which *throws* when no
+  `Field.Root` ancestor exists. With the scaffold only in `RadioGroup.tsx`, the
+  documented escape hatch — `RadioGroup.Root` + `RadioGroup.Item`, which
+  ADR-0011 §2 requires to work — would have thrown on render.
+- **R16 — the legend's id is generated with `useId` and passed to both ends of
+  the association**, rather than left to Base UI. Base UI registers it from a
+  layout effect, so with the registration left alone the group's
+  `aria-labelledby` is absent from server HTML entirely and appears only after
+  hydration. **My stated reason for this was wrong, and a reviewer corrected
+  it.** I wrote that it protected the no-JavaScript user gate 6 exists for. It
+  does not: each option's own name is also assigned from a layout effect
+  (`useAriaLabelledBy`), and the operable control is a `role="radio"` span
+  whose real input is `aria-hidden`, `tabIndex: -1` and visually hidden
+  (`RadioRoot.js:155-165`). With JavaScript off the options are unnamed and
+  unoperable either way. What it actually buys is a named *group* for a screen
+  reader reading streamed or pre-hydration markup, plus parity with
+  `Field` + `Input`. The code stands; the narrow rationale is what is written
+  down in three places now.
+- **R18 — Task 6's POST test derives its body from the markup phase 1
+  extracts.** See the assertion section above.
+- **R6/R12/R19 — process shape.** `test:guards` per task with the full
+  `test:gates` superset once in Task 8 (which cost nothing: every
+  token/contrast/gamut/sweep/contract/freshness/font/motion gate passed first
+  time). Hover guarded as `:hover:not([data-disabled])` from Task 2 onward, so
+  one cosmetic divergence in Task 1 did not become the house pattern — the fix
+  wave closed Task 1 itself. No task-scoped review for the verification-only
+  Task 8.
+- **R7 — Task 8's push and pull request were withheld** pending a human
+  decision, and still are.
+
+### The R16 correction and the R20 correction were both mine
+
+Two of this branch's findings contradicted things I authored, and both times
+the person asked to act on them was right.
+
+R16's overclaim is above. **R20 is worse, because it reached the permanent
+documentation.** I wrote, and instructed Task 7 to write, that a label-click
+toggles a read-only Checkbox pre-hydration "because the attribute that would
+have refused the edit was never rendered on the input". Per the HTML Living
+Standard, `readonly` applies only to the text-like input types and is **inert**
+on `type="checkbox"` and `type="radio"`. This branch's own component set proves
+it: `RadioRoot.js:170` *does* pass `readOnly` into `inputProps`, and a radio is
+still fully mutable by label-click before hydration. So the clause was a
+counterfactual that would have refused nothing, and it pointed the next
+contributor at a fix — get Base UI to emit `readOnly` — that cannot work.
+
+The corrected version is strictly stronger and supports the no-`loading`
+decision better: **no HTML attribute can make these controls read-only before
+hydration.** Only `disabled` stops a pre-hydration edit, and it drops the field
+from form submission — exactly the trade ADR-0011 §6.5 refuses. There is no
+third option to find.
+
+Both corrections have the same shape: I verified a *mechanism* in source and
+then wrote a *consequence* I had not verified. **Check the consequence
+separately from the mechanism, especially when the consequence is the sentence
+someone will act on.**
+
+### R17 overruled by R21: a per-task deferral the whole-branch seat had to reverse
+
+Task 4's review found that `RadioGroup`'s `data-invalid` was styled
+(`RadioGroup.css.ts:175-177`) and tokenised (`borderInvalid`) but unreachable:
+`invalid` lives on the `Field.Root` that R15 made internal, and that root
+shadows any outer one a consumer supplies. R17 deferred it and dropped
+`RadioGroup`'s `Invalid` story, correctly, because giving the state a route is
+a public API change and that was Task 4's scope, not Task 5's.
+
+The end state R17 left, though, was an exported token and a live style rule
+that no consumer could ever reach, in the one compound component of the four,
+while the other three all express invalidity. R21 overruled it: one
+conditionally-spread `invalid?: boolean` closes the dead token, the missing
+axe-scanned story, the missing assertion and Task 4's deferred minor at once.
+
+This is the clearest case on the branch for the whole-branch seat reversing a
+per-task deferral, and it is worth naming as a *category*: a correct
+task-scoped deferral can still leave an incorrect end state, and only a seat
+reading the whole branch is positioned to see it. Task-scoped reviews should
+keep deferring these; the final review has to actually triage them rather than
+ratify them.
+
+### What the fix wave changed
+
+C1 (the `getByLabel` collision, fixed from both ends — the spec now locates by
+role plus accessible name, and the fixture's option copy no longer collides);
+the Checkbox/Switch label rows plus their prop-to-element contract, which had
+the same defect commit `0ab9b90` fixed for `RadioGroupItem` — `className`,
+`style` and `ref` reached the inner control while the `<label>` carrying the
+layout was unreachable; `RadioGroup`'s `invalid` passthrough with its story and
+assertions; the read-only trap correction; Textarea's unguarded hover and
+`not-allowed` cursor; ref-forwarding, label-click, `size` and className-merge
+tests across the four; and the two dead assertions.
+
+### What is still open
+
+Six items were triaged to follow-up tickets and nine were dropped, both
+deliberately and both left untouched by the fix wave: the indeterminate-click
+test that would pin glyph/`aria-checked` sync in the suite rather than by source
+inspection; `CheckboxProps` still exposing Base UI's `parent`/checkbox-group
+props, which would change `computedIndeterminate` if a `CheckboxGroup` ever
+lands; the disabled-affordance contrast question; the asymmetric
+`aria-labelledby` override across the fieldset and the group; a disabled radio
+option dimming only its control while its text and hint stay at full contrast;
+and the unprefixed `useId` for the legend. The `<fieldset>`/`role="radiogroup"`
+double accessible name was examined and deliberately **not** changed: Base UI's
+`FieldsetRoot` names the fieldset from the legend itself, so both ending up
+with the same name is its own composition behaviour, and dropping the attribute
+would desynchronise server and client markup.
+
+Task 8's push and pull request remain withheld pending human approval.
