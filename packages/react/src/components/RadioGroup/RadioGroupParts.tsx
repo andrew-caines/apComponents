@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useId, type Ref } from 'react'
+import { forwardRef, useId, type CSSProperties, type Ref } from 'react'
 import { Field as BaseField } from '@base-ui/react/field'
 import { Fieldset as BaseFieldset } from '@base-ui/react/fieldset'
 import { Radio as BaseRadio } from '@base-ui/react/radio'
@@ -96,9 +96,20 @@ function merge(recipeClass: string, className: string | undefined): string {
  * server-rendered HTML entirely and only appears after hydration — a radio
  * group with NO accessible name at all until then. `Field` + `Input` has no
  * such gap (its control id comes from the labelable provider's initial state,
- * so `for`/`id` are both in the server markup), so accepting one here would
- * make a radio group the one labelled control in the library whose name a
- * no-JS or pre-hydration reader does not get.
+ * so `for`/`id` are both in the server markup), and accepting one here would
+ * make a radio group the one labelled control in the library whose GROUP name
+ * is missing from the server markup.
+ *
+ * Be precise about what that buys, because the broader claim is wrong: this is
+ * NOT a no-JavaScript fix. Each option's own name is still assigned after
+ * hydration — `useAriaLabelledBy` writes the wrapping `<label>`'s id from a
+ * layout effect (`internals/labelable-provider/useAriaLabelledBy.js`) — and
+ * the operable control is a `role="radio"` span, since the real `<input>` is
+ * `aria-hidden`, `tabIndex: -1` and visually hidden (`radio/root/RadioRoot.js`,
+ * `inputProps`). With JavaScript off the options are unnamed and unoperable
+ * either way. What this DOES buy is a named group for assistive technology
+ * reading streamed or not-yet-hydrated markup, and parity with `Field` +
+ * `Input`, whose label association is already in the server HTML.
  *
  * There is exactly ONE id, used at both ends, and it is the same value Base UI
  * itself resolves to afterwards: `useBaseUiId(idOverride)` returns the override
@@ -107,20 +118,61 @@ function merge(recipeClass: string, className: string | undefined): string {
  * all agree — nothing to conflict, and no hydration mismatch.
  */
 export interface RadioGroupRootProps
-  extends Omit<BaseRadioGroupProps<string>, 'className' | 'render'> {
+  extends Omit<BaseRadioGroupProps<string>, 'className' | 'render' | 'style'> {
   /** The group's visible label. Required — an unlabelled group is a defect. */
   label: string
   className?: string
+  /**
+   * Narrowed to a plain style object. Base UI also accepts a
+   * `(state) => CSSProperties` callback here, but this part renders TWO
+   * elements and a callback typed against the radio group's state could only
+   * ever be evaluated for one of them — so the callback form is dropped rather
+   * than silently applied to whichever element won. `className` is narrowed to
+   * `string` for the same reason, as it is on every part in `FieldParts.tsx`.
+   */
+  style?: CSSProperties
 }
 
 /**
- * `className` and `ref` both address the element this part renders at its root
- * — the `<fieldset>` — so the two never disagree about which box they mean.
- * The elements inside it (the legend, the `Field.Root` scope, the
- * `role="radiogroup"` div) are this part's internal composition.
+ * This part renders two boxes a caller could plausibly mean — the outer
+ * `<fieldset>` and the inner `role="radiogroup"` div — so the split between
+ * them is stated here in full, and pinned by `RadioGroupParts.test.tsx`'s
+ * "props land on the elements these parts document" test:
+ *
+ *  - **`className`, `style` and `ref` address the `<fieldset>`.** It is the
+ *    element this part renders at its root and the one carrying the layout, so
+ *    the three presentation/identity props a caller reaches for never disagree
+ *    about which box they mean. (An earlier revision left `style` in the spread
+ *    to the inner group, which put a caller's margin on a different element
+ *    from their class. That is the specific incoherence this comment and that
+ *    test exist to prevent.)
+ *  - **Every other prop addresses the inner group.** Those are Base UI's radio
+ *    group props (`name`, `value`/`defaultValue`, `onValueChange`, `disabled`,
+ *    `readOnly`, `required`, `form`, `inputRef`) and the remaining DOM
+ *    passthrough — `id`, `data-*`, `aria-*`, event handlers — which travel with
+ *    them so there is no hand-maintained list of prop names here to drift out
+ *    of step with Base UI's own type.
+ *
+ * Two of those are deliberate rather than incidental, and would be wrong on the
+ * fieldset:
+ *
+ *  - `id` must stay on the group. Base UI passes it to
+ *    `useRegisterFieldControl` (`radio-group/RadioGroup.js`), so it is the
+ *    identity a surrounding `Field` registers this control under, not a styling
+ *    hook.
+ *  - `aria-labelledby` must stay on the group, because the group is the element
+ *    with `role="radiogroup"` and therefore the one whose accessible name a
+ *    caller would be overriding.
+ *
+ * A handler passed here still sees every event this component can raise even
+ * though it sits on the inner element: all of them originate at or below the
+ * group, and React's synthetic `onFocus`/`onBlur` bubble too.
+ *
+ * The legend and the `Field.Root` scope take no caller props at all — they are
+ * this part's internal composition.
  */
 export const RadioGroupRoot = forwardRef<HTMLFieldSetElement, RadioGroupRootProps>(
-  function RadioGroupRoot({ label, className, children, ...rest }, ref) {
+  function RadioGroupRoot({ label, className, style, children, ...rest }, ref) {
     // See the block comment above for why this id is ours rather than Base
     // UI's, and why that is not a second, conflicting ARIA wiring.
     const legendId = useId()
@@ -134,6 +186,12 @@ export const RadioGroupRoot = forwardRef<HTMLFieldSetElement, RadioGroupRootProp
         ref={ref as Ref<HTMLElement>}
         aria-labelledby={legendId}
         className={merge(radioGroupFieldsetClass, className)}
+        // Conditionally SPREAD, never `style={style}`. Base UI merges element
+        // props with `for...in` (`merge-props/mergeProps.mjs`), which visits a
+        // key whose value is `undefined` and lets it win, and under
+        // `exactOptionalPropertyTypes` an explicit `undefined` is not the same
+        // as an omitted prop either.
+        {...(style !== undefined ? { style } : {})}
       >
         <BaseFieldset.Legend id={legendId} className={radioGroupLegendClass}>
           {label}
@@ -178,7 +236,7 @@ export const RadioGroupRoot = forwardRef<HTMLFieldSetElement, RadioGroupRootProp
 export interface RadioGroupItemProps
   extends Omit<
     BaseRadioRootProps<string>,
-    'className' | 'render' | 'nativeButton' | 'children'
+    'className' | 'render' | 'style' | 'nativeButton' | 'children'
   > {
   /**
    * The option's visible, clickable label — and the source of this radio's
@@ -197,16 +255,24 @@ export interface RadioGroupItemProps
   /** Size of the control. Defaults to `md`. */
   size?: 'sm' | 'md' | 'lg'
   className?: string
+  /** Narrowed to a plain style object — see `RadioGroupRootProps.style`. */
+  style?: CSSProperties
 }
 
 /**
- * `className` and `ref` both address the element this part renders at its root
- * — the `Field.Item` div — matching `RadioGroupRoot`. The hidden `<input>` is
- * still reachable through Base UI's own `inputRef` prop, which this part
- * forwards untouched.
+ * The same split as `RadioGroupRoot`, for the same reason: `className`, `style`
+ * and `ref` address the element this part renders at its root — the
+ * `Field.Item` div, which holds the option's row and its hint — and every other
+ * prop addresses the wrapped `Radio.Root` (`value`, `disabled`, `required`,
+ * `readOnly`, `inputRef`, plus `id`, `data-*`, `aria-*` and event handlers).
+ * `id` in particular belongs on `Radio.Root`, which feeds it to
+ * `useLabelableId` as the hidden input's id override.
+ *
+ * The hidden `<input>` stays reachable through Base UI's own `inputRef`, which
+ * this part forwards untouched.
  */
 export const RadioGroupItem = forwardRef<HTMLDivElement, RadioGroupItemProps>(
-  function RadioGroupItem({ label, hint, size = 'md', className, ...rest }, ref) {
+  function RadioGroupItem({ label, hint, size = 'md', className, style, ...rest }, ref) {
     return (
       /*
         The `Field.Item` wrapper is LOAD-BEARING, not decorative — do not
@@ -223,7 +289,12 @@ export const RadioGroupItem = forwardRef<HTMLDivElement, RadioGroupItemProps>(
         `RadioGroup.test.tsx`'s distinct-ids test is the assertion that
         catches its removal.
       */
-      <BaseField.Item ref={ref} className={merge(radioGroupItemClass, className)}>
+      <BaseField.Item
+        ref={ref}
+        className={merge(radioGroupItemClass, className)}
+        // Conditionally spread — see the note on `RadioGroupRoot`'s `style`.
+        {...(style !== undefined ? { style } : {})}
+      >
         {/*
           A wrapping `<label>`, not a `Field.Label`: `Radio.Root`'s
           `useAriaLabelledBy` looks for a `<label>` that is the hidden input's

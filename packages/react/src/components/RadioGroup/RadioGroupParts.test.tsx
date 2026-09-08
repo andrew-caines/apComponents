@@ -190,6 +190,90 @@ describe('RadioGroup parts', () => {
   })
 
   /**
+   * Each part renders more than one element, so "which box does this prop land
+   * on" is a real question with a real wrong answer — and the wrong answer was
+   * in this file's first revision, where `className` went to the `<fieldset>`
+   * while `style` travelled off to the inner `role="radiogroup"` div with the
+   * rest of the spread. A caller's class and their margin then sat on
+   * different boxes. Nothing caught it, because a className-merge test only
+   * ever looks at className.
+   *
+   * So both halves of the documented split are asserted here, on both parts,
+   * and both DIFFERENTIALLY: the presentation props are on the part's root
+   * element AND not on the inner one, and the passthrough is on the inner
+   * element AND not on the root. A one-sided assertion would still pass if a
+   * prop were applied to both.
+   */
+  describe('props land on the elements these parts document', () => {
+    it('puts className, style and ref on the part root, and everything else on the wrapped Base UI element', () => {
+      const { container } = render(
+        <RadioGroupRoot
+          label="Contact"
+          name="contact"
+          className="root-mine"
+          style={{ marginBlockStart: '8px' }}
+          data-root-passthrough="group"
+        >
+          <RadioGroupItem
+            value="email"
+            label="Email"
+            className="item-mine"
+            style={{ opacity: '0.5' }}
+            data-item-passthrough="radio"
+          />
+        </RadioGroupRoot>,
+      )
+      const fieldset = container.querySelector('fieldset')!
+      const group = screen.getByRole('radiogroup')
+      const item = container.querySelector('.item-mine')!
+      const radio = screen.getByRole('radio', { name: 'Email' })
+
+      // Sanity: the four elements are genuinely four different elements, so
+      // none of the "and not on the other one" assertions below can pass by
+      // accidentally comparing an element with itself.
+      expect(new Set([fieldset, group, item, radio]).size).toBe(4)
+
+      // Root part: className + style on the fieldset, not on the group.
+      expect(fieldset.classList.contains('root-mine')).toBe(true)
+      expect(fieldset.style.marginBlockStart).toBe('8px')
+      expect(group.classList.contains('root-mine')).toBe(false)
+      expect(group.style.marginBlockStart).toBe('')
+      // Root part: the rest of the passthrough on the group, not the fieldset.
+      expect(group.getAttribute('data-root-passthrough')).toBe('group')
+      expect(fieldset.hasAttribute('data-root-passthrough')).toBe(false)
+
+      // Item part: className + style on the Field.Item div, not on the radio.
+      expect(item.tagName).toBe('DIV')
+      expect(item.contains(radio), 'the .item-mine element is not the option wrapper').toBe(true)
+      expect((item as HTMLElement).style.opacity).toBe('0.5')
+      expect(radio.classList.contains('item-mine')).toBe(false)
+      expect(radio.style.opacity).toBe('')
+      // Item part: the rest of the passthrough on the radio, not the wrapper.
+      expect(radio.getAttribute('data-item-passthrough')).toBe('radio')
+      expect(item.hasAttribute('data-item-passthrough')).toBe(false)
+    })
+
+    // `id` is the one passthrough prop with behaviour attached rather than
+    // just presence: Base UI feeds the group's `id` to
+    // `useRegisterFieldControl` (`radio-group/RadioGroup.js`) and the option's
+    // `id` to `useLabelableId` as the hidden input's id override. Both would be
+    // wrong on the outer box, so the split is pinned here too.
+    it('puts a caller id on the group and on the option control, not on the wrappers', () => {
+      const { container } = render(
+        <RadioGroupRoot label="Contact" name="contact" id="my-group">
+          <RadioGroupItem value="email" label="Email" id="my-option" />
+        </RadioGroupRoot>,
+      )
+      expect(screen.getByRole('radiogroup').id).toBe('my-group')
+      expect(container.querySelector('fieldset')!.id).toBe('')
+      // Radio.Root routes its `id` to the hidden input (implicit: false in
+      // `useLabelableId`), which is the element a `<label for>` would target
+      // and what the group registers.
+      expect(container.querySelector('input[type="radio"]')!.id).toBe('my-option')
+    })
+  })
+
+  /**
    * `RadioGroupRoot`'s ref travels through a `ref as Ref<HTMLElement>` cast —
    * Base UI types `Fieldset.Root`'s ref as `HTMLElement` while rendering a
    * real `<fieldset>`. A cast asserts something TypeScript cannot check, so
