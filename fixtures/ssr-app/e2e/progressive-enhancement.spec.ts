@@ -23,23 +23,37 @@ test('the form submits and the action runs with client JavaScript blocked', asyn
   // Guard the guard: if hydration DID happen, this test would be proving
   // nothing, so assert the marker root.tsx sets from its effect is absent.
   //
-  // Located by label, not `#email-input`, deliberately: Base UI's Field
-  // seeds the control's id from its own internal `useId()` on first render
-  // and only reconciles it to the caller's explicit `id` prop from a client
-  // effect (`useLabelableId`, @base-ui/react/internals/labelable-provider) —
-  // confirmed by fetching this route's raw SSR HTML directly, with no
+  // Located by ROLE + accessible name, not `#email-input`, deliberately: Base
+  // UI's Field seeds the control's id from its own internal `useId()` on first
+  // render and only reconciles it to the caller's explicit `id` prop from a
+  // client effect (`useLabelableId`, @base-ui/react/internals/labelable-provider)
+  // — confirmed by fetching this route's raw SSR HTML directly, with no
   // browser involved at all: the server markup carries a `base-ui-…`
   // generated id, never the literal `"email-input"`, until that effect runs
   // post-hydration. With client JS genuinely blocked that effect never
   // fires, so `#email-input` never matches. `for`/`id` association is still
   // real and still present pre-hydration (`Field.ssr.test.tsx` and the SSR
   // gate's `serves the form route...` test both assert exactly this
-  // pairing) — `getByLabel` is what resolves through it.
-  await expect(page.getByLabel('Email')).toBeVisible()
+  // pairing), and the accessible name resolves through it.
+  //
+  // `getByRole('textbox', { name })`, not `getByLabel('Email')`, and the
+  // difference is load-bearing rather than stylistic. `getByLabel` is a
+  // case-insensitive SUBSTRING match, and Playwright treats every `<input>`
+  // whose `type !== 'hidden'` as labelable — including the visually hidden
+  // `<input type="radio">` each `RadioGroup` option renders inside its own
+  // `<label>`. So the moment this route gained a radio option whose text
+  // merely CONTAINED "Email", `getByLabel('Email')` resolved to two elements
+  // and strict mode failed every assertion and `fill()` below. The role
+  // filter is still name-derived (the accessible name comes from the same
+  // `for`/`id` label association) but it cannot match a `role="radio"`
+  // element at all, so the whole class of collision is gone rather than
+  // dodged once. Prefer this form for any control in a form that also holds
+  // checkboxes, switches or radios.
+  await expect(page.getByRole('textbox', { name: 'Email' })).toBeVisible()
   const hydrated = await page.evaluate(() => document.documentElement.dataset['apHydrated'])
   expect(hydrated, 'client JS was not actually blocked — this test proves nothing').toBeUndefined()
 
-  await page.getByLabel('Email').fill('a@b.c')
+  await page.getByRole('textbox', { name: 'Email' }).fill('a@b.c')
   await page.locator('button[type="submit"]').click()
 
   await expect(page.locator('#submitted')).toHaveText('received: a@b.c')
@@ -54,9 +68,10 @@ test('a server-side validation error renders with an icon, not colour alone', as
   // green while proving nothing about the JS-free path.
   const hydrated = await page.evaluate(() => document.documentElement.dataset['apHydrated'])
   expect(hydrated, 'client JS was not actually blocked — this test proves nothing').toBeUndefined()
-  // See the id/label note in the first test above — `#email-input` does not
-  // exist in server-only markup, so this fills by label the same way.
-  await page.getByLabel('Email').fill('not-an-email')
+  // See the id/name note in the first test above — `#email-input` does not
+  // exist in server-only markup, so this fills by role + accessible name the
+  // same way, for the same two reasons.
+  await page.getByRole('textbox', { name: 'Email' }).fill('not-an-email')
   await page.locator('button[type="submit"]').click()
 
   const errorText = page.getByText('That is not an email address.')

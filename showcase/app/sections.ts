@@ -57,4 +57,10 @@ export const SECTIONS: readonly Section[] = [
     file: 'routes/dialog.tsx',
     blurb: 'Modal surfaces: sizes, the sheet layout, focus handling and motion.',
   },
+  {
+    slug: 'form-controls',
+    title: 'Form controls',
+    file: 'routes/form-controls.tsx',
+    blurb: 'Textarea, Checkbox, Switch and RadioGroup — sizes, defaults and indeterminate.',
+  },
 ]

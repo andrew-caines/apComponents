@@ -38,6 +38,19 @@ export type {
   FieldDescriptionProps,
   FieldErrorProps,
 } from './components/Field/index.js'
+export { Textarea, TEXTAREA_TOKENS } from './components/Textarea/index.js'
+export type { TextareaProps } from './components/Textarea/index.js'
+export { Checkbox, CHECKBOX_TOKENS } from './components/Checkbox/index.js'
+export type { CheckboxProps } from './components/Checkbox/index.js'
+export { Switch, SWITCH_TOKENS } from './components/Switch/index.js'
+export type { SwitchProps } from './components/Switch/index.js'
+export { RadioGroup, RADIO_GROUP_TOKENS } from './components/RadioGroup/index.js'
+export type {
+  RadioGroupProps,
+  RadioGroupOption,
+  RadioGroupRootProps,
+  RadioGroupItemProps,
+} from './components/RadioGroup/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,

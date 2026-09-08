@@ -195,6 +195,47 @@ same file set plus one split, and the split is the point:
   `Input` renders a bare `<input>` with no adornment and a positioned wrapper with
   one, so adding the feature moved nothing a consumer already styles or queries.
   `Input.test.tsx` asserts both shapes.
+- Every new `*.tokens.ts` must be added to `TS_EXEMPTIONS` in
+  `packages/react/src/gates/use-client.gate.test.ts` — a `.tokens.ts` module is
+  pure data with nothing to hydrate, but the gate does not know that unless
+  told. The entry must use the `join(SRC, 'components', '<Name>',
+  '<Name>.tokens.ts')` form; a bare relative-path string matches nothing,
+  because the gate builds a `Set` from `e.path` and filters full paths out of
+  `sourceFiles(SRC)`. A further test in the same file asserts every exemption
+  path resolves with `existsSync`, so a stale or misspelled entry fails loudly
+  rather than silently under-covering.
+- There is no jest-dom in this repo. `@testing-library/jest-dom` is not a
+  dependency and `vitest.setup.ts` imports no matchers, so `toHaveAttribute`
+  and its relatives do not exist — use plain DOM assertions
+  (`el.getAttribute('aria-checked')`, `el.disabled`) instead. `Input.test.tsx:139`
+  carries a comment saying so, and it is still easy to miss the first time.
+- Pseudo-element, pseudo-class and attribute-state rules go inside a
+  `selectors: { … }` block with `&`-prefixed keys, the way `Input.css.ts:31`
+  does — a bare `':hover'`-style key at the top level of a `@layer` block does
+  not typecheck.
+- A transition or animation duration is a token — `vars.duration.fast`, never
+  a literal — and that is not just style. `theme.css:418-425` redefines every
+  `--ap-duration-*` token to `1ms` under `prefers-reduced-motion: reduce`, so a
+  token-based duration is suppressed automatically with no media query of its
+  own; a hardcoded duration keeps animating for a user who asked the system
+  not to. `Switch`'s thumb transition (`Switch.css.ts`) is the worked example.
+- Scope an SSR assertion to the specific markup it means to check, not to the
+  whole response string. `expect(html).toContain('checked')` can never fail on
+  a `Checkbox` or `Switch`, because `aria-checked` renders unconditionally and
+  the attribute *name* itself contains the substring `checked`. Extract the
+  tag first, assert a full attribute value (`aria-checked="true"`), or assert
+  differentially between two renders. This produced a false-positive test
+  twice in Phase 5b, in `Checkbox.ssr.test.tsx` and `Switch.ssr.test.tsx`.
+- Set `boxSizing: 'border-box'` explicitly in every recipe's base layer, the
+  way `Input.css.ts:22`, `Surface.css.ts:10`, `Dialog.css.ts:46` and
+  `Button.css.ts:10` all do. There is no global box-sizing reset anywhere in
+  `packages/react/src/theme`, so a recipe that omits it inherits the
+  browser's `content-box` default. Nothing catches the omission — no gate in
+  `packages/react/src/gates/` or `packages/tokens/src/gates/` mentions
+  `boxSizing`, and no test fails — it shows up only as an element quietly
+  rendering wider than its container once padding or a border is added, so
+  copy it from `Input.css.ts` deliberately rather than trusting that you'll
+  notice its absence.
 
 - **A story file**, `<Name>.stories.tsx`, beside the component. Controls for
   every union prop, one story per meaningful state, and a grid story rather
@@ -626,6 +667,106 @@ further: `Field.Description` and `Field.Error` register their ids from a layout
 effect too, so the attribute is absent from the server response and appears
 after hydration. `ssr-render.gate.test.ts` asserts the label→control pairing
 against server markup and deliberately does not assert `aria-describedby`.
+
+## The read-only trap: `Checkbox`/`Switch` cannot refuse an edit before hydration
+
+**Base UI does not put `readOnly` on the hidden `<input>` of `Checkbox` or
+`Switch`.** `CheckboxRoot.js:189-203` builds `inputProps` with no `readOnly`
+key at all, and `SwitchRoot.js`'s equivalent object (`:149-161`) is the same.
+Read-only is enforced only inside handlers — `CheckboxRoot.js`'s `onChange`
+guard at `:209-212` and its `onClick` guard at `:328`, `SwitchRoot.js` at
+`:167` and `:138` respectively — each an `if (readOnly) { event.preventDefault(); return }`.
+`aria-readonly` lands on the visible `<span role="checkbox">`/`<span
+role="switch">`, not on the input (`CheckboxRoot.js:269`, `SwitchRoot.js:118`).
+
+Read as "enforced client-side only," that much is correct, but it understates
+who can actually reach the input. The hidden input is `tabIndex: -1`,
+`aria-hidden: true`, and styled with `visuallyHiddenInput`
+(`@base-ui/utils/visuallyHidden.js` — `position: absolute`, a 1px square,
+`clipPath: inset(50%)`), so nothing about the input itself is reachable by
+tab or click before hydration, and the visible `<span>` does nothing without
+JavaScript either. "A read-only checkbox is fully toggleable pre-hydration"
+overstates it — through the input or the span, nothing is operable yet.
+
+The mutation path that genuinely is open is the **wrapping `<label>`.**
+`Checkbox.tsx` and `Switch.tsx` both wrap the control and its visible text in
+a `<label>`, and native label-to-input click forwarding is a browser
+behaviour: it needs no JavaScript, and it ignores `aria-hidden` and
+`tabIndex: -1` on the input it targets. So before hydration, clicking the
+label text toggles the input and posts the new value even when `readOnly` is
+set — the handler that would have called `preventDefault` does not exist yet.
+
+**And getting Base UI to render `readOnly` would not close that path, so do
+not reach for it as the fix.** Per the HTML Living Standard, the `readonly`
+attribute applies only to the text-like input types; on `type="checkbox"` and
+`type="radio"` it is **inert**. Base UI's own component set demonstrates this
+directly: `RadioRoot.js:170` *does* pass `readOnly` straight into
+`inputProps`, and a radio option is still fully mutable by label-click before
+hydration. The missing attribute on Checkbox and Switch is a cosmetic
+inconsistency between three sibling components, not the cause of anything.
+
+The real conclusion is stronger, and it is what makes the API decision below
+inevitable rather than merely cautious: **no HTML attribute can make these
+controls read-only before hydration.** The only attribute that stops a
+pre-hydration edit is `disabled`, and a disabled control is dropped from form
+submission entirely — which is exactly the trade
+[ADR-0011 §6.5](adr/0011-component-api-conventions.md) refuses. There is no
+third option to find.
+
+So ADR-0011 §6.5's guarantee — a pending control stays submittable and
+refuses edits — **does not hold for `Checkbox` and `Switch` pre-hydration**,
+and cannot be made to. That is why neither has a `loading` prop.
+`Switch.tsx` carries a short doc-comment version of this above the component;
+the mechanism above is the full version, and the line numbers are what to
+re-check the next time Base UI is upgraded.
+
+It is worth naming the tension this creates with what gate 6 actually proves
+for these two controls: gate 6's guarantee is that their *default* value
+posts without JavaScript, not that a no-JS user can operate them — the
+operable element is the `<span>`, and it does nothing pre-hydration. The
+label-forwarding path above is the one exception to that: it is the one way a
+no-JS user can change the value at all, and there is no attribute that can
+stop them without also dropping the field from the post.
+
+## The `Field.Item` id-collision rule
+
+Without one `Field.Item` per option, every control inside a single
+`Field.Root` resolves to the same generated id. The id comes from a
+`LabelableProvider`, and `FieldItem.js:48` wraps each item's children in a
+**fresh** one — that is what gives each option its own id scope instead of
+inheriting the root's single one. Skip the wrapper and every option's hidden
+input gets the same `base-ui-…` id: duplicate DOM ids across the whole group.
+
+The wrapper looks redundant — a `<div>` around each option, adding no visible
+markup — and it is not. `RadioGroup.test.tsx`'s `'gives every option a
+distinct id, which one Field.Item per option is what buys'` is the test that
+catches its removal: it asserts `new Set(ids).size` is `3` for three options,
+and fails with `expected 1 to be 3` the moment `Field.Item` is swapped for a
+plain `<div>` — the perturbation this was actually verified against.
+
+## Nesting a `RadioGroup` inside a consumer's own `Field.Root` is silently shadowed
+
+`RadioGroup` mounts its own internal `Field.Root` — it has to, since
+`Field.Item` and `Field.Description` throw "FieldRootContext is missing" with
+no ancestor `Field.Root`, and `RadioGroup`'s parts have to work standalone.
+`FieldRoot.js:147` provides the field context and `:161` provides a
+`LabelableProvider`, both fresh at whichever `Field.Root` is nearest — so an
+inner root **shadows** an outer one entirely; it does not merge with it.
+
+Consequence for a consumer who writes `<Field.Root name="contact">
+<RadioGroup name="contact" ... /></Field.Root>`: the outer `name` is ignored
+(the group posts under its own `name` prop instead), an outer `Field.Label`
+does not name the group, and an outer `Field.Error` never sees the group's
+validity. Base UI exports no hook to detect an ancestor `Field.Root`, so
+there is no clean fix from inside `RadioGroup` — which is exactly why this
+needs writing down rather than coded around.
+
+Validity is the one part of this that *is* fixed rather than documented:
+`RadioGroupRootProps` takes an `invalid?: boolean` that is forwarded to the
+internal root, because the alternative was a styled `[data-invalid]` rule and
+an exported `RADIO_GROUP_TOKENS.borderInvalid` that no consumer could reach at
+all. `name`, an outer `Field.Label` and an outer `Field.Error` have no such
+passthrough, and shadowing is the whole story for those three.
 
 ## `@base-ui/react` left external in an SSR build loads a second React
 

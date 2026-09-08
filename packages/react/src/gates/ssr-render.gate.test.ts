@@ -271,6 +271,112 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     const escapedLabelFor = labelFor!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${escapedLabelFor}"`))
   })
+
+  it('posts the server-rendered DEFAULT values of Textarea, Checkbox, Switch and RadioGroup through to the action, with no JavaScript involved', async () => {
+    // Phase 1: pin the expected defaults against the REAL server markup,
+    // with literal assertions — this is what makes the whole test non-
+    // circular. Without these, phase 2 below could post whatever the markup
+    // happens to contain today and the test would still pass even if that
+    // stopped being the INTENDED default (e.g. someone edits the fixture's
+    // `defaultValue` text without meaning to).
+    const html = await (await fetchAsBrowser(`${base}/form`)).text()
+
+    // Textarea is a real <textarea>: its default is its own text content,
+    // not a `value` attribute. Captured, not just matched, because phase 2
+    // reuses this exact string rather than retyping it.
+    const textareaMatch = /<textarea[^>]*\sname="message"[^>]*>([^<]*)<\/textarea>/.exec(html)
+    // `.not.toBeNull()`, NOT `.toBeDefined()`: `RegExp.exec` returns `null` on
+    // no match, and `null` satisfies `toBeDefined()` — so the guard was dead
+    // and a missing textarea would have died one line later on the non-null
+    // assertion instead, with no message. The `find()`-based guards below are
+    // correct as written, because `find` returns `undefined`.
+    expect(textareaMatch, 'no <textarea name="message"> in server HTML').not.toBeNull()
+    const messageValue = textareaMatch![1]!
+    expect(messageValue).toBe('Tell us more about your request.')
+
+    // Checkbox, Switch and RadioGroup: scoped to each hidden <input> tag
+    // specifically, and requiring `checked` — `name`/`value`/`checked` are
+    // all substrings of attribute names Base UI renders unconditionally
+    // elsewhere in this document, so an unscoped substring match here could
+    // never fail (see the review notes in `RadioGroup.ssr.test.tsx` and
+    // `Switch.ssr.test.tsx`, and Task 2's finding).
+    const inputTags = html.match(/<input[^>]*>/g) ?? []
+    const subscribeTag = inputTags.find((t) => /\bname="subscribe"/.test(t))
+    const notificationsTag = inputTags.find((t) => /\bname="notifications"/.test(t))
+    const contactEmailTag = inputTags.find(
+      (t) => /\bname="contact"/.test(t) && /\bvalue="email"/.test(t),
+    )
+
+    expect(subscribeTag, 'no input named "subscribe" in server HTML').toBeDefined()
+    expect(subscribeTag).toMatch(/\bchecked=/)
+    const subscribeValue = /\bvalue="([^"]*)"/.exec(subscribeTag!)?.[1]!
+    expect(subscribeValue).toBe('yes')
+
+    expect(notificationsTag, 'no input named "notifications" in server HTML').toBeDefined()
+    expect(notificationsTag).toMatch(/\bchecked=/)
+    const notificationsValue = /\bvalue="([^"]*)"/.exec(notificationsTag!)?.[1]!
+    expect(notificationsValue).toBe('on')
+
+    expect(contactEmailTag, 'no input named "contact" with value="email" in server HTML').toBeDefined()
+    expect(contactEmailTag).toMatch(/\bchecked=/)
+    const contactValue = /\bvalue="([^"]*)"/.exec(contactEmailTag!)?.[1]!
+    expect(contactValue).toBe('email')
+
+    // Phase 2: POST exactly what phase 1 just extracted from the real
+    // markup — not retyped literals — which is a more faithful model of a
+    // JavaScript-blocked submission than hand-written values would be: a
+    // real browser serialises whatever the server actually rendered, not
+    // whatever a test author typed. `email` is the one literal here because
+    // it isn't one of the four controls this test covers (the existing
+    // "serves the form route..." test above already covers that field).
+    //
+    // This is gate 6's actual guarantee for these four controls: their
+    // SERVER-RENDERED DEFAULT VALUES reach the action without JavaScript. It
+    // does NOT prove a no-JS visitor could have CHANGED them — Checkbox's,
+    // Switch's and RadioGroup's operable element is a `role`-bearing `<span>`
+    // that does nothing without JS; the hidden `<input>` sibling that
+    // actually carries the value into the post is aria-hidden, tabIndex=-1
+    // and invisible. Textarea is the one exception: it is a real, editable
+    // `<textarea>`, so a no-JS user genuinely could have changed its value
+    // before this same post.
+    const body = new URLSearchParams({
+      email: 'person@example.com',
+      message: messageValue,
+      subscribe: subscribeValue,
+      notifications: notificationsValue,
+      contact: contactValue,
+    })
+    const res = await fetch(`${base}/form`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'user-agent': BROWSER_UA,
+      },
+      body: body.toString(),
+    })
+    expect(res.status).toBe(200)
+    const postHtml = await res.text()
+
+    // Scoped to the element carrying the given id, and asserting its EXACT
+    // text content — not a bare `toContain`, unsafe for the same reason as
+    // phase 1's tag-scoped matches above.
+    //
+    // React's SSR text renderer inserts an empty `<!-- -->` comment marker
+    // between static and dynamic text nodes (visible in the raw response:
+    // `received: <!-- -->person@example.com`) — stripped here before
+    // comparing, or every one of these would fail on that marker rather than
+    // on a real defect.
+    const textOf = (id: string): string | undefined => {
+      const raw = new RegExp(`id="${id}">([\\s\\S]*?)</`).exec(postHtml)?.[1]
+      return raw?.replace(/<!--\s*-->/g, '')
+    }
+
+    expect(textOf('submitted')).toBe('received: person@example.com')
+    expect(textOf('echo-message')).toBe(`message: ${messageValue}`)
+    expect(textOf('echo-subscribe')).toBe(`subscribe: ${subscribeValue}`)
+    expect(textOf('echo-notifications')).toBe(`notifications: ${notificationsValue}`)
+    expect(textOf('echo-contact')).toBe(`contact: ${contactValue}`)
+  })
 })
 
 describe(
