@@ -58,7 +58,9 @@ export default function FormRoute({
             the full trace). This id exists solely for the post-hydration
             test (`#email-input` after `apHydrated` is true) — every
             pre-hydration interaction in this fixture locates the control by
-            its label instead, precisely because this id isn't there yet.
+            its ACCESSIBLE NAME instead, precisely because this id isn't there
+            yet. That name is derived from this Field's label during render,
+            so it is in the server response.
           */}
           <Input name="email" type="email" id="email-input" />
         </Field>
@@ -109,8 +111,18 @@ export default function FormRoute({
           name="contact"
           defaultValue="email"
           options={[
-            { value: 'email', label: 'Email' },
-            { value: 'sms', label: 'Text message' },
+            // "By email", not "Email": the option's own <label> names the
+            // hidden radio input inside it, and Playwright's `getByLabel` is a
+            // case-insensitive SUBSTRING match that treats any non-hidden
+            // <input> as labelable. An option labelled "Email" therefore
+            // becomes a second match for a `getByLabel('Email')` aimed at the
+            // Field-wrapped email <input> above, and strict mode fails the
+            // whole spec. `e2e/progressive-enhancement.spec.ts` no longer
+            // locates that field by label at all, but the fixture keeps
+            // distinct copy too: two controls in one form sharing a name
+            // fragment is a trap for whoever writes the next locator.
+            { value: 'email', label: 'By email' },
+            { value: 'sms', label: 'By text message' },
           ]}
         />
 
