@@ -24,7 +24,11 @@ export const textareaRecipe = recipe({
         // everything under `selectors` keeps one consistent shape.
         selectors: {
           '&::placeholder': { color: t.placeholder },
-          '&:hover': { borderColor: t.borderHover },
+          // `:not([data-disabled])`-guarded, matching Input.css.ts:38 and every
+          // other control in this library: without the guard a DISABLED
+          // textarea still repaints its border on hover, advertising an
+          // interaction it will refuse.
+          '&:hover:not([data-disabled])': { borderColor: t.borderHover },
           // Longhand, matching Input.css.ts: `outline`, never `boxShadow` — an
           // outline survives forced-colors mode (Windows High Contrast), where
           // box-shadow is dropped entirely. The style-rules gate enforces this.
@@ -36,7 +40,10 @@ export const textareaRecipe = recipe({
           },
           // Base UI's own attributes. Never invent our own state hooks.
           '&[data-invalid]': { borderColor: t.borderInvalid },
-          '&[data-disabled]': { opacity: 0.6, cursor: 'not-allowed' },
+          // `default`, not `not-allowed` — Input, Checkbox, Switch and Radio all
+          // use `default` for their disabled state, and a control that reads
+          // as inert is better than one that flags itself as a barrier.
+          '&[data-disabled]': { opacity: 0.6, cursor: 'default' },
         },
       },
     },
