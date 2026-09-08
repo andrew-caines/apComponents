@@ -671,7 +671,7 @@ against server markup and deliberately does not assert `aria-describedby`.
 ## The read-only trap: `Checkbox`/`Switch` cannot refuse an edit before hydration
 
 **Base UI does not put `readOnly` on the hidden `<input>` of `Checkbox` or
-`Switch`.** `CheckboxRoot.js:189-202` builds `inputProps` with no `readOnly`
+`Switch`.** `CheckboxRoot.js:189-203` builds `inputProps` with no `readOnly`
 key at all, and `SwitchRoot.js`'s equivalent object (`:149-161`) is the same.
 Read-only is enforced only inside handlers — `CheckboxRoot.js`'s `onChange`
 guard at `:209-212` and its `onClick` guard at `:328`, `SwitchRoot.js` at
@@ -694,25 +694,39 @@ a `<label>`, and native label-to-input click forwarding is a browser
 behaviour: it needs no JavaScript, and it ignores `aria-hidden` and
 `tabIndex: -1` on the input it targets. So before hydration, clicking the
 label text toggles the input and posts the new value even when `readOnly` is
-set — the attribute that would have refused the edit was never rendered on
-the input, and the handler that would have called `preventDefault` does not
-exist yet.
+set — the handler that would have called `preventDefault` does not exist yet.
 
-[ADR-0011 §6.5](adr/0011-component-api-conventions.md)'s guarantee — a
-pending control stays submittable and refuses edits — **does not hold for
-`Checkbox` and `Switch` pre-hydration**, and that is why neither has a
-`loading` prop. `Switch.tsx` carries a short doc-comment version of this
-above the component; the mechanism above is the full version, and the line
-numbers are what to re-check the next time Base UI is upgraded.
+**And getting Base UI to render `readOnly` would not close that path, so do
+not reach for it as the fix.** Per the HTML Living Standard, the `readonly`
+attribute applies only to the text-like input types; on `type="checkbox"` and
+`type="radio"` it is **inert**. Base UI's own component set demonstrates this
+directly: `RadioRoot.js:170` *does* pass `readOnly` straight into
+`inputProps`, and a radio option is still fully mutable by label-click before
+hydration. The missing attribute on Checkbox and Switch is a cosmetic
+inconsistency between three sibling components, not the cause of anything.
+
+The real conclusion is stronger, and it is what makes the API decision below
+inevitable rather than merely cautious: **no HTML attribute can make these
+controls read-only before hydration.** The only attribute that stops a
+pre-hydration edit is `disabled`, and a disabled control is dropped from form
+submission entirely — which is exactly the trade
+[ADR-0011 §6.5](adr/0011-component-api-conventions.md) refuses. There is no
+third option to find.
+
+So ADR-0011 §6.5's guarantee — a pending control stays submittable and
+refuses edits — **does not hold for `Checkbox` and `Switch` pre-hydration**,
+and cannot be made to. That is why neither has a `loading` prop.
+`Switch.tsx` carries a short doc-comment version of this above the component;
+the mechanism above is the full version, and the line numbers are what to
+re-check the next time Base UI is upgraded.
 
 It is worth naming the tension this creates with what gate 6 actually proves
 for these two controls: gate 6's guarantee is that their *default* value
 posts without JavaScript, not that a no-JS user can operate them — the
 operable element is the `<span>`, and it does nothing pre-hydration. The
-label-forwarding path above is the one exception to that: it is the same
-missing attribute, read from two directions. It is the one way a no-JS user
-can change the value at all, and it is exactly why `readOnly` cannot stop
-them from doing it.
+label-forwarding path above is the one exception to that: it is the one way a
+no-JS user can change the value at all, and there is no attribute that can
+stop them without also dropping the field from the post.
 
 ## The `Field.Item` id-collision rule
 
