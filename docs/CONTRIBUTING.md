@@ -226,6 +226,16 @@ same file set plus one split, and the split is the point:
   tag first, assert a full attribute value (`aria-checked="true"`), or assert
   differentially between two renders. This produced a false-positive test
   twice in Phase 5b, in `Checkbox.ssr.test.tsx` and `Switch.ssr.test.tsx`.
+- Set `boxSizing: 'border-box'` explicitly in every recipe's base layer, the
+  way `Input.css.ts:22`, `Surface.css.ts:10`, `Dialog.css.ts:46` and
+  `Button.css.ts:10` all do. There is no global box-sizing reset anywhere in
+  `packages/react/src/theme`, so a recipe that omits it inherits the
+  browser's `content-box` default. Nothing catches the omission — no gate in
+  `packages/react/src/gates/` or `packages/tokens/src/gates/` mentions
+  `boxSizing`, and no test fails — it shows up only as an element quietly
+  rendering wider than its container once padding or a border is added, so
+  copy it from `Input.css.ts` deliberately rather than trusting that you'll
+  notice its absence.
 
 - **A story file**, `<Name>.stories.tsx`, beside the component. Controls for
   every union prop, one story per meaningful state, and a grid story rather
