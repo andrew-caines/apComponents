@@ -109,6 +109,11 @@ describe('RadioGroup parts', () => {
   // Base UI renamed or dropped one, every rule keyed on it would stop matching
   // silently while `aria-checked` kept passing — the same reasoning as
   // `FieldParts.test.tsx`'s data-invalid/data-disabled test.
+  //
+  // All three are covered below. `data-invalid` was NOT, when this comment
+  // first claimed it was: the attribute had no route through the public API at
+  // all, so there was nothing to test it with. `invalid` on `RadioGroupRoot`
+  // is that route, and the third test here is the one that pins it.
   describe("Base UI's own state attributes, which the stylesheet selects on", () => {
     it('stamps data-checked on the selected control and data-unchecked on the rest', () => {
       render(
@@ -144,6 +149,33 @@ describe('RadioGroup parts', () => {
       expect(screen.getByRole('radio', { name: 'Text message' }).hasAttribute('data-disabled')).toBe(
         false,
       )
+    })
+
+    // The public route to `data-invalid`, and the assertion that keeps
+    // `RADIO_GROUP_TOKENS.borderInvalid` and `RadioGroup.css.ts:175-177` from
+    // being exported surface nothing can reach. Differential in both
+    // directions — every option carries it when the group is invalid, and no
+    // option carries it when the group is not — so this cannot pass for an
+    // attribute Base UI stamps unconditionally, and cannot pass for a prop
+    // that is silently ignored.
+    it('stamps data-invalid on every option when the group is marked invalid', () => {
+      const { rerender } = render(
+        <RadioGroupRoot label="Contact" name="contact" invalid>
+          <RadioGroupItem value="email" label="Email" />
+          <RadioGroupItem value="sms" label="Text message" />
+        </RadioGroupRoot>,
+      )
+      const flags = () =>
+        screen.getAllByRole('radio').map((el) => el.hasAttribute('data-invalid'))
+      expect(flags(), 'RadioGroup.css.ts styles [data-invalid]').toEqual([true, true])
+
+      rerender(
+        <RadioGroupRoot label="Contact" name="contact">
+          <RadioGroupItem value="email" label="Email" />
+          <RadioGroupItem value="sms" label="Text message" />
+        </RadioGroupRoot>,
+      )
+      expect(flags()).toEqual([false, false])
     })
 
     it('disables the hidden input too, not only the styled span', () => {

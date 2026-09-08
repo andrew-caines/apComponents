@@ -59,16 +59,47 @@ export const Sizes: Story = {
 export const Disabled: Story = { args: { disabled: true } }
 
 /**
- * No `Invalid` story: `data-invalid` is styled in `RadioGroup.css.ts`, but
- * there is no route to set it through this component's public API. The
- * `Field.Root` that would carry `invalid` is created INSIDE
- * `RadioGroupRoot` (`RadioGroupParts.tsx`), wrapping the underlying
- * `BaseRadioGroup`, and takes no props from the caller — an outer
- * `<Field.Root invalid>` wrapped around `<RadioGroup />` would only shadow
- * that inner context, never reach it, since `Field.Root` always mounts a
- * fresh `FieldRootContext.Provider`. This was flagged in Task 4's review and
- * confirmed here rather than worked around; see the task report.
+ * Rendered in the invalid state rather than driven into it from a `play`: axe
+ * scans the DOM a story is LEFT in after `play` finishes, so a state worth
+ * scanning has to be the state the story renders. Same reasoning as
+ * `Checkbox`'s `Indeterminate`.
+ *
+ * `invalid` on the component, not an outer `<Field.Root invalid>` the way
+ * `Checkbox` and `Switch` reach the same state. `RadioGroup` mounts its own
+ * `Field.Root` internally (`RadioGroupParts.tsx` explains why it has to), and
+ * `Field.Root` always mounts a fresh `FieldRootContext.Provider`, so an outer
+ * one is SHADOWED rather than merged. This story existed as a comment
+ * explaining its own absence until that passthrough was added.
+ *
+ * The message is a plain sibling, with no hand-written `aria-describedby`: a
+ * group's error copy is the consumer's to place, and `Field.Error` cannot be
+ * used here because the `Field.Root` it would register into is internal. The
+ * invalid state itself is carried by the control border AND by this visible
+ * copy, never by colour alone (ADR-0011 §5).
  */
+export const Invalid: Story = {
+  render: () => (
+    <div style={{ display: 'grid', gap: '0.5rem' }}>
+      <RadioGroup
+        label="How should we reach you?"
+        name="contact-invalid"
+        options={CONTACT_OPTIONS}
+        invalid
+      />
+      <p>Choose a contact method before continuing.</p>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // Every option, not just the first: `invalid` sits on the group's own
+    // Field.Root, so a fix that reached one control and not the rest would be
+    // a real defect this would catch.
+    for (const option of canvas.getAllByRole('radio')) {
+      await expect(option).toHaveAttribute('data-invalid')
+    }
+    await expect(canvas.getByText('Choose a contact method before continuing.')).toBeVisible()
+  },
+}
 
 export const ArrowKeyNavigation: Story = {
   play: async ({ canvasElement }) => {

@@ -121,6 +121,28 @@ export interface RadioGroupRootProps
   extends Omit<BaseRadioGroupProps<string>, 'className' | 'render' | 'style'> {
   /** The group's visible label. Required — an unlabelled group is a defect. */
   label: string
+  /**
+   * Marks every option in the group invalid — `radioRecipe`'s
+   * `&[data-invalid]` border, and `aria-invalid` on the group.
+   *
+   * This prop exists because the state is otherwise UNREACHABLE. The
+   * `Field.Root` that owns validity is internal to this part (it has to be —
+   * see the note at the top of this file), and `Field.Root` always mounts a
+   * fresh `FieldRootContext.Provider`, so an outer `<Field.Root invalid>`
+   * wrapped around a `RadioGroup` is SHADOWED rather than merged
+   * (`FieldRoot.js:147,161`). Without this passthrough,
+   * `RADIO_GROUP_TOKENS.borderInvalid` and `RadioGroup.css.ts`'s
+   * `[data-invalid]` rule were exported surface no consumer could ever reach,
+   * while `Textarea`, `Checkbox` and `Switch` all express invalidity through
+   * a wrapping `Field`.
+   *
+   * Forwarded to the internal root, which `FieldRoot.d.ts:99` types as
+   * `invalid?: boolean | undefined`. From there Base UI's own
+   * `fieldValidityMapping` stamps `data-invalid` on every `Radio.Root`, since
+   * each one spreads the field state into its own
+   * (`radio/root/RadioRoot.js`). Nothing here writes that attribute by hand.
+   */
+  invalid?: boolean
   className?: string
   /**
    * Narrowed to a plain style object. Base UI also accepts a
@@ -168,11 +190,13 @@ export interface RadioGroupRootProps
  * though it sits on the inner element: all of them originate at or below the
  * group, and React's synthetic `onFocus`/`onBlur` bubble too.
  *
- * The legend and the `Field.Root` scope take no caller props at all — they are
- * this part's internal composition.
+ * The legend takes no caller props at all. The `Field.Root` scope takes
+ * exactly one — `invalid` — because it is the root that owns validity for the
+ * whole group and an outer one a consumer supplies would be shadowed by it
+ * rather than merged with it. See the prop's own doc comment above.
  */
 export const RadioGroupRoot = forwardRef<HTMLFieldSetElement, RadioGroupRootProps>(
-  function RadioGroupRoot({ label, className, style, children, ...rest }, ref) {
+  function RadioGroupRoot({ label, invalid, className, style, children, ...rest }, ref) {
     // See the block comment above for why this id is ours rather than Base
     // UI's, and why that is not a second, conflicting ARIA wiring.
     const legendId = useId()
@@ -207,8 +231,15 @@ export const RadioGroupRoot = forwardRef<HTMLFieldSetElement, RadioGroupRootProp
           as `fieldName ?? nameProp` (`radio-group/RadioGroup.js`), so a `name`
           here would silently override the one on the group and the two would
           look interchangeable while only one took effect.
+
+          `invalid` is the ONE caller prop it does take, and it has to be
+          here: this is the root that owns validity for the whole group, and
+          an outer Field.Root a consumer supplies is shadowed by this one
+          rather than merged with it. Conditionally SPREAD, never
+          `invalid={invalid}` — under `exactOptionalPropertyTypes` an
+          explicit `undefined` is not the same as an omitted prop.
         */}
-        <BaseField.Root>
+        <BaseField.Root {...(invalid !== undefined ? { invalid } : {})}>
           {/*
             `aria-labelledby` sits BEFORE the spread so a caller who supplies
             their own still wins — the group's name is theirs to override, and

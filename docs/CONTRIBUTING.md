@@ -745,10 +745,14 @@ Consequence for a consumer who writes `<Field.Root name="contact">
 does not name the group, and an outer `Field.Error` never sees the group's
 validity. Base UI exports no hook to detect an ancestor `Field.Root`, so
 there is no clean fix from inside `RadioGroup` — which is exactly why this
-needs writing down rather than coded around. `RadioGroup`'s own
-`data-invalid` styling is unreachable through its public API for the same
-reason: `RadioGroupProps` exposes no `invalid` prop to pass down to the
-internal root that owns it.
+needs writing down rather than coded around.
+
+Validity is the one part of this that *is* fixed rather than documented:
+`RadioGroupRootProps` takes an `invalid?: boolean` that is forwarded to the
+internal root, because the alternative was a styled `[data-invalid]` rule and
+an exported `RADIO_GROUP_TOKENS.borderInvalid` that no consumer could reach at
+all. `name`, an outer `Field.Label` and an outer `Field.Error` have no such
+passthrough, and shadowing is the whole story for those three.
 
 ## `@base-ui/react` left external in an SSR build loads a second React
 

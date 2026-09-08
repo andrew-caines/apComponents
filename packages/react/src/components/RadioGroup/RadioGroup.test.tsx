@@ -2,6 +2,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from './RadioGroup.js'
+import { radioGroupHintRecipe, radioRecipe } from './RadioGroup.css.js'
 
 const OPTIONS = [
   { value: 'email', label: 'Email' },
@@ -79,6 +80,59 @@ describe('RadioGroup', () => {
     // And focus followed selection — roving tabindex without focus is a group
     // a keyboard user cannot actually move through.
     expect(document.activeElement).toBe(screen.getByRole('radio', { name: 'Text message' }))
+  })
+
+  // `size` is a group-level prop that this component MAPS onto every option
+  // (RadioGroup.tsx), because Base UI's radio group publishes no context for a
+  // part to read it from. Nothing asserted that mapping — `size` shipped as an
+  // entirely untested variant prop, so a group-level `size` silently reverting
+  // to each option's own default would have looked identical to every other
+  // test in this file.
+  //
+  // Tied to the recipes' own output rather than to "the class is non-empty",
+  // which passes for a class from the wrong variant — the pattern
+  // Input.test.tsx:19-37 establishes for asserting a recipe variant with no
+  // stylesheet applied. Both recipes are checked because both take `size`: the
+  // control's diameter and the hint's indent, which is derived from it.
+  it('maps the group-level size onto every option and every hint', () => {
+    const withHints = [
+      { value: 'email', label: 'Email', hint: 'Delivered instantly.' },
+      { value: 'sms', label: 'Text message', hint: 'Standard rates apply.' },
+    ]
+    const { container, rerender } = render(
+      <RadioGroup label="Contact" name="contact" options={withHints} size="lg" />,
+    )
+    const controlClasses = () => screen.getAllByRole('radio').map((el) => el.className)
+    const hintClasses = () => [...container.querySelectorAll('p')].map((el) => el.className)
+
+    expect(controlClasses()).toEqual([radioRecipe({ size: 'lg' }), radioRecipe({ size: 'lg' })])
+    expect(hintClasses()).toEqual([
+      radioGroupHintRecipe({ size: 'lg' }),
+      radioGroupHintRecipe({ size: 'lg' }),
+    ])
+
+    // Differential: the classes must track the prop rather than being whatever
+    // the default produces. Without this, a component that ignored `size`
+    // entirely would still satisfy the assertions above whenever `lg` happened
+    // to equal the default.
+    rerender(<RadioGroup label="Contact" name="contact" options={withHints} />)
+    expect(controlClasses()).toEqual([radioRecipe({ size: 'md' }), radioRecipe({ size: 'md' })])
+    expect(controlClasses()[0]).not.toBe(radioRecipe({ size: 'lg' }))
+    expect(hintClasses()[0]).not.toBe(radioGroupHintRecipe({ size: 'lg' }))
+  })
+
+  // `invalid` reaches every option's control — the group's only route to the
+  // `[data-invalid]` rule and `RADIO_GROUP_TOKENS.borderInvalid`, both of
+  // which were unreachable through the public API before it existed.
+  // `RadioGroupParts.test.tsx` pins the attribute differentially; this asserts
+  // the convenience component forwards the prop at all.
+  it('forwards invalid through to every option', () => {
+    render(<RadioGroup label="Contact" name="contact" options={OPTIONS} invalid />)
+    expect(screen.getAllByRole('radio').map((el) => el.hasAttribute('data-invalid'))).toEqual([
+      true,
+      true,
+      true,
+    ])
   })
 
   it('renders an option hint as a description of that option alone', () => {
