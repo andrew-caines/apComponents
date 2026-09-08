@@ -272,27 +272,29 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${escapedLabelFor}"`))
   })
 
-  it('server-renders the four new controls with the exact default name/value pairs the POST test below submits', async () => {
-    // Anchors the hardcoded body in the next test to the REAL server markup:
-    // without this, that test could hardcode a `name`/`value` pair that no
-    // longer exists in the rendered form (e.g. a regression that dropped
-    // Textarea's `name`) and still pass, because it builds its own POST body
-    // independently rather than reading it from the page. This test is what
-    // makes that gap impossible — it fails first, and points at the real
-    // cause, if the markup and the POST body ever come apart.
+  it('posts the server-rendered DEFAULT values of Textarea, Checkbox, Switch and RadioGroup through to the action, with no JavaScript involved', async () => {
+    // Phase 1: pin the expected defaults against the REAL server markup,
+    // with literal assertions — this is what makes the whole test non-
+    // circular. Without these, phase 2 below could post whatever the markup
+    // happens to contain today and the test would still pass even if that
+    // stopped being the INTENDED default (e.g. someone edits the fixture's
+    // `defaultValue` text without meaning to).
     const html = await (await fetchAsBrowser(`${base}/form`)).text()
 
-    // Textarea is a real <textarea>: its default is its own text content, not
-    // a `value` attribute.
-    expect(html).toMatch(
-      /<textarea[^>]*\sname="message"[^>]*>Tell us more about your request\.<\/textarea>/,
-    )
+    // Textarea is a real <textarea>: its default is its own text content,
+    // not a `value` attribute. Captured, not just matched, because phase 2
+    // reuses this exact string rather than retyping it.
+    const textareaMatch = /<textarea[^>]*\sname="message"[^>]*>([^<]*)<\/textarea>/.exec(html)
+    expect(textareaMatch, 'no <textarea name="message"> in server HTML').toBeDefined()
+    const messageValue = textareaMatch![1]!
+    expect(messageValue).toBe('Tell us more about your request.')
 
     // Checkbox, Switch and RadioGroup: scoped to each hidden <input> tag
-    // specifically, and requiring `checked` — the same trap the POST test
-    // below documents applies here too (`name`/`value`/`checked` are all
-    // substrings of attribute names Base UI renders unconditionally
-    // elsewhere in this document).
+    // specifically, and requiring `checked` — `name`/`value`/`checked` are
+    // all substrings of attribute names Base UI renders unconditionally
+    // elsewhere in this document, so an unscoped substring match here could
+    // never fail (see the review notes in `RadioGroup.ssr.test.tsx` and
+    // `Switch.ssr.test.tsx`, and Task 2's finding).
     const inputTags = html.match(/<input[^>]*>/g) ?? []
     const subscribeTag = inputTags.find((t) => /\bname="subscribe"/.test(t))
     const notificationsTag = inputTags.find((t) => /\bname="notifications"/.test(t))
@@ -301,23 +303,28 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     )
 
     expect(subscribeTag, 'no input named "subscribe" in server HTML').toBeDefined()
-    expect(subscribeTag).toMatch(/\bvalue="yes"/)
     expect(subscribeTag).toMatch(/\bchecked=/)
+    const subscribeValue = /\bvalue="([^"]*)"/.exec(subscribeTag!)?.[1]!
+    expect(subscribeValue).toBe('yes')
 
     expect(notificationsTag, 'no input named "notifications" in server HTML').toBeDefined()
-    expect(notificationsTag).toMatch(/\bvalue="on"/)
     expect(notificationsTag).toMatch(/\bchecked=/)
+    const notificationsValue = /\bvalue="([^"]*)"/.exec(notificationsTag!)?.[1]!
+    expect(notificationsValue).toBe('on')
 
     expect(contactEmailTag, 'no input named "contact" with value="email" in server HTML').toBeDefined()
     expect(contactEmailTag).toMatch(/\bchecked=/)
-  })
+    const contactValue = /\bvalue="([^"]*)"/.exec(contactEmailTag!)?.[1]!
+    expect(contactValue).toBe('email')
 
-  it('posts the server-rendered default values of Textarea, Checkbox, Switch and RadioGroup through to the action, with no JavaScript involved', async () => {
-    // A plain `application/x-www-form-urlencoded` POST, built with the exact
-    // values this route's `defaultValue`/`defaultChecked` render into the
-    // hidden inputs (pinned to the real markup by the test above) — i.e.
-    // exactly what a browser posts for this form UNMODIFIED, with no client
-    // JavaScript in play at all (no fetch(), no RR8 client-side submission).
+    // Phase 2: POST exactly what phase 1 just extracted from the real
+    // markup — not retyped literals — which is a more faithful model of a
+    // JavaScript-blocked submission than hand-written values would be: a
+    // real browser serialises whatever the server actually rendered, not
+    // whatever a test author typed. `email` is the one literal here because
+    // it isn't one of the four controls this test covers (the existing
+    // "serves the form route..." test above already covers that field).
+    //
     // This is gate 6's actual guarantee for these four controls: their
     // SERVER-RENDERED DEFAULT VALUES reach the action without JavaScript. It
     // does NOT prove a no-JS visitor could have CHANGED them — Checkbox's,
@@ -329,10 +336,10 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // before this same post.
     const body = new URLSearchParams({
       email: 'person@example.com',
-      message: 'Tell us more about your request.',
-      subscribe: 'yes',
-      notifications: 'on',
-      contact: 'email',
+      message: messageValue,
+      subscribe: subscribeValue,
+      notifications: notificationsValue,
+      contact: contactValue,
     })
     const res = await fetch(`${base}/form`, {
       method: 'POST',
@@ -343,15 +350,11 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
       body: body.toString(),
     })
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const postHtml = await res.text()
 
     // Scoped to the element carrying the given id, and asserting its EXACT
-    // text content — not a bare `toContain`, which the review notes in
-    // `RadioGroup.ssr.test.tsx` and `Switch.ssr.test.tsx` (and Task 2's
-    // finding) flag as unsafe for exactly these words: "value", "checked"
-    // and "name" are all substrings of attribute names Base UI renders
-    // unconditionally, so an unscoped substring match could never fail even
-    // if a field's value never reached the action at all.
+    // text content — not a bare `toContain`, unsafe for the same reason as
+    // phase 1's tag-scoped matches above.
     //
     // React's SSR text renderer inserts an empty `<!-- -->` comment marker
     // between static and dynamic text nodes (visible in the raw response:
@@ -359,15 +362,15 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // comparing, or every one of these would fail on that marker rather than
     // on a real defect.
     const textOf = (id: string): string | undefined => {
-      const raw = new RegExp(`id="${id}">([\\s\\S]*?)</`).exec(html)?.[1]
+      const raw = new RegExp(`id="${id}">([\\s\\S]*?)</`).exec(postHtml)?.[1]
       return raw?.replace(/<!--\s*-->/g, '')
     }
 
     expect(textOf('submitted')).toBe('received: person@example.com')
-    expect(textOf('echo-message')).toBe('message: Tell us more about your request.')
-    expect(textOf('echo-subscribe')).toBe('subscribe: yes')
-    expect(textOf('echo-notifications')).toBe('notifications: on')
-    expect(textOf('echo-contact')).toBe('contact: email')
+    expect(textOf('echo-message')).toBe(`message: ${messageValue}`)
+    expect(textOf('echo-subscribe')).toBe(`subscribe: ${subscribeValue}`)
+    expect(textOf('echo-notifications')).toBe(`notifications: ${notificationsValue}`)
+    expect(textOf('echo-contact')).toBe(`contact: ${contactValue}`)
   })
 })
 
