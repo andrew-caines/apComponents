@@ -11,6 +11,7 @@ export { resolveFont } from './typography/fonts.js'
 export type { ResolvedFont, FallbackMetrics, KnownFamily } from './typography/fonts.js'
 export { toCssText, toFallbackFontFaceCss } from './emit/cssText.js'
 export { DURATION, EASE, REDUCED_MOTION_DURATION } from './scales/motion.js'
+export { SPACE } from './scales/scales.js'
 export type { CssTextOptions } from './emit/cssText.js'
 export type { Ramp, RampStep } from './colour/ramp.js'
 
