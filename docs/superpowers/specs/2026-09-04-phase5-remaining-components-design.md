@@ -355,18 +355,33 @@ A Select wrapped in a consumer's own component is not detected; in development, 
 looks up the element its trigger is labelled by and warns if it is a `<label>`, naming the
 fix. The marker is internal, not exported.
 
-#### 4.3.3 Two things the plan must verify before relying on them
+#### 4.3.3 Three things verified during the plan
 
 - **`nativeButton` derivation.** §4.1.1 says `Select.Trigger` reuses `Button`'s
   derivation, but `deriveNativeButton` is private to `Button.tsx`. The plan moves it to a
   shared internal module first; `Button`'s existing tests guard the move.
-- **The trigger's accessible name in server HTML.** Base UI registers the label id from an
-  effect (`useRegisteredLabelId`), so the trigger's `aria-labelledby` is likely absent
-  from server markup and appears only after hydration — the same shape as RadioGroup's
-  legend (5b, R16). The plan checks real server output first. If confirmed, the fix is
-  R16's: a `useId` passed to both ends. The rationale is stated narrowly, as R16's
-  correction requires — a named control in streamed and pre-hydration markup for
-  assistive technology, not operability with JavaScript off.
+- **The trigger's accessible name in server HTML — confirmed absent.** Base UI registers
+  the label id from an effect (`useRegisteredLabelId`), so the trigger's `aria-labelledby`
+  is missing from server markup and appears only after hydration — the same shape as
+  RadioGroup's legend (5b, R16). Confirmed by a direct `renderToString` probe against Base
+  UI 1.7.0: passing an `id` to `Field.Label` and the same value as `aria-labelledby` to
+  `Select.Trigger` is the only way either attribute reaches server HTML; left to Base UI's
+  own registration, both are absent until hydration. The fix taken is R16's: `Field`
+  generates the id itself with `useId()` (not left for Base UI to register) and passes it
+  to both the label and the control — see "The non-native-label protocol" in
+  `docs/CONTRIBUTING.md`. The rationale is stated narrowly, as R16's correction requires —
+  a named control in streamed and pre-hydration markup for assistive technology, not
+  operability with JavaScript off.
+- **Object values render as JSON when the default is rebuilt.** Base UI's own label
+  resolution (`resolveSelectedLabel`, `internals/resolveValueLabel.js`) matches an object
+  value against `items` only by an explicit `label` key on the value itself or by identity
+  match on a `.value` property — never by deep equality — so a `defaultValue` reconstructed
+  fresh on every render (the common case for server-supplied data) falls through to
+  serialising the object, even with `items` and `itemToStringValue` both supplied. The
+  convenience component does not rely on this path at all: it always passes `Select.Value`
+  a children function that looks up the label itself from the same `items`, so Base UI's
+  resolution never runs for anything built through `<Select items={…} />`. Only a
+  hand-assembled `<Select.Value />` with no children function is exposed to it.
 
 ### 4.4 Plan 5d — `Tooltip`, `Popover`
 
