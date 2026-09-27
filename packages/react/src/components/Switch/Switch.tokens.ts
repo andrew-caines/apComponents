@@ -34,6 +34,11 @@ import { vars } from '../../theme/contract.css.js'
  * thumb's inset math so the added border does not change the track's outer
  * footprint or the thumb's travel (see the note there).
  *
+ * `borderChecked` is `actionBg`, the same value as `trackBgChecked` and the
+ * same role `Checkbox` has: once checked, the border takes the fill's colour
+ * so the pill fills edge to edge instead of wearing a `borderNormal` ring. It
+ * is a distinct token, as on `Checkbox`, so the two can be overridden apart.
+ *
  * `borderInvalid` is `dangerBorder`, never `dangerBg`: it is the role gated
  * for 3:1 non-text contrast (ADR-0008), the same reasoning `Checkbox.tokens.ts`
  * gives for its own `borderInvalid`.
@@ -58,6 +63,7 @@ export const SWITCH_TOKENS = {
   trackBgChecked: tier3('switch-track-bg-checked', vars.color.actionBg),
   border: tier3('switch-border', vars.color.borderNormal),
   borderHover: tier3('switch-border-hover', vars.color.borderInteractive),
+  borderChecked: tier3('switch-border-checked', vars.color.actionBg),
   borderInvalid: tier3('switch-border-invalid', vars.color.dangerBorder),
   thumbBg: tier3('switch-thumb-bg', vars.color.bgSurface),
   radius: tier3('switch-radius', vars.radius.full),

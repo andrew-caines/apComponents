@@ -115,8 +115,12 @@ export const switchTrackRecipe = recipe({
         cursor: 'pointer',
         selectors: {
           // Order matches Checkbox.css.ts: hover, then focus-visible, then
-          // checked, then invalid, then disabled.
-          '&:hover:not([data-disabled])': {
+          // checked, then invalid, then disabled. Order alone cannot keep
+          // hover off a checked track: `:hover:not(…)` outranks
+          // `[data-checked]` on specificity, so hover also skips
+          // `[data-checked]`, or a hovered checked pill regains a
+          // `borderHover` ring.
+          '&:hover:not([data-disabled]):not([data-checked])': {
             borderColor: t.borderHover,
           },
           // Longhand, matching Input.css.ts/Checkbox.css.ts: `outline`, never
@@ -129,8 +133,12 @@ export const switchTrackRecipe = recipe({
             outlineColor: t.focusRing,
             outlineOffset: vars.misc.focusRingOffset,
           },
+          // The border takes the checked fill too, as on Checkbox, so a
+          // checked pill is filled edge to edge rather than ringed in
+          // `border`.
           '&[data-checked]': {
             background: t.trackBgChecked,
+            borderColor: t.borderChecked,
           },
           // Base UI's own state attribute, reaching the track ambiently
           // through Field context — the same mechanism Input and Checkbox

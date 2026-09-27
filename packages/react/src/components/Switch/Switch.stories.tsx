@@ -30,7 +30,23 @@ export const Sizes: Story = {
 
 export const Disabled: Story = { args: { disabled: true } }
 
-export const Checked: Story = { args: { defaultChecked: true } }
+export const Checked: Story = {
+  args: { defaultChecked: true },
+  play: async ({ canvasElement }) => {
+    const sw = within(canvasElement).getByRole('switch', { name: 'Enable notifications' })
+    await expect(sw).toHaveAttribute('aria-checked', 'true')
+    // A checked track fills edge to edge: `[data-checked]` swaps the border
+    // to the checked fill, as `Checkbox` does. Without it the resting
+    // `border` (`borderNormal`) draws a grey ring round the filled pill.
+    // Differential, so it needs no resolved colour string. Real Chromium, so
+    // `getComputedStyle` sees the cascade (jsdom cannot).
+    //
+    // The hovered case is not asserted here: `storybook/test`'s `userEvent`
+    // dispatches synthetic events and never sets `:hover`, so a hover
+    // assertion here could not fail. See the hover rule in `Switch.css.ts`.
+    await expect(getComputedStyle(sw).borderColor).toBe(getComputedStyle(sw).backgroundColor)
+  },
+}
 
 export const Invalid: Story = {
   render: () => (
