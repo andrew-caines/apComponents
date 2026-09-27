@@ -113,8 +113,16 @@ export const Default: Story = {
     )
 
     await step('Escape closes the popup without changing the value', async () => {
+      // Reopening highlights the current selection (France) first — pressing
+      // Escape right there could never distinguish "committed nothing" from
+      // "committed the already-selected item". Moving the highlight OFF the
+      // selected value (to Germany) before Escape is what makes this fail if
+      // Escape ever wrongly committed the highlighted item.
       await userEvent.keyboard('{ArrowDown}')
-      await within(document.body).findByRole('listbox')
+      const listbox = await within(document.body).findByRole('listbox')
+      const germany = within(listbox).getByRole('option', { name: 'Germany' })
+      await userEvent.keyboard('{ArrowDown}')
+      await waitFor(() => expect(germany).toHaveAttribute('data-highlighted'))
       await userEvent.keyboard('{Escape}')
       await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
       await expect(trigger).toHaveTextContent('France')
@@ -176,8 +184,13 @@ export const Multiple: Story = {
     const listbox = await within(document.body).findByRole('listbox')
     await userEvent.click(within(listbox).getByRole('option', { name: 'Canada' }))
     await userEvent.click(within(listbox).getByRole('option', { name: 'France' }))
-    // A multi-select does not close on choice.
-    await expect(within(document.body).getByRole('listbox')).toBeVisible()
+    // `aria-expanded` flips to `'false'` the instant Base UI's `open` state
+    // changes — well before the ~500ms exit-transition-driven `hidden`
+    // attribute lands (see `Default`'s Enter step) — so it is what actually
+    // catches a multi-select that wrongly closes on choice. A bare
+    // `toBeVisible` cannot: the popup stays visually present through its
+    // whole closing transition regardless of whether it started closing.
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true')
     await waitFor(() => expect(trigger).toHaveTextContent('Canada and France'))
   },
 }
@@ -202,7 +215,23 @@ export const ObjectValues: Story = {
     const trigger = within(canvasElement).getByRole('combobox', {
       name: 'Country (object values)',
     })
-    await expect(trigger).toHaveTextContent('France')
+    // An EXACT match, not `toHaveTextContent` (a substring test): Base UI's
+    // own raw-JSON fallback for an unresolved object value is literally
+    // `{"code":"fr","name":"France"}`, which itself CONTAINS the substring
+    // "France" — a substring assertion could never fail against that
+    // fallback and so would prove nothing.
+    expect(trigger.textContent).toBe('France')
+
+    await userEvent.click(trigger)
+    const listbox = await within(document.body).findByRole('listbox')
+    const france = within(listbox).getByRole('option', { name: 'France' })
+    // The label above comes from `findLabel`'s own serialised lookup
+    // regardless of item equality, so it can't exercise
+    // `isItemEqualToValue` at all. The France OPTION being marked selected
+    // is what actually depends on it: this fails if equality reverts to
+    // Base UI's default `Object.is`, since the `defaultValue` above is a
+    // fresh object literal every render.
+    await expect(france).toHaveAttribute('aria-selected', 'true')
   },
 }
 
@@ -250,38 +279,49 @@ export const Empty: Story = {
  * parts and able to pass `positioner` — the convenience `<Select>` never
  * exposes it. jsdom cannot fail this the way a real layout engine can, which
  * is why it moved here from a unit test.
+ *
+ * The `paddingBlockStart` is not decorative: without genuine room ABOVE the
+ * trigger, a `positioner={{ side: 'top' }}` perturbation is neutered by
+ * floating-ui's own collision handling, which flips `top` back to `bottom`
+ * whenever `top` would not fit — so the perturbation would pass right through
+ * this assertion instead of failing it. The popup's measured height here is
+ * ~176px (4 items); this leaves comfortable headroom for that check.
  */
 export const HandAssembled: Story = {
   render: () => {
     const labelId = 'select-hand-assembled-label'
     const toString = (value: string) => value
     return (
-      <Field.Root>
-        <Field.Label nativeLabel={false} render={<div />} id={labelId}>
-          Country
-        </Field.Label>
-        <Select.Root
-          items={COUNTRIES}
-          itemToStringValue={toString}
-          isItemEqualToValue={equalBySerialisation(toString)}
-        >
-          <Select.Trigger aria-labelledby={labelId}>
-            <Select.Value placeholder="Choose a country">
-              {(value: string | null) => findLabel(value, COUNTRIES, toString) ?? 'Choose a country'}
-            </Select.Value>
-            <Select.Icon />
-          </Select.Trigger>
-          <Select.Popup>
-            <Select.List>
-              {COUNTRIES.map((item) => (
-                <Select.Item key={item.value} value={item.value}>
-                  {item.label}
-                </Select.Item>
-              ))}
-            </Select.List>
-          </Select.Popup>
-        </Select.Root>
-      </Field.Root>
+      <div style={{ paddingBlockStart: 320 }}>
+        <Field.Root>
+          <Field.Label nativeLabel={false} render={<div />} id={labelId}>
+            Country
+          </Field.Label>
+          <Select.Root
+            items={COUNTRIES}
+            itemToStringValue={toString}
+            isItemEqualToValue={equalBySerialisation(toString)}
+          >
+            <Select.Trigger aria-labelledby={labelId}>
+              <Select.Value placeholder="Choose a country">
+                {(value: string | null) =>
+                  findLabel(value, COUNTRIES, toString) ?? 'Choose a country'
+                }
+              </Select.Value>
+              <Select.Icon />
+            </Select.Trigger>
+            <Select.Popup>
+              <Select.List>
+                {COUNTRIES.map((item) => (
+                  <Select.Item key={item.value} value={item.value}>
+                    {item.label}
+                  </Select.Item>
+                ))}
+              </Select.List>
+            </Select.Popup>
+          </Select.Root>
+        </Field.Root>
+      </div>
     )
   },
   play: async ({ canvasElement }) => {
