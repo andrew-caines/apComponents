@@ -86,10 +86,12 @@ describe('Select parts', () => {
     )
     const trigger = screen.getByRole('combobox', { name: 'Country' })
     expect(trigger.tagName).toBe('A')
-    // Brief-required, and a guard against this wrapper ever writing a role of
-    // its own: Base UI sets `combobox` last, so only our code could break it.
+    // Documents Base UI's behaviour and guards nothing of ours: Base UI
+    // hard-sets `role="combobox"` after all merging (SelectTrigger.js), so no
+    // change to SelectParts.tsx can make this line fail.
     expect(trigger.getAttribute('role')).toBe('combobox')
-    expect(trigger.getAttribute('role')).not.toBe('button')
+    // The `nativeButton` guard: a trigger wrongly treated as native gets
+    // Base UI's `type="button"` stamped on the anchor.
     expect(trigger.getAttribute('type')).toBeNull()
   })
 
