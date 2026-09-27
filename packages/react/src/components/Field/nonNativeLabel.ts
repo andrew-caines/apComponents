@@ -3,16 +3,17 @@
 import { isValidElement, type ReactNode } from 'react'
 
 /**
- * `Field`'s protocol for labelling a control that is not a labelable HTML
- * element — Select's trigger (a `<button>` wearing `role="combobox"`, Task 5)
- * is the motivating case. A `<label for>` associates with an INPUT, SELECT,
- * TEXTAREA, BUTTON, METER, OUTPUT, PROGRESS or a labelable custom element; it
- * does nothing for an arbitrary component wrapping one of those, or for one
- * that renders a `<div>`/`<span>` as its interactive surface. Such a control
- * opts in by carrying `[NON_NATIVE_LABEL]: true` as a static property on its
- * function component — `Object.assign(SelectBase, { [NON_NATIVE_LABEL]: true })`,
- * for example — and `Field` (see `Field.tsx`) then labels it with a `<div>`
- * plus `aria-labelledby` instead of a native `<label>`.
+ * `Field`'s protocol for labelling a control that must not have a native
+ * `<label>` — Select's trigger (a `<button>` wearing `role="combobox"`,
+ * Task 5) is the motivating case. A `<button>` is labelable, and Base UI
+ * wires a `<label for>` to it correctly; the reason is behavioural (spec
+ * §4.3). A native label forwards its clicks to the control it labels, which
+ * opens the popup, and puts that control in `:hover` while the label is
+ * hovered. Such a control opts in by carrying `[NON_NATIVE_LABEL]: true` as
+ * a static property on its function component —
+ * `Object.assign(SelectBase, { [NON_NATIVE_LABEL]: true })`, for example —
+ * and `Field` (see `Field.tsx`) then labels it with a `<div>` plus
+ * `aria-labelledby` instead of a native `<label>`.
  *
  * `Symbol.for`, not `Symbol()`, is deliberate: it is looked up in the GLOBAL
  * symbol registry, so it resolves to the same value even when `@ap/react`

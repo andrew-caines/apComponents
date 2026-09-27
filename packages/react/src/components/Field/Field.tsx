@@ -76,32 +76,34 @@ export interface FieldProps extends Omit<FieldRootProps, 'children' | 'invalid'>
  * this component's own internal helper (not Base UI, not context) — see the
  * protocol note below.
  *
- * **The non-native-label protocol.** A `<label for>` only ever associates
- * with a labelable HTML element — an `<input>`, `<button>`, etc. Some
- * controls this library ships are not that: Select's trigger (Task 5 of
- * Phase 5c) renders a `<button role="combobox">`, but through an opaque
- * component wrapper, and a plain `<label for={id}>` pointed at whatever that
- * wrapper renders is not guaranteed to land on the right element, or on any
- * single element at all. Such a control opts in by carrying
+ * **The non-native-label protocol.** Select's trigger (Task 5 of Phase 5c)
+ * is a `<button role="combobox">`. A `<button>` is labelable, and Base UI
+ * wires a native `<label for>` to it correctly, so association is not the
+ * problem. The problem is what a native label does to the element it labels
+ * (spec §4.3): a click on the label is forwarded to the button, which opens
+ * the popup, and hovering the label puts the button in `:hover`. A label
+ * should do neither to a Select's trigger. Such a control opts in by carrying
  * `[NON_NATIVE_LABEL]: true` as a static property (`nonNativeLabel.ts`,
  * `usesNonNativeLabel`), and when `Field` detects that marker on `children`'s
  * `type`, it does three things instead of its ordinary single `<label>`:
  *
  *  1. Renders `<Field.Label nativeLabel={false} render={<div />} id={labelId}>`
- *     — a `<div>`, not a `<label>`, since a `<label>` wrapping or pointing at
- *     a non-labelable control is either inert or actively wrong.
+ *     — a `<div>`, not a `<label>`, so no native label forwards its click
+ *     and hover to the trigger. Both props, always together: with
+ *     `nativeLabel={false}` alone Base UI still renders a `<label>`.
  *  2. Clones the child with `aria-labelledby={labelId}`, unless it already
  *     carries its own `aria-labelledby` (a caller's explicit override wins).
  *  3. Generates `labelId` with `useId()` here, in `Field`, rather than
  *     leaving it to be registered later.
  *
- * That third point is R16 (5b plan, "Deviations", corrected): Base UI's own
- * labelable wiring registers a control's id from a layout EFFECT, so it is
- * missing from server-rendered HTML entirely for any control that doesn't
- * get a native `for`/`id` pair up front — exactly Select's trigger, confirmed
- * by a direct `renderToString` probe against Base UI 1.7.0 before this task
- * was planned. Generating the id here and passing it to both ends closes
- * that gap. Be precise about what it buys, because the broader claim is
+ * That third point is R16 (5b plan, "Deviations", corrected): Base UI
+ * registers the LABEL's id from a layout effect (`useRegisteredLabelId`),
+ * and the trigger reads its `aria-labelledby` from that registration, so
+ * without an explicit id both are missing from server-rendered HTML. With a
+ * `<div>` label there is no native `for` to name the trigger instead.
+ * Confirmed by a direct `renderToString` probe against Base UI 1.7.0 before
+ * this task was planned. Generating the id here and passing it to both ends
+ * closes that gap. Be precise about what it buys, because the broader claim is
  * wrong: **this makes the control NAMED in streamed and pre-hydration markup
  * for assistive technology. It does not make the control OPERABLE with
  * JavaScript off** — Select's popup still needs hydration to open at all.

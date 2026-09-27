@@ -241,9 +241,9 @@ same file set plus one split, and the split is the point:
   `radius`, each with its own Tier 2 fallback and the rule it serves. A new
   component's plan lists only the roles *beyond* that shared set, not the
   whole set again.
-- A control that is not a labelable HTML element (Select's trigger — a
-  `<button role="combobox">` behind an opaque wrapper — is the one that
-  exists today) opts into `Field`'s label protocol instead of a native
+- A control that a native `<label>` must not label (Select's trigger — a
+  `<button role="combobox">`, into which a native label would forward its
+  click and hover — is the one that exists today) opts into `Field`'s label protocol instead of a native
   `<label for>`: carry `[NON_NATIVE_LABEL]: true` as a static property on the
   component (`Field/nonNativeLabel.ts`), and add a story that shows the
   hand-assembled parts wiring the id itself (`Select.stories.tsx`'s
@@ -899,13 +899,14 @@ be set together: `nativeLabel={false}` **and** `render={<div />}`.
 
 ## The non-native-label protocol
 
-A `<label for>` only ever associates with a labelable HTML element — an
-`<input>`, `<button>`, etc. `Select`'s trigger is a `<button
-role="combobox">` reached through an opaque component wrapper, so a plain
-`<label for={id}>` pointed at whatever `Select` renders is not guaranteed to
-land on the right element. `Field` (`Field.tsx`) and `Select`
-(`Select.tsx`) implement a small protocol for this case, in
-`Field/nonNativeLabel.ts`:
+`Select`'s trigger is a `<button role="combobox">`. A `<button>` is
+labelable, and Base UI wires a native `<label for>` to it correctly, so
+association is not the problem. The problem is what a native label does to
+the element it labels (spec §4.3): a click on the label is forwarded to the
+button, which opens the popup, and hovering the label puts the button in
+`:hover`. A Select's label should do neither. `Field` (`Field.tsx`) and
+`Select` (`Select.tsx`) implement a small protocol that labels it with a
+`<div>` and `aria-labelledby` instead, in `Field/nonNativeLabel.ts`:
 
 - **The marker.** A control opts in by carrying a static
   `[NON_NATIVE_LABEL]: true` property on its component function —
@@ -933,9 +934,11 @@ land on the right element. `Field` (`Field.tsx`) and `Select`
   every client bundle. The `NativeLabelWarning` story catches it in a real
   browser; the jsdom unit test cannot.
 - **Why the id is generated explicitly, in `Field`, with `useId()`, rather
-  than left for Base UI to register.** Base UI's own labelable wiring
-  registers a control's id from a layout effect, which is a no-op during SSR
-  — so an id it registers itself is simply absent from server-rendered HTML.
+  than left for Base UI to register.** Base UI registers the label's id
+  from a layout effect (`useRegisteredLabelId`), which does not run during
+  SSR, and the trigger reads its `aria-labelledby` from that registration.
+  So without an explicit id, both are absent from server-rendered HTML, and
+  a `<div>` label has no native `for` to name the trigger instead.
   This is R16's move (5b plan, "Deviations", corrected), copied here for the
   same reason: generating the id up front and passing it to both the label
   and the control closes that gap. **Its rationale is narrow, and stated
