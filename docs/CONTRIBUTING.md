@@ -923,10 +923,15 @@ land on the right element. `Field` (`Field.tsx`) and `Select`
   child is detected; a Select wrapped inside a consumer's own component is
   invisible to this check, which is why `Select` also carries a
   development-only fallback: it reads the trigger button's own `.labels`
-  (the DOM's built-in "which `<label>`s point at me" list) and warns if it is
-  non-empty (guarded by `typeof process !== 'undefined' &&
-  process.env.NODE_ENV !== 'production'`, `Select.tsx`), naming the fix in
-  the message.
+  (the DOM's built-in list of the `<label>`s that label it, by `for` or by
+  wrapping it) and warns if it is non-empty, naming the fix in the message.
+  The check is guarded by a bare `process.env.NODE_ENV !== 'production'`
+  (`Select.tsx`), spelled as Base UI spells it (`field/label/FieldLabel.mjs`).
+  Never add a `typeof process` guard: bundlers replace
+  `process.env.NODE_ENV` but leave `typeof process` alone, and in a browser
+  `process` is undefined, so that guard silently disables the warning in
+  every client bundle. The `NativeLabelWarning` story catches it in a real
+  browser; the jsdom unit test cannot.
 - **Why the id is generated explicitly, in `Field`, with `useId()`, rather
   than left for Base UI to register.** Base UI's own labelable wiring
   registers a control's id from a layout effect, which is a no-op during SSR

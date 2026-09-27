@@ -160,22 +160,31 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
     [ref],
   )
 
-  // §4.3.2: a `<label for>` naming the button means Field could not see the
-  // marker — the Select sits inside a consumer's own component, or inside
-  // hand-assembled parts. No dependency list: the label's `for` arrives from
-  // Base UI's labelable context a render later. Warns once.
+  // §4.3.2: a native `<label>` naming the button — by `for`, or by wrapping
+  // it — means Field could not see the marker: the Select sits inside a
+  // consumer's own component, or inside hand-assembled parts. No dependency
+  // list: the label's `for` arrives from Base UI's labelable context a
+  // render later. Warns once.
+  //
+  // A bare `process.env.NODE_ENV`, never guarded by `typeof process`: that
+  // is the reference bundlers replace (Vite, webpack, esbuild), and Base UI's
+  // own builds spell it the same way (`field/label/FieldLabel.mjs`). Guarded
+  // by `typeof process`, the check returned early in every browser bundle,
+  // where `process` is undefined, so the warning only ever fired in Node.
   const warned = useRef(false)
   useEffect(() => {
-    if (typeof process === 'undefined' || process.env.NODE_ENV === 'production') return
-    const labels = triggerRef.current?.labels
-    if (warned.current || !labels || labels.length === 0) return
-    warned.current = true
-    console.error(
-      'Select: a native <label for> points at the trigger button. Field only labels a Select ' +
-        'through its non-native-label protocol when the Select is its direct child. Put ' +
-        '<Select> directly inside <Field label>, or give Field.Label `nativeLabel={false}` ' +
-        'and `render={<div />}` and pass its id to the Select as `aria-labelledby`.',
-    )
+    if (process.env.NODE_ENV !== 'production') {
+      const labels = triggerRef.current?.labels
+      if (warned.current || !labels || labels.length === 0) return
+      warned.current = true
+      console.error(
+        'Select: a native <label> labels the trigger button, through `for` or by wrapping ' +
+          'the Select, and leaks its click and hover behaviour into the button. Field avoids ' +
+          'this only when the Select is its direct child. Put <Select> directly inside ' +
+          '<Field label>, not inside a <label>, or give Field.Label `nativeLabel={false}` ' +
+          'and `render={<div />}` and pass its id to the Select as `aria-labelledby`.',
+      )
+    }
   })
 
   const renderItem = (item: SelectItem<Value>) => (

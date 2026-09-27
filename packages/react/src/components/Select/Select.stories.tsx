@@ -268,6 +268,51 @@ export const Empty: Story = {
   },
 }
 
+const warnings: string[] = []
+
+/**
+ * The §4.3.2 development warning, in a real Vite browser bundle, for both
+ * ways a native `<label>` can reach the trigger: `Field.Label`'s `for`, and a
+ * `<label>` wrapping the Select. This is the misuse the warning names, shown
+ * so the warning can be seen firing, not as a pattern to copy.
+ *
+ * Fails if the warning is guarded by `typeof process`: this bundle has no
+ * `process` global (only the replaced `process.env.NODE_ENV`), so that guard
+ * returns early in every browser and the jsdom unit test alone cannot catch
+ * it. The spy is installed in `beforeEach` because the effect fires on
+ * mount, before `play` runs.
+ */
+export const NativeLabelWarning: Story = {
+  beforeEach: () => {
+    warnings.length = 0
+    const original = console.error
+    console.error = (...args: unknown[]) => {
+      warnings.push(String(args[0]))
+    }
+    return () => {
+      console.error = original
+    }
+  },
+  render: () => (
+    <div style={{ display: 'grid', gap: '1rem' }}>
+      <Field.Root>
+        <Field.Label>Country (label for)</Field.Label>
+        <Select items={COUNTRIES} placeholder="Choose a country" />
+      </Field.Root>
+      <label>
+        Country (wrapping label)
+        <Select items={COUNTRIES} placeholder="Choose a country" />
+      </label>
+    </div>
+  ),
+  play: async () => {
+    // Each Select warns once, so two warnings means both cases were caught.
+    await waitFor(() =>
+      expect(warnings.filter((w) => w.startsWith('Select: a native <label>'))).toHaveLength(2),
+    )
+  },
+}
+
 /**
  * Field's non-native-label protocol (`Field.tsx`'s doc comment), written out
  * by hand rather than produced by `<Field label>`: a `<div>` label with a
