@@ -136,9 +136,13 @@ export interface SelectPopupProps extends Omit<BasePopupProps, 'className'> {
  *   altogether; a Select here opens below its trigger like every other
  *   anchored popup.
  *
- * The portal is never `keepMounted` (§4.1.9): Base UI keeps the popup mounted
- * through its exit animation already, and a kept-mounted listbox would render
- * on the server.
+ * A closed Select's popup is absent from server HTML (§4.1.9). No prop
+ * guarantees that — `Select.Portal` has no `keepMounted` in Base UI 1.7.0.
+ * The portal renders nothing until `mounted || forceMount`
+ * (`portal/SelectPortal.mjs`): `mounted` is true only while the popup is
+ * open or animating out, and `forceMount` is set only on the client, on
+ * trigger focus (`trigger/SelectTrigger.mjs`) or an autofill change of the
+ * hidden input. Neither holds while a closed Select renders on the server.
  */
 export const SelectPopup = forwardRef<HTMLDivElement, SelectPopupProps>(function SelectPopup(
   { positioner, className, ...rest },
