@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, type ReactNode } from 'react'
+import { cloneElement, forwardRef, isValidElement, useId, type ReactNode } from 'react'
 import {
   FieldControl,
   FieldDescription,
@@ -9,6 +9,7 @@ import {
   FieldRoot,
   type FieldRootProps,
 } from './FieldParts.js'
+import { usesNonNativeLabel } from './nonNativeLabel.js'
 
 export { FIELD_TOKENS } from './Field.tokens.js'
 export type {
@@ -68,10 +69,42 @@ export interface FieldProps extends Omit<FieldRootProps, 'children' | 'invalid'>
  * ```
  *
  * Everything below this comment uses only the public compound API — no import
- * from Base UI, no context read, no internal helper. `Field.test.tsx` asserts
- * the two produce identical DOM, which is ADR-0011 §2's rule made mechanical:
- * if this component ever needs something the compound parts cannot express,
- * the compound API is what gets fixed.
+ * from Base UI, no context read. `Field.test.tsx` asserts the two produce
+ * identical DOM, which is ADR-0011 §2's rule made mechanical: if this
+ * component ever needs something the compound parts cannot express, the
+ * compound API is what gets fixed. The one exception is `nonNativeLabel.js`,
+ * this component's own internal helper (not Base UI, not context) — see the
+ * protocol note below.
+ *
+ * **The non-native-label protocol.** A `<label for>` only ever associates
+ * with a labelable HTML element — an `<input>`, `<button>`, etc. Some
+ * controls this library ships are not that: Select's trigger (Task 5 of
+ * Phase 5c) renders a `<button role="combobox">`, but through an opaque
+ * component wrapper, and a plain `<label for={id}>` pointed at whatever that
+ * wrapper renders is not guaranteed to land on the right element, or on any
+ * single element at all. Such a control opts in by carrying
+ * `[NON_NATIVE_LABEL]: true` as a static property (`nonNativeLabel.ts`,
+ * `usesNonNativeLabel`), and when `Field` detects that marker on `children`'s
+ * `type`, it does three things instead of its ordinary single `<label>`:
+ *
+ *  1. Renders `<Field.Label nativeLabel={false} render={<div />} id={labelId}>`
+ *     — a `<div>`, not a `<label>`, since a `<label>` wrapping or pointing at
+ *     a non-labelable control is either inert or actively wrong.
+ *  2. Clones the child with `aria-labelledby={labelId}`, unless it already
+ *     carries its own `aria-labelledby` (a caller's explicit override wins).
+ *  3. Generates `labelId` with `useId()` here, in `Field`, rather than
+ *     leaving it to be registered later.
+ *
+ * That third point is R16 (5b plan, "Deviations", corrected): Base UI's own
+ * labelable wiring registers a control's id from a layout EFFECT, so it is
+ * missing from server-rendered HTML entirely for any control that doesn't
+ * get a native `for`/`id` pair up front — exactly Select's trigger, confirmed
+ * by a direct `renderToString` probe against Base UI 1.7.0 before this task
+ * was planned. Generating the id here and passing it to both ends closes
+ * that gap. Be precise about what it buys, because the broader claim is
+ * wrong: **this makes the control NAMED in streamed and pre-hydration markup
+ * for assistive technology. It does not make the control OPERABLE with
+ * JavaScript off** — Select's popup still needs hydration to open at all.
  */
 const FieldBase = forwardRef<HTMLDivElement, FieldProps>(function Field(
   { label, hint, error, children, ...rest },
@@ -81,10 +114,26 @@ const FieldBase = forwardRef<HTMLDivElement, FieldProps>(function Field(
   // field that passed would otherwise flip the whole field to invalid and
   // render an error row with no message in it.
   const hasError = error !== undefined && error !== ''
+  // Always called, unconditionally, per the rules of hooks — but only ever
+  // READ (below) when `nonNative` is true. Reading it unconditionally would
+  // be harmless too, but passing it as `id`/`aria-labelledby` outside that
+  // branch would be exactly the `prop={undefined}` mistake the global
+  // constraints forbid: Base UI's `for...in` prop merge lets an explicit
+  // `undefined` win over whatever it would otherwise compute.
+  const labelId = useId()
+  const nonNative = usesNonNativeLabel(children)
+  const labelledChild =
+    nonNative && isValidElement<{ 'aria-labelledby'?: string }>(children)
+      ? children.props['aria-labelledby'] === undefined
+        ? cloneElement(children, { 'aria-labelledby': labelId })
+        : children
+      : children
   return (
     <FieldRoot {...rest} {...(hasError ? { invalid: true } : {})} ref={ref}>
-      <FieldLabel>{label}</FieldLabel>
-      {children}
+      <FieldLabel {...(nonNative ? { nativeLabel: false, render: <div />, id: labelId } : {})}>
+        {label}
+      </FieldLabel>
+      {labelledChild}
       {hint !== undefined ? <FieldDescription>{hint}</FieldDescription> : null}
       {/*
         The error slot is UNCONDITIONAL, and that is the whole point of it.

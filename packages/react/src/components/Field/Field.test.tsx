@@ -2,7 +2,20 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { Field } from './Field.js'
+import { NON_NATIVE_LABEL } from './nonNativeLabel.js'
 import { Input } from '../Input/Input.js'
+
+/**
+ * A stand-in for a non-labelable control (Select's trigger, Task 5) — an
+ * opaque function component that renders a `<button>` and carries the
+ * protocol's marker as a static property. This task does not depend on
+ * Select existing yet; `Object.assign` is the exact shape Task 5's brief
+ * says it will use (`Object.assign(SelectBase, { …, [NON_NATIVE_LABEL]: true })`).
+ */
+function Fake(props: { 'aria-labelledby'?: string }) {
+  return <button {...props} />
+}
+Object.assign(Fake, { [NON_NATIVE_LABEL]: true })
 
 /**
  * Generated ids differ between two renders of the same tree, so they are
@@ -209,5 +222,81 @@ describe('Field (convenience)', () => {
     for (const part of ['Root', 'Label', 'Control', 'Description', 'Error'] as const) {
       expect(Field[part], `Field.${part} is missing`).toBeTypeOf('object')
     }
+  })
+
+  describe('non-native-label protocol', () => {
+    /**
+     * WHAT MAKES THIS GO RED: deleting `Object.assign(Fake, { [NON_NATIVE_LABEL]:
+     * true })` above. With the marker gone, `usesNonNativeLabel` returns false,
+     * `Field` falls back to its ordinary `<Field.Label>{label}</Field.Label>`,
+     * and that renders a real `<label>` — this test's `tagName` assertion fails.
+     */
+    it('labels a marked control with a DIV, not a LABEL, wired by aria-labelledby', () => {
+      render(
+        <Field label="Choice">
+          <Fake />
+        </Field>,
+      )
+      const control = screen.getByRole('button')
+      const labelledby = control.getAttribute('aria-labelledby')
+      expect(labelledby, 'the control has no aria-labelledby').not.toBeNull()
+      const label = document.getElementById(labelledby!)
+      expect(label, 'no element with the id the control is labelled by').not.toBeNull()
+      expect(label!.tagName).toBe('DIV')
+      expect(label!.getAttribute('for')).toBeNull()
+      expect(label!.textContent).toBe('Choice')
+    })
+
+    // The regression guard: every existing field (an <Input>, none of which
+    // carry the marker) must keep its real <label>, unaffected by this
+    // protocol's addition.
+    it('still labels an ordinary control with a LABEL whose htmlFor resolves to it', () => {
+      render(
+        <Field label="Email">
+          <Input name="email" />
+        </Field>,
+      )
+      const control = screen.getByLabelText('Email')
+      expect(control.tagName).toBe('INPUT')
+      const label = document.querySelector('label')
+      expect(label, 'no <label> rendered for an ordinary control').not.toBeNull()
+      expect(label!.htmlFor).toBe(control.id)
+    })
+
+    it("keeps a marked child's own aria-labelledby instead of overwriting it", () => {
+      render(
+        <Field label="Choice">
+          <Fake aria-labelledby="mine" />
+        </Field>,
+      )
+      const control = screen.getByRole('button')
+      expect(control.getAttribute('aria-labelledby')).toBe('mine')
+    })
+
+    /**
+     * ADR-0011 §2's rule, mechanised for this protocol: everything `Field`
+     * does for a marked child must be expressible with the public compound
+     * parts alone. `normaliseIds` (top of this file) already rewrites
+     * `aria-labelledby`, so it needs no change to cover this case too.
+     */
+    it('produces exactly the DOM its own compound parts produce for a non-native-label control', () => {
+      const convenience = render(
+        <Field label="Choice">
+          <Fake />
+        </Field>,
+      ).container.innerHTML
+
+      const compound = render(
+        <Field.Root>
+          <Field.Label nativeLabel={false} render={<div />} id="hand-id">
+            Choice
+          </Field.Label>
+          <Fake aria-labelledby="hand-id" />
+          <Field.Error />
+        </Field.Root>,
+      ).container.innerHTML
+
+      expect(normaliseIds(convenience)).toBe(normaliseIds(compound))
+    })
   })
 })
