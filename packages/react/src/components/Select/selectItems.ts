@@ -11,7 +11,13 @@ export interface SelectItem<Value> {
   disabled?: boolean
 }
 
-export interface SelectGroup<Value> {
+/**
+ * A type alias, not an interface, on purpose: Base UI types a group in
+ * `Select.Root`'s `items` with an index signature, and only a type alias is
+ * implicitly assignable to one. As an interface, a hand assembly passing
+ * these same `items` to `Select.Root` would need a cast.
+ */
+export type SelectGroup<Value> = {
   label: string
   items: ReadonlyArray<SelectItem<Value>>
 }
