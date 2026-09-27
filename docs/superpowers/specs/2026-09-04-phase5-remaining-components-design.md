@@ -229,6 +229,35 @@ state. Each is added to `DEFAULT_MESSAGES` with an English default.
 server HTML. This holds for Select, Tooltip, Popover and Toast exactly as it does for
 Dialog.
 
+**4.1.10 Form controls share one control-state token contract.** *Added 2026-09-26, before
+plan 5c.* Plan 5b enumerated token roles per component, and the lists disagreed: Checkbox
+got hover and invalid roles, Switch got neither, so Switch alone has no `[data-invalid]`
+rule. From 5c on, a control's token file defines these roles by these names, with these
+Tier 2 fallbacks, and a plan names only the roles *beyond* them:
+
+| Role | Fallback | Rule it serves |
+|---|---|---|
+| `border` | `vars.color.borderNormal` | Resting outline of the control's box (or track) |
+| `borderHover` | `vars.color.borderInteractive` | `&:hover:not([data-disabled])` — hover is always guarded |
+| `borderInvalid` | `vars.color.dangerBorder` | `&[data-invalid]`. `dangerBorder`, never `dangerBg`: it is the role gated for 3:1 non-text contrast (ADR-0008) |
+| `focusRing` | `vars.color.focusRing` | `&:focus-visible`, at the system's ring width and offset, never literals |
+| `radius` | per control | The control's corner radius |
+
+Disabled is not a token: every control expresses it as `&[data-disabled]` with
+`opacity: 0.6` and `cursor: default` on the element that carries the pointer, matching
+`Input.css.ts`. A control with a surface adds `bg` (`vars.color.bgSurface`) and, if it
+shows text, `text` (`vars.color.textPrimary`). A glyph on a solid action fill is
+`actionOnSolid`, not `actionText`.
+
+A control that renders its own label row uses the shared row values Checkbox, Switch and
+RadioGroup settled on in 5b's fix wave — `space['2']` gap, `text.sm` size and line height,
+`textPrimary` — so a form mixing them lines up.
+
+`Switch` is brought onto this contract in plan 5c: its track gains `border`, `borderHover`
+and `borderInvalid`, and the `[data-invalid]` rule it lacks. The same plan adds the other
+5b follow-up: `RadioGroup`'s `invalid` JSDoc says it is a colour cue that must be paired
+with visible copy.
+
 ### 4.2 Plan 5b — `Textarea`, `Checkbox`, `Switch`, `RadioGroup` + `Radio`
 
 **`Textarea` has no Base UI counterpart.** Confirmed: the package has no textarea export.
@@ -274,6 +303,70 @@ responsible for it, and the story shows both.
 
 The hidden input is rendered inline rather than portalled, so uncontrolled submit works
 pre-hydration exactly as `Input`'s does — gate 6 asserts it with a real form post.
+
+#### 4.3.1 Scope and API — settled 2026-09-26, before the plan
+
+**The convenience component supports single and multiple selection, grouped items, and
+object values.** All three are Base UI capabilities; the decision is to expose them on
+`Select` itself rather than only through the parts.
+
+- **`items`** is a flat list `{ value, label, disabled? }[]` or a grouped list
+  `{ label, items }[]`. Groups render as `Select.Group` with a `Select.GroupLabel`, and a
+  `Select.Separator` between consecutive groups.
+- **`multiple`** is a type parameter, as in Base UI: `value`/`defaultValue` become arrays.
+  Base UI renders one inline hidden input per selected value, so a pre-hydration post
+  carries all of them.
+- **Object values require `itemToStringValue`.** When `Value` is not `string`, the prop is
+  required by the type. Without it Base UI's fallback serialises the object into the
+  post, which is never what a server action expects.
+- **`isItemEqualToValue` defaults to comparing `itemToStringValue` output**, not
+  `Object.is`. A `defaultValue` rebuilt from server data is a different object carrying the
+  same data; under Base UI's default it matches no item and the trigger renders
+  empty. A consumer's own `isItemEqualToValue` still wins.
+- **Multiple values display as a locale list.** Base UI joins labels with a hardcoded
+  `", "`. `Select` instead joins them with `Intl.ListFormat` at `LocaleProvider`'s locale,
+  on one line with an ellipsis on overflow. The locale is explicit, so server and client
+  produce identical text.
+- **`placeholder`** is consumer-supplied content, not a message key. An empty `items`
+  list shows the existing `noResults` key; no new key is needed.
+- **`size`** is `sm | md | lg`, as on `Input`.
+
+**Compound parts:** `Select.Root`, `Trigger`, `Value`, `Icon`, `Popup`, `List`, `Item`,
+`Group`, `GroupLabel`, `Separator`. **`Select.Popup` bundles Base UI's Portal, Positioner
+and Popup** with §4.1.7's defaults applied (`side: 'bottom'`, the shared offset,
+`alignItemWithTrigger={false}`), so a hand assembly cannot forget them. The convenience
+component uses only these public parts, and a test asserts the two produce the same DOM,
+as `Field.test.tsx` does.
+
+**Selection is never colour alone (§4.1.4).** Each selected item shows a check glyph
+through `Select.ItemIndicator`, rendered by our `Item` part, which owns it so a consumer
+cannot remove it.
+
+#### 4.3.2 How `Field` knows its control is a Select
+
+`nativeLabel={false}` alone is not enough: Base UI's `Field.Label` still renders a
+`<label>` unless it is also given a non-label element, and warns in development about the
+mismatch. So the label must become `<div>` *and* non-native, together.
+
+**`Select` carries a static marker; `Field` checks its direct child for it** and, when
+present, renders its label with a `<div>` render element and `nativeLabel={false}`. The
+consumer API stays identical to `Input`'s — `<Field label="Country"><Select … /></Field>`.
+A Select wrapped in a consumer's own component is not detected; in development, `Select`
+looks up the element its trigger is labelled by and warns if it is a `<label>`, naming the
+fix. The marker is internal, not exported.
+
+#### 4.3.3 Two things the plan must verify before relying on them
+
+- **`nativeButton` derivation.** §4.1.1 says `Select.Trigger` reuses `Button`'s
+  derivation, but `deriveNativeButton` is private to `Button.tsx`. The plan moves it to a
+  shared internal module first; `Button`'s existing tests guard the move.
+- **The trigger's accessible name in server HTML.** Base UI registers the label id from an
+  effect (`useRegisteredLabelId`), so the trigger's `aria-labelledby` is likely absent
+  from server markup and appears only after hydration — the same shape as RadioGroup's
+  legend (5b, R16). The plan checks real server output first. If confirmed, the fix is
+  R16's: a `useId` passed to both ends. The rationale is stated narrowly, as R16's
+  correction requires — a named control in streamed and pre-hydration markup for
+  assistive technology, not operability with JavaScript off.
 
 ### 4.4 Plan 5d — `Tooltip`, `Popover`
 
