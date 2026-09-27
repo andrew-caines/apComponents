@@ -34,22 +34,35 @@ export const Checked: Story = { args: { defaultChecked: true } }
 
 export const Invalid: Story = {
   render: () => (
-    <Field.Root invalid>
-      <Switch label="Enable two-factor authentication" />
-      <Field.Error match>Two-factor authentication is required for this account.</Field.Error>
-    </Field.Root>
+    <div style={{ display: 'grid', gap: '0.5rem' }}>
+      <Switch label="Enable notifications (resting, for comparison)" />
+      <Field.Root invalid>
+        <Switch label="Enable two-factor authentication" />
+        <Field.Error match>Two-factor authentication is required for this account.</Field.Error>
+      </Field.Root>
+    </div>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
+    const resting = canvas.getByRole('switch', {
+      name: 'Enable notifications (resting, for comparison)',
+    })
     const sw = canvas.getByRole('switch', { name: 'Enable two-factor authentication' })
-    // Switch.css.ts styles no `data-invalid` selector — the wiring below is
-    // Base UI's own Field.Root validation reaching the switch, present but
-    // visually unstyled. Still asserted here because it is real, reachable
-    // behaviour of the shipped component.
     await expect(sw).toHaveAttribute('aria-invalid', 'true')
     await expect(
       canvas.getByText('Two-factor authentication is required for this account.'),
     ).toBeVisible()
+    // Task 8 (spec §4.1.10): `Switch.css.ts` now styles `&[data-invalid]`
+    // with `borderInvalid`. This project runs in a real Chromium browser
+    // (unlike the jsdom unit-test project, which cannot resolve the cascade
+    // at all — see `Switch.css.ts`'s `BORDER_WIDTH` note), so `getComputedStyle`
+    // here reflects the real, painted border colour. The comparison is
+    // differential against a resting Switch rather than a literal colour
+    // value, so it does not need to know the resolved OKLCH string — only
+    // that the invalid track's border is NOT the same colour as a resting
+    // track's, which is exactly what a missing `[data-invalid]` rule would
+    // fail to produce.
+    await expect(getComputedStyle(sw).borderColor).not.toBe(getComputedStyle(resting).borderColor)
   },
 }
 

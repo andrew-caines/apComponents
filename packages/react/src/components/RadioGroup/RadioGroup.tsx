@@ -28,6 +28,25 @@ export interface RadioGroupProps extends Omit<RadioGroupRootProps, 'children' | 
   options: ReadonlyArray<RadioGroupOption>
   /** Size of every option's control. Defaults to `md`. */
   size?: 'sm' | 'md' | 'lg'
+  /**
+   * Marks every option invalid — `radioRecipe`'s `&[data-invalid]` border and
+   * `aria-invalid` on the group. See `RadioGroupRootProps.invalid` (this
+   * type's own source) for why the prop has to live here rather than being
+   * reachable through an outer `Field.Root`.
+   *
+   * Redeclared here (rather than left as a bare inherited property) because
+   * this is a COLOUR-AND-BORDER CUE ONLY: ADR-0011 §5 requires that semantic
+   * state is never colour alone, so setting `invalid` with nothing else
+   * changes is an accessibility defect, not a complete error state. `Field`'s
+   * own `error` prop enforces the pairing structurally — supplying it marks
+   * the field invalid AND renders the message, because `Field.Error` is
+   * unconditionally in the tree — but `RadioGroup` has no such slot: `invalid`
+   * alone renders no message. A caller setting `invalid` must pair it with
+   * their own visible copy explaining what is wrong, placed near the group —
+   * `RadioGroup.stories.tsx`'s `Invalid` story does this with a plain `<p>`,
+   * the same pairing `Field`'s `error` prop automates for `Field.Error`.
+   */
+  invalid?: boolean
 }
 
 /**
