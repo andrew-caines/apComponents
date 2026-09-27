@@ -189,7 +189,9 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
   )
 
   let list: ReactNode
-  if (items.length === 0) {
+  // `flat`, not `items`: a grouped list whose groups are all empty has
+  // entries in `items` but no option to show.
+  if (flat.length === 0) {
     // A plain `role="option"`, never `Select.Item` (Task 5's own reasoning
     // still holds: an `<Select.Item>` with no `value` is Base UI's `null`
     // item, which reads as selected whenever nothing else is). Rendering it
@@ -208,15 +210,20 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
       </div>
     )
   } else if (isGrouped(items)) {
-    list = items.map((group, index) => (
-      <Fragment key={`${index}:${group.label}`}>
-        {index > 0 ? <SelectSeparator /> : null}
-        <SelectGroupPart>
-          <SelectGroupLabel>{group.label}</SelectGroupLabel>
-          {group.items.map(renderItem)}
-        </SelectGroupPart>
-      </Fragment>
-    ))
+    // An empty group is skipped, separator and all: a labelled group with no
+    // option in it is the same listbox violation as above. Filtering first
+    // keeps each separator strictly between two groups that are rendered.
+    list = items
+      .filter((group) => group.items.length > 0)
+      .map((group, index) => (
+        <Fragment key={`${index}:${group.label}`}>
+          {index > 0 ? <SelectSeparator /> : null}
+          <SelectGroupPart>
+            <SelectGroupLabel>{group.label}</SelectGroupLabel>
+            {group.items.map(renderItem)}
+          </SelectGroupPart>
+        </Fragment>
+      ))
   } else {
     list = items.map(renderItem)
   }

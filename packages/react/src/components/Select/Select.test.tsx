@@ -212,6 +212,54 @@ describe('Select (convenience)', () => {
     expect(french.textContent).toBe('Aucun résultat')
   })
 
+  // Fails if the empty branch tests `items.length` rather than the flattened
+  // list: a group with no items is still one entry in `items`, so the list
+  // would render a labelled group with no option in it, which is the listbox
+  // `aria-required-children` violation the `noResults` row exists to avoid.
+  it('shows noResults, and no group, when every group is empty', async () => {
+    renderIn(
+      <Select<string>
+        aria-label="City"
+        defaultOpen
+        items={[
+          { label: 'Europe', items: [] },
+          { label: 'Asia', items: [] },
+        ]}
+      />,
+    )
+    const listbox = await waitFor(() => screen.getByRole('listbox'))
+    expect(listbox.textContent).toBe(DEFAULT_MESSAGES.noResults)
+    expect(listbox.querySelectorAll('[role="group"]')).toHaveLength(0)
+    expect(listbox.querySelectorAll(`.${selectSeparatorClass}`)).toHaveLength(0)
+    const option = listbox.querySelector('[role="option"]')
+    expect(option).not.toBeNull()
+    expect(option!.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  // Fails if empty groups are rendered alongside non-empty ones: the empty
+  // group's label would appear, and so would a separator beside it.
+  it('skips an empty group, and the separator beside it, in a mixed list', async () => {
+    renderIn(
+      <Select
+        aria-label="City"
+        defaultOpen
+        items={[
+          { label: 'Europe', items: [] },
+          { label: 'Canada', items: [{ value: 'yvr', label: 'Vancouver' }] },
+          { label: 'Asia', items: [] },
+          { label: 'France', items: [{ value: 'cdg', label: 'Paris' }] },
+          { label: 'Africa', items: [] },
+        ]}
+      />,
+    )
+    const listbox = await waitFor(() => screen.getByRole('listbox'))
+    expect(listbox.querySelectorAll('[role="group"]')).toHaveLength(2)
+    expect(screen.queryByText('Europe')).toBeNull()
+    expect(screen.queryByText('Asia')).toBeNull()
+    expect(screen.queryByText('Africa')).toBeNull()
+    expect(listbox.querySelectorAll(`.${selectSeparatorClass}`)).toHaveLength(1)
+  })
+
   it('forwards ref and className to the trigger', () => {
     const ref = createRef<HTMLButtonElement>()
     renderIn(<Select aria-label="Country" items={COUNTRIES} ref={ref} className="mine" size="sm" />)
