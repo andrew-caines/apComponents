@@ -4,7 +4,6 @@ import { Field } from '../Field/Field.js'
 import { DEFAULT_MESSAGES } from '../../providers/messages.js'
 import { Select } from './Select.js'
 import { selectPopupClass } from './Select.css.js'
-import { equalBySerialisation, findLabel } from './selectItems.js'
 
 const COUNTRIES = [
   { value: 'ca', label: 'Canada' },
@@ -318,6 +317,13 @@ export const NativeLabelWarning: Story = {
  * by hand rather than produced by `<Field label>`: a `<div>` label with a
  * server-rendered id, and the trigger's `aria-labelledby` pointing at it.
  *
+ * Public API only. With string values nothing else is needed: Base UI
+ * resolves a string value's label from `items`, and its default
+ * `Object.is` equality is correct for strings. Object values need what the
+ * convenience `<Select>` supplies itself (`itemToStringValue`, a
+ * serialising `isItemEqualToValue`, a label lookup), so use `<Select>` for
+ * those.
+ *
  * Its `play` also carries the placement assertion (R3, 5c plan): the popup's
  * top edge sits at or below the trigger's bottom edge. This is the only place
  * that assertion lives, because it is the only story built from the compound
@@ -335,24 +341,15 @@ export const NativeLabelWarning: Story = {
 export const HandAssembled: Story = {
   render: () => {
     const labelId = 'select-hand-assembled-label'
-    const toString = (value: string) => value
     return (
       <div style={{ paddingBlockStart: 320 }}>
         <Field.Root>
           <Field.Label nativeLabel={false} render={<div />} id={labelId}>
             Country
           </Field.Label>
-          <Select.Root
-            items={COUNTRIES}
-            itemToStringValue={toString}
-            isItemEqualToValue={equalBySerialisation(toString)}
-          >
+          <Select.Root items={COUNTRIES}>
             <Select.Trigger aria-labelledby={labelId}>
-              <Select.Value placeholder="Choose a country">
-                {(value: string | null) =>
-                  findLabel(value, COUNTRIES, toString) ?? 'Choose a country'
-                }
-              </Select.Value>
+              <Select.Value placeholder="Choose a country" />
               <Select.Icon />
             </Select.Trigger>
             <Select.Popup>
@@ -372,12 +369,22 @@ export const HandAssembled: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const trigger = canvas.getByRole('combobox', { name: 'Country' })
+    await expect(trigger).toHaveTextContent('Choose a country')
     await userEvent.click(trigger)
-    await within(document.body).findByRole('listbox')
+    const listbox = await within(document.body).findByRole('listbox')
     const popup = document.body.querySelector(`.${selectPopupClass}`)
     if (popup === null) throw new Error('Select.Popup did not render into the document body')
     const popupRect = popup.getBoundingClientRect()
     const triggerRect = trigger.getBoundingClientRect()
     expect(popupRect.top).toBeGreaterThanOrEqual(triggerRect.bottom)
+
+    // Base UI resolves the string value's label from `items`: the trigger
+    // shows "France", not the raw value "fr". Fails if the hand assembly
+    // needs a label lookup of its own after all.
+    await userEvent.click(within(listbox).getByRole('option', { name: 'France' }))
+    await waitFor(() => expect(trigger.textContent).toBe('France'))
+    // Let the popup finish closing, so the story's axe scan does not catch
+    // it half-way through its exit transition.
+    await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
   },
 }
