@@ -272,7 +272,7 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${escapedLabelFor}"`))
   })
 
-  it('posts the server-rendered DEFAULT values of Textarea, Checkbox, Switch and RadioGroup through to the action, with no JavaScript involved', async () => {
+  it('posts the server-rendered DEFAULT values of Textarea, Checkbox, Switch, RadioGroup and Select through to the action, with no JavaScript involved', async () => {
     // Phase 1: pin the expected defaults against the REAL server markup,
     // with literal assertions — this is what makes the whole test non-
     // circular. Without these, phase 2 below could post whatever the markup
