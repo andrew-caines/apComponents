@@ -93,6 +93,14 @@ function assignRef<T>(ref: Ref<T> | undefined, node: T | null): void {
  * lets `Field.Root`'s `name` silently override the control's own (a 5b
  * finding), so setting both reads as working while one value is ignored.
  *
+ * **`Select` must render inside a `LocaleProvider`.** It calls `useLocale()`
+ * to get the locale a multiple selection's labels are joined with
+ * (`Intl.ListFormat`) and the `noResults` message shown for an empty `items`
+ * list. `ApProvider` composes `LocaleProvider` already, so the common case
+ * needs nothing extra; a `Select` rendered with no `ApProvider`/`LocaleProvider`
+ * ancestor at all throws from `useLocale` itself
+ * (`providers/LocaleProvider.tsx`), the same requirement `Dialog` has.
+ *
  * **Item `label` is a string, not a node.** It is what the trigger shows,
  * what `Intl.ListFormat` joins for a multiple select and what typeahead
  * matches; each needs text, and a node could not be read back out on the
