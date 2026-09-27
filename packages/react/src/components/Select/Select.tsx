@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useRef, type ReactNode, type Ref } from 'react'
 import { NON_NATIVE_LABEL } from '../Field/nonNativeLabel.js'
 import { useLocale } from '../../providers/LocaleProvider.js'
+import { selectGroupLabelClass } from './Select.css.js'
 import {
   SelectGroup as SelectGroupPart,
   SelectGroupLabel,
@@ -181,13 +182,22 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
 
   let list: ReactNode
   if (items.length === 0) {
-    // One non-selectable row. An empty labelled group rather than a disabled
-    // option: an option with no `value` is Base UI's `null` item, which reads
-    // as selected whenever nothing is — check glyph and `aria-selected`.
+    // A plain `role="option"`, never `Select.Item` (Task 5's own reasoning
+    // still holds: an `<Select.Item>` with no `value` is Base UI's `null`
+    // item, which reads as selected whenever nothing else is). Rendering it
+    // as a bare `<div>` keeps it out of Base UI's item registry entirely —
+    // unreachable by arrow-key navigation, uncounted towards any selection —
+    // while still satisfying WAI-ARIA's listbox, which requires at least one
+    // `option` (or `group`) descendant with actual `option` content beneath
+    // it. A `noResults`-only `Select.Group`/`Select.GroupLabel` (this
+    // branch's original shape) is a group with no options in it, which is
+    // exactly what that rule forbids — axe only ever scans an OPENED Select
+    // (Task 6's `Empty` story, `defaultOpen`), so this was unreachable by any
+    // jsdom-based unit test before Storybook could open one for real.
     list = (
-      <SelectGroupPart>
-        <SelectGroupLabel>{messages.noResults}</SelectGroupLabel>
-      </SelectGroupPart>
+      <div role="option" aria-disabled="true" className={selectGroupLabelClass}>
+        {messages.noResults}
+      </div>
     )
   } else if (isGrouped(items)) {
     list = items.map((group, index) => (

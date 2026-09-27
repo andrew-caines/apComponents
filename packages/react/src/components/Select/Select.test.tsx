@@ -185,11 +185,22 @@ describe('Select (convenience)', () => {
   })
 
   // Fails if the empty row hardcodes its text instead of reading `noResults`.
+  //
+  // The placeholder row IS a `role="option"` (Select.stories.tsx's `Empty`
+  // story and its axe scan are what forced this: a listbox with a labelled
+  // group and no options is invalid WAI-ARIA structure, unreachable by any
+  // jsdom test until Storybook could open one for real). It carries
+  // `aria-disabled` and is asserted NOT selected, because it is still not a
+  // real `Select.Item` — Base UI never registers it as one, so it cannot be
+  // the `null` item that reads as selected whenever nothing else is.
   it('shows noResults for an empty list, overridable through LocaleProvider', async () => {
     const { unmount } = renderIn(<Select<string> aria-label="Empty" defaultOpen items={[]} />)
     const listbox = await waitFor(() => screen.getByRole('listbox'))
     expect(listbox.textContent).toBe(DEFAULT_MESSAGES.noResults)
-    expect(listbox.querySelector('[role="option"]')).toBeNull()
+    const option = listbox.querySelector('[role="option"]')
+    expect(option).not.toBeNull()
+    expect(option!.getAttribute('aria-disabled')).toBe('true')
+    expect(option!.getAttribute('aria-selected')).toBeNull()
     unmount()
 
     render(

@@ -1,0 +1,298 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
+import { Field } from '../Field/Field.js'
+import { DEFAULT_MESSAGES } from '../../providers/messages.js'
+import { Select } from './Select.js'
+import { selectPopupClass } from './Select.css.js'
+import { equalBySerialisation, findLabel } from './selectItems.js'
+
+const COUNTRIES = [
+  { value: 'ca', label: 'Canada' },
+  { value: 'fr', label: 'France' },
+  { value: 'de', label: 'Germany' },
+  { value: 'jp', label: 'Japan' },
+]
+
+const GROUPED_COUNTRIES = [
+  {
+    label: 'North America',
+    items: [
+      { value: 'ca', label: 'Canada' },
+      { value: 'us', label: 'United States' },
+    ],
+  },
+  {
+    label: 'Europe',
+    items: [
+      { value: 'fr', label: 'France' },
+      { value: 'de', label: 'Germany' },
+    ],
+  },
+]
+
+interface Country {
+  code: string
+  name: string
+}
+const OBJECT_COUNTRIES = [
+  { value: { code: 'ca', name: 'Canada' }, label: 'Canada' },
+  { value: { code: 'fr', name: 'France' }, label: 'France' },
+]
+const byCode = (c: Country) => c.code
+
+const meta = {
+  title: 'Components/Select',
+  // The instantiation expression, not `typeof Select<string>` in the
+  // `satisfies` target alone: `satisfies` only validates, it never narrows a
+  // property's own recorded type, so `component: Select` here would keep
+  // `Select`'s full unresolved generic signature and `StoryObj`'s `Args`
+  // would come out with `Value` and `Multiple` as their bare, unresolved type
+  // parameters (`defaultValue: unknown`, `multiple: boolean | undefined`).
+  component: Select<string>,
+  argTypes: {
+    size: { control: 'inline-radio', options: ['sm', 'md', 'lg'] },
+    disabled: { control: 'boolean' },
+  },
+  args: {
+    items: COUNTRIES,
+    placeholder: 'Choose a country',
+  },
+} satisfies Meta<typeof Select<string>>
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+/**
+ * The convenience component inside `Field`, exactly as the common case in
+ * `Select.tsx`'s own doc comment. `play` covers the keyboard model a mouse
+ * click can't exercise: opening, moving the highlight, selecting, cancelling,
+ * and jumping to an item by typing while closed.
+ */
+export const Default: Story = {
+  render: (args) => (
+    <Field label="Country">
+      <Select {...args} />
+    </Field>
+  ),
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole('combobox', { name: 'Country' })
+    await expect(trigger).toHaveTextContent('Choose a country')
+
+    await step('ArrowDown opens the popup and highlights the first item', async () => {
+      trigger.focus()
+      await userEvent.keyboard('{ArrowDown}')
+      const listbox = await within(document.body).findByRole('listbox')
+      const canada = within(listbox).getByRole('option', { name: 'Canada' })
+      await waitFor(() => expect(canada).toHaveAttribute('data-highlighted'))
+    })
+
+    await step('further arrows move the highlight', async () => {
+      const listbox = within(document.body).getByRole('listbox')
+      const canada = within(listbox).getByRole('option', { name: 'Canada' })
+      const france = within(listbox).getByRole('option', { name: 'France' })
+      await userEvent.keyboard('{ArrowDown}')
+      await waitFor(() => expect(france).toHaveAttribute('data-highlighted'))
+      await expect(canada).not.toHaveAttribute('data-highlighted')
+    })
+
+    await step(
+      'Enter selects the highlighted item, closes the popup, and returns focus',
+      async () => {
+        await userEvent.keyboard('{Enter}')
+        // NOT `waitForElementToBeRemoved`: Base UI force-mounts the listbox
+        // (hidden) the whole time the trigger is focused, to support the
+        // closed-trigger typeahead the next step exercises, so the node never
+        // leaves the document. `queryByRole` is accessibility-aware and
+        // correctly stops finding it once Base UI applies the native
+        // `hidden` attribute post-transition — that is "closed" here.
+        await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
+        await waitFor(() => expect(trigger).toHaveFocus())
+        await expect(trigger).toHaveTextContent('France')
+      },
+    )
+
+    await step('Escape closes the popup without changing the value', async () => {
+      await userEvent.keyboard('{ArrowDown}')
+      await within(document.body).findByRole('listbox')
+      await userEvent.keyboard('{Escape}')
+      await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
+      await expect(trigger).toHaveTextContent('France')
+    })
+
+    await step('typing a letter jumps to the matching item while closed', async () => {
+      trigger.focus()
+      await userEvent.keyboard('g')
+      await waitFor(() => expect(trigger).toHaveTextContent('Germany'))
+      expect(within(document.body).queryByRole('listbox')).toBeNull()
+    })
+  },
+}
+
+export const Sizes: Story = {
+  render: () => (
+    <div style={{ display: 'grid', gap: '1rem', maxWidth: 320 }}>
+      <Select
+        size="sm"
+        aria-label="Country (sm)"
+        placeholder="Choose a country"
+        items={COUNTRIES}
+      />
+      <Select
+        size="md"
+        aria-label="Country (md)"
+        placeholder="Choose a country"
+        items={COUNTRIES}
+      />
+      <Select
+        size="lg"
+        aria-label="Country (lg)"
+        placeholder="Choose a country"
+        items={COUNTRIES}
+      />
+    </div>
+  ),
+}
+
+export const Grouped: Story = {
+  render: () => (
+    <Select aria-label="Country" placeholder="Choose a country" items={GROUPED_COUNTRIES} />
+  ),
+}
+
+/**
+ * Selecting keeps the popup open, and the trigger's text is the
+ * `Intl.ListFormat` conjunction of every chosen label — never Base UI's own
+ * hardcoded `', '` join.
+ */
+export const Multiple: Story = {
+  render: () => (
+    <Select multiple aria-label="Countries" placeholder="Choose countries" items={COUNTRIES} />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole('combobox', { name: 'Countries' })
+    await userEvent.click(trigger)
+    const listbox = await within(document.body).findByRole('listbox')
+    await userEvent.click(within(listbox).getByRole('option', { name: 'Canada' }))
+    await userEvent.click(within(listbox).getByRole('option', { name: 'France' }))
+    // A multi-select does not close on choice.
+    await expect(within(document.body).getByRole('listbox')).toBeVisible()
+    await waitFor(() => expect(trigger).toHaveTextContent('Canada and France'))
+  },
+}
+
+/**
+ * An object `defaultValue` rebuilt as a fresh literal every render. Fails on
+ * the label if the trigger falls back to Base UI's own resolution (raw JSON),
+ * and fails on matching if the default `isItemEqualToValue` reverts to
+ * `Object.is` instead of comparing by serialisation.
+ */
+export const ObjectValues: Story = {
+  render: () => (
+    <Select<Country>
+      aria-label="Country (object values)"
+      placeholder="Choose a country"
+      items={OBJECT_COUNTRIES}
+      itemToStringValue={byCode}
+      defaultValue={{ code: 'fr', name: 'France' }}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole('combobox', {
+      name: 'Country (object values)',
+    })
+    await expect(trigger).toHaveTextContent('France')
+  },
+}
+
+export const Disabled: Story = {
+  args: { disabled: true, 'aria-label': 'Country' },
+}
+
+export const Invalid: Story = {
+  render: (args) => (
+    <Field label="Country" error="Choose a country before continuing.">
+      <Select {...args} />
+    </Field>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole('combobox', { name: 'Country' })
+    await expect(trigger).toHaveAttribute('aria-invalid', 'true')
+    await expect(canvas.getByText('Choose a country before continuing.')).toBeVisible()
+  },
+}
+
+export const Empty: Story = {
+  render: () => <Select<string> aria-label="No matching countries" items={[]} defaultOpen />,
+  play: async () => {
+    const listbox = await within(document.body).findByRole('listbox')
+    await expect(listbox).toHaveTextContent(DEFAULT_MESSAGES.noResults)
+    // A `role="option"`, disabled and never selected — WAI-ARIA requires a
+    // listbox to own at least one real option, and axe (gate 5) enforces it:
+    // a labelled-group-with-no-options placeholder failed `aria-required-
+    // children` the first time this story opened a genuinely empty Select.
+    const placeholder = within(listbox).getByRole('option')
+    await expect(placeholder).toHaveAttribute('aria-disabled', 'true')
+    await expect(placeholder).not.toHaveAttribute('aria-selected')
+  },
+}
+
+/**
+ * Field's non-native-label protocol (`Field.tsx`'s doc comment), written out
+ * by hand rather than produced by `<Field label>`: a `<div>` label with a
+ * server-rendered id, and the trigger's `aria-labelledby` pointing at it.
+ *
+ * Its `play` also carries the placement assertion (R3, 5c plan): the popup's
+ * top edge sits at or below the trigger's bottom edge. This is the only place
+ * that assertion lives, because it is the only story built from the compound
+ * parts and able to pass `positioner` — the convenience `<Select>` never
+ * exposes it. jsdom cannot fail this the way a real layout engine can, which
+ * is why it moved here from a unit test.
+ */
+export const HandAssembled: Story = {
+  render: () => {
+    const labelId = 'select-hand-assembled-label'
+    const toString = (value: string) => value
+    return (
+      <Field.Root>
+        <Field.Label nativeLabel={false} render={<div />} id={labelId}>
+          Country
+        </Field.Label>
+        <Select.Root
+          items={COUNTRIES}
+          itemToStringValue={toString}
+          isItemEqualToValue={equalBySerialisation(toString)}
+        >
+          <Select.Trigger aria-labelledby={labelId}>
+            <Select.Value placeholder="Choose a country">
+              {(value: string | null) => findLabel(value, COUNTRIES, toString) ?? 'Choose a country'}
+            </Select.Value>
+            <Select.Icon />
+          </Select.Trigger>
+          <Select.Popup>
+            <Select.List>
+              {COUNTRIES.map((item) => (
+                <Select.Item key={item.value} value={item.value}>
+                  {item.label}
+                </Select.Item>
+              ))}
+            </Select.List>
+          </Select.Popup>
+        </Select.Root>
+      </Field.Root>
+    )
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole('combobox', { name: 'Country' })
+    await userEvent.click(trigger)
+    await within(document.body).findByRole('listbox')
+    const popup = document.body.querySelector(`.${selectPopupClass}`)
+    if (popup === null) throw new Error('Select.Popup did not render into the document body')
+    const popupRect = popup.getBoundingClientRect()
+    const triggerRect = trigger.getBoundingClientRect()
+    expect(popupRect.top).toBeGreaterThanOrEqual(triggerRect.bottom)
+  },
+}
