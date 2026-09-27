@@ -63,4 +63,10 @@ export const SECTIONS: readonly Section[] = [
     file: 'routes/form-controls.tsx',
     blurb: 'Textarea, Checkbox, Switch and RadioGroup — sizes, defaults and indeterminate.',
   },
+  {
+    slug: 'select',
+    title: 'Select',
+    file: 'routes/select.tsx',
+    blurb: 'Single, grouped and multiple selection.',
+  },
 ]
