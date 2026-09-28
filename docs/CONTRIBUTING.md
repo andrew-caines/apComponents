@@ -953,15 +953,39 @@ button, which opens the popup, and hovering the label puts the button in
   `<Select.Trigger>`. `Select.stories.tsx`'s `HandAssembled` story is the
   worked example.
 
-## `Select`'s `onFocus`/`onBlur` skip focus moving to and from the popup
+## `Select`'s `onFocus`/`onBlur` track focus within the trigger and the popup
 
-`Select` (`Select.tsx`) calls a consumer's `onBlur` only when focus leaves the
-control, and `onFocus` only when it arrives from outside: both are skipped when
-`relatedTarget` is inside the popup. Base UI's trigger blur fires when opening
-moves focus into the listbox, and Base UI merges a consumer handler after its
-own (`trigger/SelectTrigger.mjs`), so unfiltered, a form library's `onBlur`
-would mark the field touched the moment it opened. A hand assembly passing
-`onBlur` to `Select.Trigger` gets Base UI's unfiltered event.
+`Select` (`Select.tsx`) gives the consumer's `onFocus`/`onBlur` focus-within
+semantics over the trigger and the popup's positioner together: `onFocus`
+fires when focus enters either from outside, `onBlur` when it leaves both —
+from the trigger, or from inside the open popup (Tab out of the list, a press
+on another control). Moves between the two, as on open and close, fire
+neither. Base UI's own trigger blur fires as opening moves focus into the
+listbox, and Base UI merges a consumer handler after its own
+(`trigger/SelectTrigger.mjs`), so an unfiltered `onBlur` would mark a form
+field touched the moment it opened, and would never see an exit made from
+inside the popup. The containment element is the **positioner**, not the
+popup: Base UI's focus guards sit inside the positioner beside the popup, and
+Tab out of the list passes through them. `Select.Popup`'s `positioner` option
+takes the positioner's `ref`, `onFocus` and `onBlur` for this.
+
+Two Chromium facts shape it (the `FocusWithin` story, which jsdom cannot
+replace): a focus guard moves focus on from inside its own focus handler, so
+its blur arrives before its focus has bubbled, and a focus whose
+`relatedTarget` is inside the control is never an entry; and a press on
+non-focusable space outside the open popup blurs the item with a `null`
+`relatedTarget` before Base UI returns focus to the trigger, so a `null` blur
+from inside the popup is not an exit (a `null` blur from the trigger is). A
+hand assembly passing `onBlur` to `Select.Trigger` gets Base UI's unfiltered
+event.
+
+**`Select`'s `id` goes to the trigger, not the root.** Given to `Select.Root`
+inside a `Field`, the caller's id never lands at all, not even after
+hydration: the trigger registers the provider's generated id with the
+labelable provider before the root registers the caller's, and
+`LabelableProvider` keeps the id it already has. `Select.Trigger` renders an
+`id` it is given directly, so it is in the server HTML too — the exception
+to the section on `Field` discarding a caller-supplied id above.
 
 ## Known caveats
 

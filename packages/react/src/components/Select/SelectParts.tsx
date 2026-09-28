@@ -114,14 +114,28 @@ export const SelectIcon = forwardRef<HTMLSpanElement, SelectIconProps>(function 
   )
 })
 
-/** The placement a consumer may change. Everything else about the positioner is fixed. */
+/**
+ * The placement a consumer may change, plus the positioner's `ref`, `onFocus`
+ * and `onBlur`. Everything else about the positioner is fixed.
+ *
+ * The positioner, not the popup, is the element that contains all of the
+ * open Select's focusable content: Base UI's focus manager renders its focus
+ * guards inside the positioner but beside the popup, and Tab out of the list
+ * passes through them. Anything tracking focus within the open Select —
+ * `Select`'s own `onBlur` does — needs the positioner's ref and handlers.
+ */
 export type SelectPositionerOptions = Pick<
   SelectPositionerProps,
-  'side' | 'align' | 'sideOffset' | 'alignOffset' | 'collisionPadding'
->
+  'side' | 'align' | 'sideOffset' | 'alignOffset' | 'collisionPadding' | 'onFocus' | 'onBlur'
+> & {
+  ref?: Ref<HTMLDivElement>
+}
 
 export interface SelectPopupProps extends Omit<BasePopupProps, 'className'> {
-  /** Overrides for the positioner's placement. `className` and `ref` address the popup. */
+  /**
+   * Overrides for the positioner's placement, and its ref and focus handlers.
+   * `className` and `ref` on `Select.Popup` itself address the popup.
+   */
   positioner?: SelectPositionerOptions
   className?: string
 }

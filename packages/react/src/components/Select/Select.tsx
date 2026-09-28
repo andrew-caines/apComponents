@@ -83,27 +83,35 @@ export type SelectProps<Value, Multiple extends boolean | undefined = false> = O
     /** The trigger `<button>`, as `Input`'s ref is its `<input>`. */
     ref?: Ref<HTMLButtonElement>
     /**
-     * The trigger's id; Base UI's root puts it there. Outside a `Field` it is
-     * in the server HTML. **Inside a `Field` it is not:** the server renders a
-     * generated `base-ui-…` id and the trigger takes this one only after
-     * hydration (docs/CONTRIBUTING.md, "Base UI's Field discards a
-     * caller-supplied `id` from server markup"). Locate a Select inside a
-     * `Field` by its label before hydration, never by this id.
+     * The trigger's id, in server HTML and after hydration, inside a `Field`
+     * or not. It goes to `Select.Trigger`, which renders it directly and
+     * registers it with the `Field`. Given to `Select.Root` instead, a Select
+     * inside a `Field` keeps a generated `base-ui-…` id for good: the trigger
+     * registers the provider's generated id before the root registers the
+     * caller's, and Base UI's `LabelableProvider` keeps the id it has.
      */
     id?: string
     /**
-     * Called when focus enters the trigger from outside the control. Not called
-     * when focus returns to the trigger from the popup's listbox on close.
+     * Called when focus enters the control — the trigger or its open popup —
+     * from outside it. Not called when focus moves between the two, as it
+     * does on open and close. The event's target is the element focused,
+     * usually the trigger.
      */
-    onFocus?: FocusEventHandler<HTMLButtonElement>
+    onFocus?: FocusEventHandler<HTMLElement>
     /**
-     * Called when focus leaves the control. Not called when focus moves from
-     * the trigger into the popup's listbox on open: Base UI's trigger blur
-     * fires then, and a form library would mark the field touched on opening
-     * it. Together with `ref`, what react-hook-form's `Controller` expects.
+     * Called when focus leaves the control: from the trigger, or from inside
+     * the open popup (Tab out of the list, a press on another control). Not
+     * called when focus moves from the trigger into the popup on open: Base
+     * UI's trigger blur fires then, and a form library would mark the field
+     * touched on opening it. Together with `ref`, what react-hook-form's
+     * `Controller` expects. The target is the element losing focus, which
+     * may be inside the popup.
      */
-    onBlur?: FocusEventHandler<HTMLButtonElement>
-    /** Applied to the trigger only, never to the popup or the hidden input. */
+    onBlur?: FocusEventHandler<HTMLElement>
+    /**
+     * Applied to the trigger only, never to the popup or the hidden input.
+     * Non-string values are dropped.
+     */
     [data: `data-${string}`]: string | undefined
   }
 
@@ -203,18 +211,47 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
     [ref],
   )
 
-  // Base UI's own trigger blur skips focus moving into the popup
-  // (`trigger/SelectTrigger.mjs`), but merges a consumer's `onBlur` after it,
-  // so the consumer's would run on every open. The same test, against the
-  // popup element, filters both handlers.
-  const popupRef = useRef<HTMLDivElement | null>(null)
-  const withinPopup = (event: FocusEvent<HTMLButtonElement>): boolean =>
-    popupRef.current?.contains(event.relatedTarget as Node | null) === true
-  const handleFocus = (event: FocusEvent<HTMLButtonElement>) => {
-    if (!withinPopup(event)) onFocus?.(event)
+  // Focus-within across the trigger and the positioner (which holds the
+  // popup and Base UI's focus guards): `onFocus` fires when focus enters the
+  // control from outside, `onBlur` when it leaves both elements. Base UI's
+  // trigger blur fires as focus moves into the popup, and Base UI merges a
+  // consumer's handler after its own, so an unfiltered `onBlur` would run on
+  // every open and miss every exit made from inside the popup. React focus
+  // events bubble through the portal, so the positioner's handlers see
+  // blurs from items and guards alike.
+  //
+  // A `null` `relatedTarget` is outside for a blur from the trigger (a press
+  // on empty page space). From inside the popup it is not an exit: in
+  // Chromium, a press on non-focusable space outside the open popup blurs
+  // the item with `null`, then Base UI's outside-press close returns focus
+  // to the trigger (`FloatingFocusManager`'s return focus), and that pair is
+  // one uninterrupted stay in the control. `focusWithin` stays true, so the
+  // return is not a new entry either — as when the popup unmounts under focus.
+  const positionerRef = useRef<HTMLDivElement | null>(null)
+  const focusWithin = useRef(false)
+  const withinControl = (target: EventTarget | null): boolean => {
+    const node = target as Node | null
+    if (node === null) return false
+    return (
+      triggerRef.current?.contains(node) === true || positionerRef.current?.contains(node) === true
+    )
   }
-  const handleBlur = (event: FocusEvent<HTMLButtonElement>) => {
-    if (!withinPopup(event)) onBlur?.(event)
+  const handleFocus = (event: FocusEvent<HTMLElement>) => {
+    // A `relatedTarget` inside is a move within the control, even with
+    // `focusWithin` false: a focus guard moves focus on out from its own
+    // focus handler, so its blur reaches here before its focus finishes
+    // bubbling to the positioner.
+    if (focusWithin.current || withinControl(event.relatedTarget)) return
+    focusWithin.current = true
+    onFocus?.(event)
+  }
+  const handleBlur = (event: FocusEvent<HTMLElement>) => {
+    if (!focusWithin.current || withinControl(event.relatedTarget)) return
+    focusWithin.current = false
+    onBlur?.(event)
+  }
+  const handlePopupBlur = (event: FocusEvent<HTMLElement>) => {
+    if (event.relatedTarget !== null) handleBlur(event)
   }
 
   // §4.3.2: a native `<label>` naming the button — by `for`, or by wrapping
@@ -297,19 +334,19 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
   return (
     <SelectRoot
       {...rest}
-      {...(id !== undefined ? { id } : {})}
       items={items}
       itemToStringValue={toString}
       isItemEqualToValue={isItemEqualToValue ?? equalBySerialisation(toString)}
     >
       <SelectTrigger
         ref={setTrigger}
+        {...(id !== undefined ? { id } : {})}
         size={size}
         {...(className !== undefined ? { className } : {})}
         {...(labelledBy !== undefined ? { 'aria-labelledby': labelledBy } : {})}
         {...(ariaLabel !== undefined ? { 'aria-label': ariaLabel } : {})}
-        {...(onFocus !== undefined ? { onFocus: handleFocus } : {})}
-        {...(onBlur !== undefined ? { onBlur: handleBlur } : {})}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         {...dataAttributes}
       >
         <SelectValue {...(placeholder !== undefined ? { placeholder } : {})}>
@@ -317,7 +354,9 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
         </SelectValue>
         <SelectIcon />
       </SelectTrigger>
-      <SelectPopup ref={popupRef}>
+      <SelectPopup
+        positioner={{ ref: positionerRef, onFocus: handleFocus, onBlur: handlePopupBlur }}
+      >
         <SelectList>{list}</SelectList>
       </SelectPopup>
     </SelectRoot>

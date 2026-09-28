@@ -1,5 +1,6 @@
+import { useState, type FocusEventHandler } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, userEvent, waitFor, within } from 'storybook/test'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { Field } from '../Field/Field.js'
 import { DEFAULT_MESSAGES } from '../../providers/messages.js'
 import { Select } from './Select.js'
@@ -386,5 +387,118 @@ export const HandAssembled: Story = {
     // Let the popup finish closing, so the story's axe scan does not catch
     // it half-way through its exit transition.
     await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
+  },
+}
+
+/**
+ * A form library's touched flag: set in `onBlur`, as react-hook-form's
+ * `Controller` does. Shown as text so `play` reads it from the page.
+ */
+function TouchedSelect({
+  onFocus,
+  onBlur,
+}: {
+  onFocus: FocusEventHandler<HTMLElement>
+  onBlur: FocusEventHandler<HTMLElement>
+}) {
+  const [touched, setTouched] = useState(false)
+  return (
+    <div style={{ display: 'grid', gap: '1rem', maxWidth: 320 }}>
+      <Field label="Country">
+        <Select
+          items={COUNTRIES}
+          placeholder="Choose a country"
+          onFocus={onFocus}
+          onBlur={(event) => {
+            setTouched(true)
+            onBlur(event)
+          }}
+        />
+      </Field>
+      <button type="button">After</button>
+      <p data-testid="touched">{touched ? 'touched' : 'untouched'}</p>
+    </div>
+  )
+}
+
+/**
+ * `Select`'s `onFocus`/`onBlur` have focus-within semantics across the
+ * trigger and the open popup. In real Chromium, because the exits under test
+ * leave from inside the portalled popup, through Base UI's focus guards and
+ * its outside-press handling, which jsdom does not reproduce. Each step fails
+ * if the positioner's blur handler is removed (the exit is never seen) or if
+ * the `focusWithin` guard on `onFocus` is removed (focus returning to the
+ * trigger re-fires it).
+ */
+export const FocusWithin: Story = {
+  args: { onFocus: fn(), onBlur: fn() },
+  render: (args) => (
+    <TouchedSelect
+      onFocus={args.onFocus as FocusEventHandler<HTMLElement>}
+      onBlur={args.onBlur as FocusEventHandler<HTMLElement>}
+    />
+  ),
+  play: async ({ canvasElement, args, step }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole('combobox', { name: 'Country' })
+    const after = canvas.getByRole('button', { name: 'After' })
+    const touched = canvas.getByTestId('touched')
+    const onFocus = args.onFocus as ReturnType<typeof fn>
+    const onBlur = args.onBlur as ReturnType<typeof fn>
+    const reset = () => {
+      onFocus.mockClear()
+      onBlur.mockClear()
+    }
+    const openFromKeyboard = async () => {
+      trigger.focus()
+      await userEvent.keyboard('{ArrowDown}')
+      await within(document.body).findByRole('listbox')
+      await waitFor(() => expect(trigger).not.toHaveFocus())
+    }
+
+    await step('open, select and close: no blur, one focus', async () => {
+      reset()
+      await openFromKeyboard()
+      await userEvent.keyboard('{ArrowDown}')
+      await userEvent.keyboard('{Enter}')
+      await waitFor(() => expect(trigger).toHaveFocus())
+      await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'))
+      await expect(onFocus).toHaveBeenCalledTimes(1)
+      await expect(onBlur).not.toHaveBeenCalled()
+      await expect(touched).toHaveTextContent('untouched')
+      after.focus()
+      await waitFor(() => expect(onBlur).toHaveBeenCalledTimes(1))
+    })
+
+    await step('Tab out of the open listbox: one blur, touched', async () => {
+      reset()
+      await openFromKeyboard()
+      await userEvent.tab()
+      await waitFor(() => expect(after).toHaveFocus())
+      await waitFor(() => expect(onBlur).toHaveBeenCalledTimes(1))
+      await expect(onFocus).toHaveBeenCalledTimes(1)
+      await expect(touched).toHaveTextContent('touched')
+    })
+
+    await step('press an outside button while open: one blur', async () => {
+      reset()
+      await openFromKeyboard()
+      await userEvent.click(after)
+      await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'))
+      await waitFor(() => expect(onBlur).toHaveBeenCalledTimes(1))
+      await expect(onFocus).toHaveBeenCalledTimes(1)
+    })
+
+    await step('press non-focusable space while open: no blur, no second focus', async () => {
+      reset()
+      after.blur()
+      await openFromKeyboard()
+      await userEvent.click(touched)
+      await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'))
+      await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
+      await expect(onFocus).toHaveBeenCalledTimes(1)
+      await expect(onBlur).not.toHaveBeenCalled()
+      await expect(trigger).toHaveFocus()
+    })
   },
 }

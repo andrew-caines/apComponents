@@ -267,11 +267,25 @@ describe('Select (convenience)', () => {
     expect(ref.current!.className).toBe(`${selectTriggerRecipe({ size: 'sm' })} mine`)
   })
 
-  // Fails if `id` stops reaching Base UI's root, whose `id` becomes the
-  // trigger's; adding `id` to `SelectProps`' Omit fails this at compile time.
+  // Fails if `id` stops reaching the trigger; removing `id` from
+  // `SelectProps` fails this at compile time.
   it('passes id through to the trigger', () => {
     renderIn(<Select id="x" aria-label="Country" items={COUNTRIES} />)
     expect(screen.getByRole('combobox', { name: 'Country' }).getAttribute('id')).toBe('x')
+  })
+
+  // Fails if `id` goes to the root instead of the trigger: inside a Field
+  // the trigger then keeps Field's generated id even after effects (see
+  // `SelectProps.id`).
+  it('passes id through to the trigger inside a Field, after effects', async () => {
+    renderIn(
+      <Field label="Country">
+        <Select id="x" items={COUNTRIES} />
+      </Field>,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Country' }).getAttribute('id')).toBe('x'),
+    )
   })
 
   // Fails if the data attributes are spread onto the root's hidden input,
@@ -313,6 +327,31 @@ describe('Select (convenience)', () => {
     expect(onFocus).toHaveBeenCalledTimes(1)
     expect(onFocus.mock.calls[0]![0].target).toBe(trigger)
     expect(onBlur.mock.calls[0]![0].target).toBe(trigger)
+  })
+
+  // Focus leaving from inside the open popup, straight to another control
+  // (a press on an outside button moves focus the same way). Fails if the
+  // positioner's blur handler is removed: the trigger never blurs here, so
+  // nothing else sees the exit. Tab out through the focus guards and a press
+  // on non-focusable space need a real browser: the `FocusWithin` story.
+  it('calls onBlur once when focus leaves from inside the open popup', async () => {
+    const onFocus = vi.fn()
+    const onBlur = vi.fn()
+    renderIn(
+      <>
+        <Select aria-label="Country" items={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
+        <button type="button">After</button>
+      </>,
+    )
+    const trigger = screen.getByRole('combobox', { name: 'Country' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    await waitFor(() => screen.getByRole('listbox'))
+    await waitFor(() => expect(trigger.ownerDocument.activeElement).not.toBe(trigger))
+    expect(onBlur).not.toHaveBeenCalled()
+    screen.getByRole('button', { name: 'After' }).focus()
+    await waitFor(() => expect(onBlur).toHaveBeenCalledTimes(1))
+    expect(onFocus).toHaveBeenCalledTimes(1)
   })
 
   /**
@@ -389,10 +428,13 @@ describe('Select (convenience)', () => {
    * so the popup's items are compared too; `document.body` because the
    * popup is portalled.
    *
-   * `id` and a `data-*` attribute are included so their placement cannot
-   * drift from the parts'. `onFocus`/`onBlur` are not: a handler leaves no
-   * trace in the DOM, so passing it to either side would compare nothing.
-   * Their filtering is asserted by behaviour in the focus tests above.
+   * A `data-*` attribute is included so its placement cannot drift from the
+   * parts'. `id` is too, but `normaliseIds` rewrites every id, so the
+   * comparison cannot see it; each side asserts the trigger's id before
+   * normalising instead. `onFocus`/`onBlur` are not included: a handler
+   * leaves no trace in the DOM, so passing it to either side would compare
+   * nothing. Their behaviour is asserted by the focus tests above and the
+   * `FocusWithin` story.
    */
   it('produces exactly the DOM its own compound parts produce', async () => {
     const items: SelectItems<string> = [
@@ -415,13 +457,15 @@ describe('Select (convenience)', () => {
       />,
     )
     await waitFor(() => screen.getByRole('listbox'))
+    expect(screen.getByRole('combobox', { name: 'Country' }).getAttribute('id')).toBe(
+      'country-select',
+    )
     const a = normaliseIds(document.body.innerHTML)
     // `cleanup`, not `unmount`: unmount leaves the first container in the body.
     cleanup()
 
     renderIn(
       <Select.Root
-        id="country-select"
         name="country"
         items={items}
         itemToStringValue={toString}
@@ -429,7 +473,7 @@ describe('Select (convenience)', () => {
         defaultValue="ca"
         defaultOpen
       >
-        <Select.Trigger aria-label="Country" size="md" data-testid="country">
+        <Select.Trigger id="country-select" aria-label="Country" size="md" data-testid="country">
           <Select.Value placeholder="Pick">
             {(value: string | null) => findLabel(value, flat, toString) ?? 'Pick'}
           </Select.Value>
@@ -453,6 +497,9 @@ describe('Select (convenience)', () => {
       </Select.Root>,
     )
     await waitFor(() => screen.getByRole('listbox'))
+    expect(screen.getByRole('combobox', { name: 'Country' }).getAttribute('id')).toBe(
+      'country-select',
+    )
     const b = normaliseIds(document.body.innerHTML)
 
     expect(a).toBe(b)
