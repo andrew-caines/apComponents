@@ -953,6 +953,16 @@ button, which opens the popup, and hovering the label puts the button in
   `<Select.Trigger>`. `Select.stories.tsx`'s `HandAssembled` story is the
   worked example.
 
+## `Select`'s `onFocus`/`onBlur` skip focus moving to and from the popup
+
+`Select` (`Select.tsx`) calls a consumer's `onBlur` only when focus leaves the
+control, and `onFocus` only when it arrives from outside: both are skipped when
+`relatedTarget` is inside the popup. Base UI's trigger blur fires when opening
+moves focus into the listbox, and Base UI merges a consumer handler after its
+own (`trigger/SelectTrigger.mjs`), so unfiltered, a form library's `onBlur`
+would mark the field touched the moment it opened. A hand assembly passing
+`onBlur` to `Select.Trigger` gets Base UI's unfiltered event.
+
 ## Known caveats
 
 ### Windows drive-letter casing breaks vanilla-extract silently

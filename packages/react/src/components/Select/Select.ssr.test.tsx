@@ -107,6 +107,35 @@ describe('Select (convenience) under SSR', () => {
     expect(triggerTag(html)).toContain(`aria-labelledby="${label![1]}"`)
   })
 
+  // Fails if `id` stops reaching Base UI's root, whose id becomes the trigger's.
+  it('server-renders a caller-supplied id on the trigger outside a Field', () => {
+    const html = ssr(<Select id="x" aria-label="Country" items={COUNTRIES} />)
+    expect(triggerTag(html)).toMatch(/\sid="x"/)
+  })
+
+  // Pins what `SelectProps.id`'s JSDoc says, not a behaviour we want: inside
+  // a `Field`, Base UI's labelable provider renders its own generated id on
+  // the server (docs/CONTRIBUTING.md, "Base UI's Field discards a
+  // caller-supplied `id` from server markup"). Fails when Base UI changes
+  // that, which is the cue to correct the JSDoc.
+  it('server-renders a generated id, not the caller-supplied one, inside a Field', () => {
+    const html = ssr(
+      <Field label="Country">
+        <Select id="x" items={COUNTRIES} />
+      </Field>,
+    )
+    const tag = triggerTag(html)
+    expect(tag).not.toMatch(/\sid="x"/)
+    expect(tag).toMatch(/\sid="base-ui-[^"]+"/)
+  })
+
+  // Fails if the data attributes are dropped or spread onto the root.
+  it('server-renders data attributes on the trigger', () => {
+    const html = ssr(<Select data-testid="s" aria-label="Country" items={COUNTRIES} />)
+    expect(triggerTag(html)).toContain('data-testid="s"')
+    expect(html.match(/data-testid=/g)).toHaveLength(1)
+  })
+
   // Gate 6's shape: a pre-hydration post carries every selected value.
   it('emits one hidden input per default value when multiple', () => {
     const html = ssr(

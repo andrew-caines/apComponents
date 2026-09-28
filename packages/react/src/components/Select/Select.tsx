@@ -1,6 +1,15 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useRef, type ReactNode, type Ref } from 'react'
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  type FocusEvent,
+  type FocusEventHandler,
+  type ReactNode,
+  type Ref,
+} from 'react'
 import { NON_NATIVE_LABEL } from '../Field/nonNativeLabel.js'
 import { useLocale } from '../../providers/LocaleProvider.js'
 import { selectGroupLabelClass } from './Select.css.js'
@@ -56,7 +65,7 @@ type Serialisation<Value> = [Value] extends [string]
 
 export type SelectProps<Value, Multiple extends boolean | undefined = false> = Omit<
   SelectRootProps<Value, Multiple>,
-  'items' | 'itemToStringValue' | 'itemToStringLabel' | 'children'
+  'items' | 'itemToStringValue' | 'itemToStringLabel' | 'children' | 'id'
 > &
   Serialisation<Value> & {
     /** A flat list of items, or a list of labelled groups. */
@@ -73,6 +82,29 @@ export type SelectProps<Value, Multiple extends boolean | undefined = false> = O
     'aria-label'?: string
     /** The trigger `<button>`, as `Input`'s ref is its `<input>`. */
     ref?: Ref<HTMLButtonElement>
+    /**
+     * The trigger's id; Base UI's root puts it there. Outside a `Field` it is
+     * in the server HTML. **Inside a `Field` it is not:** the server renders a
+     * generated `base-ui-…` id and the trigger takes this one only after
+     * hydration (docs/CONTRIBUTING.md, "Base UI's Field discards a
+     * caller-supplied `id` from server markup"). Locate a Select inside a
+     * `Field` by its label before hydration, never by this id.
+     */
+    id?: string
+    /**
+     * Called when focus enters the trigger from outside the control. Not called
+     * when focus returns to the trigger from the popup's listbox on close.
+     */
+    onFocus?: FocusEventHandler<HTMLButtonElement>
+    /**
+     * Called when focus leaves the control. Not called when focus moves from
+     * the trigger into the popup's listbox on open: Base UI's trigger blur
+     * fires then, and a form library would mark the field touched on opening
+     * it. Together with `ref`, what react-hook-form's `Controller` expects.
+     */
+    onBlur?: FocusEventHandler<HTMLButtonElement>
+    /** Applied to the trigger only, never to the popup or the hidden input. */
+    [data: `data-${string}`]: string | undefined
   }
 
 function assignRef<T>(ref: Ref<T> | undefined, node: T | null): void {
@@ -131,8 +163,19 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
     ref,
     itemToStringValue,
     isItemEqualToValue,
-    ...rest
+    id,
+    onFocus,
+    onBlur,
+    ...others
   } = props
+  // `data-*` attributes go to the trigger; everything else is the root's.
+  // Undefined values are dropped: Base UI's merge would let them win.
+  const rest = {} as typeof others
+  const dataAttributes: Record<string, string> = {}
+  for (const [key, value] of Object.entries(others)) {
+    if (!key.startsWith('data-')) (rest as Record<string, unknown>)[key] = value
+    else if (typeof value === 'string') dataAttributes[key] = value
+  }
   const { locale, messages } = useLocale()
   const toString: (value: Value) => string = itemToStringValue ?? defaultToStringValue
   const flat = flattenItems(items)
@@ -159,6 +202,20 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
     },
     [ref],
   )
+
+  // Base UI's own trigger blur skips focus moving into the popup
+  // (`trigger/SelectTrigger.mjs`), but merges a consumer's `onBlur` after it,
+  // so the consumer's would run on every open. The same test, against the
+  // popup element, filters both handlers.
+  const popupRef = useRef<HTMLDivElement | null>(null)
+  const withinPopup = (event: FocusEvent<HTMLButtonElement>): boolean =>
+    popupRef.current?.contains(event.relatedTarget as Node | null) === true
+  const handleFocus = (event: FocusEvent<HTMLButtonElement>) => {
+    if (!withinPopup(event)) onFocus?.(event)
+  }
+  const handleBlur = (event: FocusEvent<HTMLButtonElement>) => {
+    if (!withinPopup(event)) onBlur?.(event)
+  }
 
   // §4.3.2: a native `<label>` naming the button — by `for`, or by wrapping
   // it — means Field could not see the marker: the Select sits inside a
@@ -240,6 +297,7 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
   return (
     <SelectRoot
       {...rest}
+      {...(id !== undefined ? { id } : {})}
       items={items}
       itemToStringValue={toString}
       isItemEqualToValue={isItemEqualToValue ?? equalBySerialisation(toString)}
@@ -250,13 +308,16 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
         {...(className !== undefined ? { className } : {})}
         {...(labelledBy !== undefined ? { 'aria-labelledby': labelledBy } : {})}
         {...(ariaLabel !== undefined ? { 'aria-label': ariaLabel } : {})}
+        {...(onFocus !== undefined ? { onFocus: handleFocus } : {})}
+        {...(onBlur !== undefined ? { onBlur: handleBlur } : {})}
+        {...dataAttributes}
       >
         <SelectValue {...(placeholder !== undefined ? { placeholder } : {})}>
           {renderValue}
         </SelectValue>
         <SelectIcon />
       </SelectTrigger>
-      <SelectPopup>
+      <SelectPopup ref={popupRef}>
         <SelectList>{list}</SelectList>
       </SelectPopup>
     </SelectRoot>

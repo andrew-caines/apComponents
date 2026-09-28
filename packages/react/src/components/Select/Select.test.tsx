@@ -267,6 +267,94 @@ describe('Select (convenience)', () => {
     expect(ref.current!.className).toBe(`${selectTriggerRecipe({ size: 'sm' })} mine`)
   })
 
+  // Fails if `id` stops reaching Base UI's root, whose `id` becomes the
+  // trigger's; adding `id` to `SelectProps`' Omit fails this at compile time.
+  it('passes id through to the trigger', () => {
+    renderIn(<Select id="x" aria-label="Country" items={COUNTRIES} />)
+    expect(screen.getByRole('combobox', { name: 'Country' }).getAttribute('id')).toBe('x')
+  })
+
+  // Fails if the data attributes are spread onto the root's hidden input,
+  // the popup, or anywhere but the trigger, or are dropped.
+  it('puts data attributes on the trigger and nowhere else', async () => {
+    renderIn(
+      <Select
+        data-testid="s"
+        data-kind="country"
+        aria-label="Country"
+        items={COUNTRIES}
+        defaultOpen
+      />,
+    )
+    await waitFor(() => screen.getByRole('listbox'))
+    const tagged = document.body.querySelectorAll('[data-testid]')
+    expect(tagged).toHaveLength(1)
+    expect(tagged[0]).toBe(screen.getByRole('combobox', { name: 'Country' }))
+    expect(tagged[0]!.getAttribute('data-testid')).toBe('s')
+    expect(document.body.querySelectorAll('[data-kind]')).toHaveLength(1)
+  })
+
+  // Fails if onFocus/onBlur are not forwarded to the trigger.
+  it('calls onFocus and onBlur once for focus entering and leaving the trigger', async () => {
+    const onFocus = vi.fn()
+    const onBlur = vi.fn()
+    renderIn(
+      <>
+        <Select aria-label="Country" items={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
+        <button type="button">After</button>
+      </>,
+    )
+    const trigger = screen.getByRole('combobox', { name: 'Country' })
+    trigger.focus()
+    await waitFor(() => expect(onFocus).toHaveBeenCalledTimes(1))
+    expect(onBlur).not.toHaveBeenCalled()
+    screen.getByRole('button', { name: 'After' }).focus()
+    await waitFor(() => expect(onBlur).toHaveBeenCalledTimes(1))
+    expect(onFocus).toHaveBeenCalledTimes(1)
+    expect(onFocus.mock.calls[0]![0].target).toBe(trigger)
+    expect(onBlur.mock.calls[0]![0].target).toBe(trigger)
+  })
+
+  /**
+   * react-hook-form's Controller marks a field touched in `onBlur`. Focus
+   * moving into the listbox on open, and back to the trigger on close, is
+   * not leaving the control. Fails if the popup filter is removed: Base UI
+   * merges the consumer's `onBlur` after its own filtered one, so it would
+   * run on the move into the popup.
+   */
+  it('ignores focus moving into and back out of the popup', async () => {
+    const onFocus = vi.fn()
+    let touched = false
+    const onBlur = vi.fn(() => {
+      touched = true
+    })
+    renderIn(
+      <>
+        <Select aria-label="Country" items={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
+        <button type="button">After</button>
+      </>,
+    )
+    const trigger = screen.getByRole('combobox', { name: 'Country' })
+    trigger.focus()
+    await waitFor(() => expect(onFocus).toHaveBeenCalledTimes(1))
+    fireEvent.click(trigger)
+    const option = await waitFor(() => screen.getByRole('option', { name: 'France' }))
+    await waitFor(() => expect(trigger.ownerDocument.activeElement).not.toBe(trigger))
+    // Base UI commits a mouse click only after a pointerdown on the item.
+    fireEvent.pointerDown(option, { pointerType: 'mouse' })
+    fireEvent.click(option)
+    await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('false'))
+    await waitFor(() => expect(trigger.ownerDocument.activeElement).toBe(trigger))
+    expect(trigger.textContent).toBe('France')
+    expect(onBlur).not.toHaveBeenCalled()
+    expect(touched).toBe(false)
+    expect(onFocus).toHaveBeenCalledTimes(1)
+
+    screen.getByRole('button', { name: 'After' }).focus()
+    await waitFor(() => expect(onBlur).toHaveBeenCalledTimes(1))
+    expect(touched).toBe(true)
+  })
+
   // §4.3.2's development warning. Fails if the effect is removed (first
   // case) or if it warns on every Select regardless of `labels` (second).
   it('warns when a native label points at the trigger', async () => {
@@ -300,6 +388,11 @@ describe('Select (convenience)', () => {
    * convenience component is exactly an assembly of the public parts. Open,
    * so the popup's items are compared too; `document.body` because the
    * popup is portalled.
+   *
+   * `id` and a `data-*` attribute are included so their placement cannot
+   * drift from the parts'. `onFocus`/`onBlur` are not: a handler leaves no
+   * trace in the DOM, so passing it to either side would compare nothing.
+   * Their filtering is asserted by behaviour in the focus tests above.
    */
   it('produces exactly the DOM its own compound parts produce', async () => {
     const items: SelectItems<string> = [
@@ -311,6 +404,8 @@ describe('Select (convenience)', () => {
 
     renderIn(
       <Select
+        id="country-select"
+        data-testid="country"
         aria-label="Country"
         name="country"
         placeholder="Pick"
@@ -326,6 +421,7 @@ describe('Select (convenience)', () => {
 
     renderIn(
       <Select.Root
+        id="country-select"
         name="country"
         items={items}
         itemToStringValue={toString}
@@ -333,7 +429,7 @@ describe('Select (convenience)', () => {
         defaultValue="ca"
         defaultOpen
       >
-        <Select.Trigger aria-label="Country" size="md">
+        <Select.Trigger aria-label="Country" size="md" data-testid="country">
           <Select.Value placeholder="Pick">
             {(value: string | null) => findLabel(value, flat, toString) ?? 'Pick'}
           </Select.Value>
