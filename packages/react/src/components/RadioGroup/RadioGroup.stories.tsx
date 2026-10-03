@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
+import { hoverBorderRuleApplies } from '../../../../../storybook/support/hoverRule.js'
 import { RadioGroup } from './RadioGroup.js'
 
 const CONTACT_OPTIONS = [
@@ -125,5 +126,46 @@ export const ArrowKeyNavigation: Story = {
     // selection.
     await expect(email).toHaveAttribute('aria-checked', 'false')
     await expect(text).toHaveFocus()
+  },
+}
+
+/**
+ * Hover changes the border of a resting option only. A checked or invalid
+ * option keeps its own border under the pointer: `:hover:not(…)` outranks
+ * `[data-checked]` and `[data-invalid]` on specificity, so the hover rule has
+ * to exclude those states itself. `hoverBorderRuleApplies` explains why this
+ * reads the stylesheet instead of hovering.
+ */
+export const HoverRule: Story = {
+  render: () => (
+    <div style={{ display: 'grid', gap: '1.5rem' }}>
+      <RadioGroup
+        label="How should we reach you?"
+        name="contact-hover"
+        options={CONTACT_OPTIONS}
+        defaultValue="email"
+      />
+      <RadioGroup
+        label="Preferred contact method"
+        name="contact-hover-invalid"
+        options={CONTACT_OPTIONS}
+        invalid
+      />
+      <p>Choose a preferred contact method before continuing.</p>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const valid = within(canvas.getByRole('radiogroup', { name: 'How should we reach you?' }))
+    const invalid = within(canvas.getByRole('radiogroup', { name: 'Preferred contact method' }))
+    // Non-vacuity: without this, a stylesheet with no hover rule passes.
+    await expect(hoverBorderRuleApplies(valid.getByRole('radio', { name: 'Text message' }))).toBe(
+      true,
+    )
+    // Each fails when its `:not(…)` is removed from the hover selector.
+    await expect(hoverBorderRuleApplies(valid.getByRole('radio', { name: 'Email' }))).toBe(false)
+    await expect(hoverBorderRuleApplies(invalid.getByRole('radio', { name: 'Text message' }))).toBe(
+      false,
+    )
   },
 }
