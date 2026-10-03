@@ -476,8 +476,8 @@ are relative to `node_modules/@base-ui/react/`.
   `aria-label`. Neither is a compile error. `description` renders `Popover.Description`.
 - **Non-modal, always in the convenience component.** Escape and outside press close it
   (Base UI's, §4.1.6). Where focus lands on open, and whether Tab out of the popup closes
-  it, are **not yet verified in source**: the plan cites `FloatingFocusManager`'s
-  non-modal behaviour by file and line, and a story pins each. The convenience component
+  it, are **not yet verified in source** (settled in §4.4.2): the plan cites
+  `FloatingFocusManager`'s non-modal behaviour by file and line, and a story pins each. The convenience component
   does not expose `modal`; the parts do.
 - **`dismissible`** (default `false`) renders a × `Popover.Close` labelled with the
   existing `close` message key (`providers/messages.ts`). No new key.
@@ -485,7 +485,8 @@ are relative to `node_modules/@base-ui/react/`.
 - `Popover.Trigger` and `Popover.Close` use the `nativeButton` derivation (§4.1.1).
 - **Look:** Select's popup surface tokens, no arrow, `enter.fade-rise`/`exit.fade`.
 - **Parts:** `Popover.Root`, `Trigger`, `Popup` (bundling Portal and Positioner), `Title`,
-  `Description`, `Close`.
+  `Description`, `Close`, and `Dismiss` (the × icon `Close` labelled with the `close` message
+  key, which `dismissible` renders).
 
 **Shared:** `POSITIONER_SIDE_OFFSET`; no `keepMounted` (§4.1.9); every assertion names the
 perturbation that makes it fail, `play` functions included (5c retrospective).
@@ -506,10 +507,20 @@ Paths are relative to `node_modules/@base-ui/react/`, Base UI 1.7.0.
 - **Two tooltips at once.** Base UI keeps one tooltip visible: focusing one trigger and then
   hovering another closes the first. Pinned by the `TwoOpen` characterisation story, so
   §4.4.1's "holds for any number of open tooltips" is true of the wiring, not of what Base UI
-  lets stay open. Separately, two uncontrolled `defaultOpen` Tooltip Roots cannot both stay
-  open on mount: Base UI closes the first, with reason `none`. This is observed (Task 1's
-  tests, reproduced with bare `Tooltip.Root` and `Tooltip.Trigger`), not traced to a line of
-  source. Use controlled `open` for that.
+  lets stay open. The mechanism is the delay group: every `Tooltip.Trigger` calls
+  `useDelayGroup` unconditionally (`tooltip/trigger/TooltipTrigger.js:106`), and when a
+  tooltip opens, the group's effect closes the previously open one with reason `none`
+  (`floating-ui-react/components/FloatingDelayGroup.js:144-166`, the close at `:166`).
+  `ApProvider`'s `Tooltip.Provider` gives its tooltips one shared group; with no provider,
+  the default context's `currentIdRef` and `currentContextRef` are module-level objects
+  (`FloatingDelayGroup.js:17-33`), so every unprovided tooltip shares one group too.
+  Removing the provider therefore does not let two stay open.
+- **Two `defaultOpen` Roots.** Two uncontrolled `defaultOpen` Tooltip Roots cannot both stay
+  open on mount, by the same mechanism: the second to open closes the first with reason
+  `none` (`FloatingDelayGroup.js:166`). Checked during the fix wave: wrapping each Root in its
+  own `Tooltip.Provider` (two groups) keeps both open. Controlled `open` also keeps both open,
+  because the close is only a request to `onOpenChange`; the two-Roots test in
+  `TooltipParts.test.tsx` relies on that.
 - **`keepMounted` does not put a popup in server HTML.** `FloatingPortal` starts with
   `portalNode` null (`:44`) and sets it only from a ref callback, on the client
   (`:45-50`); the portal renders only once it is set (`:195-199`). The unit assertions that server

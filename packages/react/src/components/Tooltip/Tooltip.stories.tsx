@@ -169,10 +169,17 @@ export const DelayGroup: Story = {
  * Characterisation test for the open question in spec section 4.4.1: with one
  * tooltip open from keyboard focus, does hovering a second trigger leave both
  * visible? OBSERVED: only ONE stays visible, the second. Opening it closes
- * the first (Base UI keeps one tooltip open at a time across the provider's
- * group), so the assertion pins a count of one and that the survivor is the
- * second. It would flip to two if Base UI stopped closing the other open
- * tooltip when a second one opens (or the tooltips shared no group).
+ * the first, so the assertion pins a count of one and that the survivor is the
+ * second. Mechanism: every trigger calls `useDelayGroup`
+ * (`tooltip/trigger/TooltipTrigger.js:106`), and the group closes the
+ * previously open tooltip with reason `none`
+ * (`floating-ui-react/components/FloatingDelayGroup.js:144-166`). Without
+ * `ApProvider`'s provider the default group context is module-level and shared
+ * by every tooltip (`FloatingDelayGroup.js:17-33`), so removing the provider
+ * would NOT give two. Perturbation: passing `open` to both `Tooltip`s makes
+ * both Roots controlled, which keeps two open (the group's close becomes an
+ * ignored `onOpenChange` request, as the two-Roots test in
+ * `TooltipParts.test.tsx` proves) and fails the count of one.
  */
 export const TwoOpen: Story = {
   render: () => (

@@ -110,9 +110,13 @@ describe('Tooltip parts', () => {
   // open tooltips would then share an id, and each trigger would point at both.
   //
   // Both Roots are controlled. With two uncontrolled `defaultOpen` Roots, Base
-  // UI itself closes the first on mount with reason `none` (seen with bare
-  // `Tooltip.Root`s too, via `utils/popups/popupStoreUtils.js:363-368`'s
-  // lost-active-trigger close), so only a controlled pair stays open together.
+  // UI closes the first on mount with reason `none`: every trigger calls
+  // `useDelayGroup` (`tooltip/trigger/TooltipTrigger.js:106`); with no provider
+  // its default context's `currentIdRef`/`currentContextRef` are module-level
+  // objects shared by every tooltip (`floating-ui-react/components/
+  // FloatingDelayGroup.js:17-33`), and the group closes the previously open
+  // tooltip (`FloatingDelayGroup.js:144-166`). Controlled `open` turns that close
+  // into an `onOpenChange` request we ignore, so this pair stays open together.
   it('gives two open tooltips distinct ids, each trigger pointing at its own', async () => {
     render(
       <>
