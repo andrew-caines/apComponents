@@ -396,3 +396,153 @@ Ordered. Each check is a command whose output is the evidence, with the perturba
 | 18 | Every CI job is green | Task 10's sweep, then the PR | — |
 
 **Final proof artifact:** a green CI run of all six jobs on the Phase 5c pull request, plus Task 10's local sweep output.
+
+---
+
+## What actually happened
+
+Ten planned tasks and one post-plan task (Task 11) produced 23 commits. Then
+came a whole-branch review with one fix wave, and a local `--no-ff` merge to
+`main` (`1e84b14`) in place of the pull request Task 10 Step 2 describes. The
+human chose the local merge at the finish step, so the proof artifact is the
+local six-job sweep on the merged tree plus CI on the push to `main`, not a PR
+run.
+
+The local sweep on the merged tree was green in every job. `unit` ran 1301
+tests plus every gate and wrote `report:contrast` with 74 pairings and 0
+failures. `generated-artifacts-are-fresh` showed no drift. `consumer` ran 12
+tests, and `ssr` ran 7 SSR tests, the SPA test and 16 hydration e2e tests.
+`storybook` ran 66 story tests and its build. `showcase` ran 9 e2e tests.
+
+Sixteen controller rulings were made (R1–R16). The ledger is gitignored, so
+the rulings that should change how 5d–5h get written are recorded here.
+
+### 5b's three lessons held
+
+- **The sweep was derived from `ci.yml`.** All six jobs were green locally
+  three times: after Task 9, after the fix wave and on the merged tree.
+- **Rule plus precedent, not literal code.** No implementer round trip was
+  spent on code that could never have typechecked, which was 5b's largest
+  cost. The plan's remaining defects were factual claims about Base UI, not
+  wrong code (next section).
+- **The §4.1.10 control-state contract** gave Switch its `[data-invalid]` rule
+  without reopening its enumeration (Task 8). It did not prevent the regression
+  described further down, which a contract cannot prevent.
+
+### The plan's Base UI facts were the weak point
+
+The plan opened with a "Base UI facts established before writing" section.
+Three of its claims, or claims made in the same spirit, were wrong:
+
+- **R4: `Select.Portal` has no `keepMounted` in 1.7.0.** The "no listbox in
+  server HTML" test's planned perturbation could not be applied. The real
+  guarantee is that the portal renders only once `mounted || forceMount` is
+  true, and `forceMount` is set on trigger focus. The SelectPopup JSDoc
+  repeated the wrong claim until the final review caught it (M3).
+- **R6, then R9: a value-less `Select.Item` is value `null`.** Base UI marks it
+  selected whenever nothing is selected, so it cannot stand in for an
+  empty-state row. R6's replacement, an empty labelled group, left a listbox
+  with zero options. That is an `aria-required-children` violation, and gate
+  5's axe scan caught it in Task 6. R9 replaced R6 with a disabled
+  `role="option"` row outside Base UI's item registry.
+- **R15: an `id` on `Select.Root` never lands inside a `Field`,** because the
+  trigger registers the generated id first. Task 11 routed `id` to the trigger
+  instead.
+
+**For 5d–5h: verify each Base UI fact against the installed source and cite
+file and line,** as 5b's retrospective did for `useCompositeRoot.js:195`. A
+facts section without citations is a list of beliefs. Each wrong belief here
+cost a ruling, and R6 cost a second one.
+
+### The empty state was fixed three times
+
+R6 broke it, R9 fixed it, and then the whole-branch review found **I2**: grouped
+items that are all empty (`[{ label: 'Europe', items: [] }]`) still rendered a
+labelled group with no options. The branch tested `items.length === 0` where it
+needed the flattened count. Every fix was a correct answer to the narrow case
+in front of it. **When a ruling changes an edge-case shape, enumerate the
+inputs that reach it (flat, grouped, mixed) before accepting it.**
+
+### A test that passed while the feature was dead in every real bundler
+
+**I1.** The native-`<label>` dev warning was guarded by `typeof process ===
+'undefined'`. Vite replaces `process.env.NODE_ENV` but never `typeof process`,
+so in a browser build the effect always returned early. The jsdom test ran
+under Node, where `process` exists, and passed. Fixed to match Base UI's own
+spelling (a bare `process.env.NODE_ENV`). **An environment check needs a test
+in the environment it targets, or a citation of the library precedent it
+copies.**
+
+### Adding a border to Switch regressed the checked state
+
+Task 8 gave Switch a border so `[data-invalid]` had something to colour.
+`[data-checked]` swapped only `background`, so every checked Switch grew a grey
+1px ring around its filled track (**I3**). No unit test could catch it, because
+the regression was purely visual. The fix follows Checkbox (a `borderChecked`
+role) and adds a real-browser `getComputedStyle` differential in the story.
+**Any change to a control's box model needs every state re-checked, not just
+the one the change targets.**
+
+The same review surfaced a **pre-existing 5b bug that this branch did not fix**:
+`:hover:not([data-disabled])` has specificity (0,3,0), which beats
+`[data-checked]` on Checkbox and RadioGroup and beats `[data-invalid]` on all
+three controls including Switch. It is open below.
+
+### Unfalsifiable assertions moved from units into stories
+
+5b's lesson took hold in unit tests: Task 3's review found only missing
+perturbation comments. It did not carry over to `play` functions. Task 6's
+review raised four Important findings, all of the same class. The placement
+check could not detect the side, the Escape step could not fail, "multiple
+stays open" could not fail, and the ObjectValues story matched partially and
+claimed the wrong equality. **R5** was the same class inside the plan itself:
+the trigger-with-`render=<a>` "not `role=button`" assertion could not fail,
+because Base UI hard-sets `role=combobox` after merging props
+(`SelectTrigger.js:195-197`). **The name-the-perturbation rule applies to
+`play` functions too, and to plan-mandated assertions.**
+
+### Task 11: a design gap in an approved design
+
+After the plan finished, the human approved passing `onFocus`, `onBlur`, `id`
+and `data-*` through to the trigger. The approved design said to "filter the
+trigger blur", which was incomplete. Task 11's review showed that `onBlur`
+never fired when focus left from inside the open popup, and that `onFocus`
+double-fired on an outside press. **R13** replaced the filter with
+focus-within semantics over trigger ∪ positioner. **R14** refined that from
+Chromium behaviour (focus guards blur before they focus, and a null blur from
+inside the popup returns focus to the trigger). **R16** widened the handler
+types to `HTMLElement`. A composite widget's focus events are a state machine.
+Design them as one up front, not as a filter.
+
+### What the fix wave changed
+
+I1 (dev warning live in Vite, message covers wrapping labels), I2 (branch on
+the flattened count, skip empty groups and their separators), I3 (Switch
+`borderChecked`), M1 (`HandAssembled` uses only public parts), M2 (protocol
+rationale: a `<label for>` on a button *leaks* click and hover behaviour; it is
+not inert, and Base UI registers the *label* id from an effect, not the
+control's), M3 (SelectPopup's JSDoc) and M4 (gate test title names Select).
+
+### What is still open
+
+Raised with the human, not yet decided:
+- `SelectItem`/`SelectGroup` naming vs `RadioGroupOption`. Changing it becomes
+  breaking after release.
+- An unmatched value shows placeholder text without `data-placeholder`, so
+  placeholder styling does not apply.
+- The pre-existing hover-beats-checked/invalid specificity bug above.
+- Fixture lockfile drift, which predates 5c. `npm --prefix fixtures/{consumer,ssr-app}
+  install` adds `@ap/motion` and `@base-ui/react` to `@ap/react`'s entry in
+  both fixture lockfiles. CI uses `install`, not `ci`, so it tolerates this.
+
+Deferred minors, triaged OK by the final reviewer: no contrast pairing for
+`textPrimary` on `actionBgSubtle`; popup type scale fixed at `md` regardless of
+trigger size; `items={[]}` infers `Value = unknown`; open-popup typeahead
+untested; Root-derived ids (`…-list`, `…-hidden-input`) still generated and
+undocumented after R15; the `FocusWithin` story's JSDoc overstates its
+per-step perturbation coverage; and a possible balanced blur/focus pair on
+pointer-open then empty-space press, which is untested.
+
+Local runs used Node 24, while CI runs Node 22. One intermittent
+`data-highlighted` wait flake in the Default story was seen during perturbation
+runs and reran green. Watch for it in CI.
