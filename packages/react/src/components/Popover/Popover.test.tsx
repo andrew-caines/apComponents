@@ -77,6 +77,8 @@ describe('Popover (convenience)', () => {
     expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
     cleanup()
 
+    // The dismiss button reads messages.close, so it needs a LocaleProvider.
+
     render(
       <LocaleProvider>
         <Popover title="A" dismissible trigger={<button type="button">Open</button>}>
@@ -125,9 +127,43 @@ describe('Popover (convenience)', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  // Fails if `closeDelay` is routed to the Root, where Base UI ignores it:
+  // the popover would then close at the default delay, before 500 ms.
+  it('passes closeDelay to the trigger', async () => {
+    vi.useFakeTimers()
+    render(
+      <Popover
+        title="A"
+        openOnHover
+        delay={0}
+        closeDelay={500}
+        trigger={<button type="button">Open</button>}
+      >
+        body
+      </Popover>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Open' })
+    fireEvent.mouseEnter(trigger)
+    fireEvent.mouseMove(trigger)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(screen.queryByRole('dialog')).not.toBeNull()
+    fireEvent.mouseLeave(trigger)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300)
+    })
+    expect(screen.queryByRole('dialog')).not.toBeNull()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300)
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   // Fails if the convenience adds, drops or reorders any element, attribute
   // or class relative to the parts assembled by hand.
   it('renders the same DOM as the hand-assembled parts', async () => {
+    // The dismiss button reads messages.close, so it needs a LocaleProvider.
     render(
       <LocaleProvider>
         <Popover
@@ -149,6 +185,8 @@ describe('Popover (convenience)', () => {
     await settled()
     const a = normaliseIds(document.body.innerHTML)
     cleanup()
+
+    // The dismiss button reads messages.close, so it needs a LocaleProvider.
 
     render(
       <LocaleProvider>

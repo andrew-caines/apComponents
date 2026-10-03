@@ -52,7 +52,9 @@ export type PopoverProps = Omit<PopoverRootProps, 'children' | 'modal'> &
     description?: string
     /**
      * Render an icon dismiss button in the header. Default false: Escape and
-     * an outside press still close it.
+     * an outside press still close it. The dismiss button is named from the
+     * message registry, so `dismissible` (like `Popover.Dismiss`) needs a
+     * `LocaleProvider` or `ApProvider` ancestor.
      */
     dismissible?: boolean
     /**
@@ -110,6 +112,13 @@ function PopoverBase({
 /**
  * `Popover` is both the convenience component and the namespace holding its
  * parts, as `Tooltip` and `Select` are.
+ *
+ * **`dismissible` and `Popover.Dismiss` need a `LocaleProvider`.** The
+ * dismiss button calls `useMessages()` for its "close" name and throws with
+ * no provider above it (`providers/LocaleProvider.tsx`), the same requirement
+ * `Dialog` and `Select` have. `ApProvider` composes `LocaleProvider`
+ * already, so the common case needs nothing extra. A popover without a
+ * dismiss button needs no provider.
  */
 export const Popover = Object.assign(PopoverBase, {
   Root: PopoverRoot,
