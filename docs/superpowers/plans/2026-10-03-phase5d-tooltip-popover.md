@@ -101,14 +101,19 @@ These five inputs are implied by the spec, not exercised by any obvious test, an
 - Produces, each exporting its props type as `Tooltip<Part>Props`:
   - `TooltipProvider`: Base UI's `Tooltip.Provider`, re-exported unchanged.
   - `TooltipRoot`: Base UI's `Tooltip.Root` inside a private `TooltipIdContext.Provider` whose value is `useId()`. No DOM of its own.
-  - `TooltipTrigger`: `forwardRef<HTMLElement>`. It takes Base UI's trigger props with **`render` narrowed to `ReactElement`** (no render function: we own the function), plus `className`. It passes Base UI a render function `(props, state) => …` that reproduces the element path (`useRenderElement.js:113-114`):
+  - `TooltipTrigger`: `forwardRef<HTMLElement>`. It takes Base UI's trigger props, **including `render` as an element or a function** (Base UI's own `render` type), plus `className`. It always passes Base UI a render function `(props, state) => …` of its own, which dispatches on the consumer's `render`:
     ```ts
+    const describe = (existing?: string) =>
+      state.open ? [existing, id].filter(Boolean).join(' ') : existing
+    if (typeof render === 'function') {
+      return render({ ...props, 'aria-describedby': describe(props['aria-describedby']) }, state)
+    }
     const element = render ?? <button type="button" />
     const merged = mergeProps(props, element.props)
-    // + ref: props.ref, + aria-describedby (below)
-    return cloneElement(element, { ...merged, ref: props.ref, 'aria-describedby': describedBy })
+    return cloneElement(element, { ...merged, ref: props.ref, 'aria-describedby': describe(merged['aria-describedby']) })
     ```
-    `describedBy` is the merged `aria-describedby`, with the context id appended (space-separated) when `state.open`, and the merged value unchanged (possibly absent) when closed. Check how the element path merges the render element's own `ref` into `props.ref` (`useRenderElement.js`, the code above line 107) and reproduce it exactly. Review Focus 3 depends on it.
+    The element branch reproduces Base UI's element path (`useRenderElement.js:113-114`). Check how that path merges the render element's own `ref` into `props.ref` (the code above line 107) and reproduce it exactly. Review Focus 3 depends on it. The function branch hands the consumer props that already carry the description. As in Base UI, a render function must spread `props`, or it loses the description and the event handlers, and the JSDoc says so.
+    **Programmatic open needs nothing extra.** With one trigger, Base UI claims that trigger as active whenever the popup is open and none has claimed it (`utils/popups/popupStoreUtils.js:232-237` and `:350-356`), so `state.open` is `true` for a controlled `open` with no interaction.
   - `TooltipPopup`: renders `Tooltip.Portal > Tooltip.Positioner > Tooltip.Popup`. The positioner gets `side="top"`, `sideOffset={POSITIONER_SIDE_OFFSET}`, overridable through `positioner?: Pick<PositionerProps, 'side' | 'align' | 'sideOffset' | 'alignOffset' | 'collisionPadding'>`, filtered for `undefined` exactly as `SelectParts.tsx:161-183` does. The popup gets `role="tooltip"` and `id={useContext(TooltipIdContext)}`. **The id is not overridable**, so it is set after `...rest`. `className` and `ref` go to the popup.
 - Tokens: `bg` (`vars.color.bgRaised`), `text` (`vars.color.textPrimary`), `border` (`vars.color.borderSubtle`), `shadow` (the elevation role `Select.tokens.ts:33` uses for `popupShadow`), `radius` (`vars.radius.sm`). **The theme has no inverse colour role** (`theme/contract.css.ts`), so a dark tooltip is out of scope: it would need a new Tier 2 role, the generator and the contrast gate. The raised surface plus border and shadow is what separates the tooltip from the page.
 - Layout: popup `max-inline-size` capped by a space or size token (not a literal), padding-block `space['1']`, padding-inline `space['2']`, `text.sm` size and line height, the positioner at `zIndex: vars.z.tooltip`. Motion matches `Select.css.ts:157-158` (`enter.fade-rise` on `[data-open]`, `exit.fade` on `[data-ending-style]`). No arrow.
@@ -121,8 +126,10 @@ These five inputs are implied by the spec, not exercised by any obvious test, an
   - Review Focus 3: `render={<button ref={r} onClick={h} />}` leaves `r.current` as the `HTMLButtonElement`, and a click calls `h`. A `ref` passed to `TooltipTrigger` itself also gets the node. Perturbation: omit `ref: props.ref` from the clone.
   - Two Roots open at once have distinct popup ids, and each trigger points only at its own. Perturbation: hoist the id out of the Root into a module constant.
   - `className` on `TooltipPopup` merges with the recipe class.
+  - **Function render:** `render={(props, state) => <button {...props} data-open={String(state.open)} />}` gets `aria-describedby` containing the popup id while open, none while closed, and `data-open="true"` while open. Perturbation: call the consumer's function with the raw `props` instead of the described ones.
+  - **Programmatic open:** a Root with controlled `open={true}` and no focus or hover gives its single trigger `aria-describedby` pointing at the popup. Perturbation: drive the description from a "hovered or focused" flag instead of `state.open`. If this fails against Base UI as it stands, stop and report: the implicit-trigger fact above would be wrong.
 - [ ] **Step 2: Run them and watch them fail.** `npx vitest run --project unit packages/react/src/components/Tooltip`.
-- [ ] **Step 3: Implement** tokens, recipe and parts, and add the `TS_EXEMPTIONS` entry. Each part's doc comment says what it adds over Base UI's part. On `TooltipTrigger`, say why `render` is element-only.
+- [ ] **Step 3: Implement** tokens, recipe and parts, and add the `TS_EXEMPTIONS` entry. Each part's doc comment says what it adds over Base UI's part. On `TooltipTrigger`, say that a function `render` must spread `props`.
 - [ ] **Step 4: Run.** `npx vitest run --project unit packages/react/src/components/Tooltip && npm run typecheck && npm run test:guards && npm run test:contrast`. Expected: pass. A contrast failure on `text` against `bg` means the fallback roles are wrong. Fix the role, never the gate.
 - [ ] **Step 5: Commit.** `feat(react): add Tooltip parts with role=tooltip and open-only aria-describedby`.
 
@@ -308,7 +315,7 @@ Stories render inside `ApProvider` already (`storybook/.storybook/preview.tsx:11
 - Modify: `docs/CONTRIBUTING.md`, `docs/superpowers/specs/2026-09-04-phase5-remaining-components-design.md`
 
 - [ ] **Step 1: Add to CONTRIBUTING's Base UI traps,** naming the source file in each so it can be re-checked against a new Base UI version:
-  1. **Base UI's Tooltip emits no ARIA,** and how ours adds it: the id context, the render-state wiring, and why `render` is element-only.
+  1. **Base UI's Tooltip emits no ARIA,** and how ours adds it: the id context, the render-state wiring, and that a function `render` receives the description in `props` and must spread them.
   2. **A Popover traps focus only with `modal !== false` and a close part,** and hover-open disables the focus manager.
   3. **`openOnHover`, `delay` and `closeDelay` are trigger props** on both Tooltip and Popover.
 - [ ] **Step 2: Add spec §4.4.2, "Verified during the plan".** Record the two facts §4.4.1 left open (initial focus and `closeOnFocusOut`), the `TwoOpen` story's observed behaviour, and anything Tasks 1–7 found that contradicts §4.4.1. Correct §4.4.1's Tooltip parts list, which names Portal and Positioner although its next sentence says `Popup` bundles them. The shipped parts are `Provider`, `Root`, `Trigger` and `Popup`.
