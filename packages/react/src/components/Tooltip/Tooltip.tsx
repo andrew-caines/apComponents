@@ -34,9 +34,12 @@ export interface TooltipProps extends Omit<TooltipRootProps, 'children'> {
   /**
    * The trigger. One element, rendered THROUGH `Tooltip.Trigger` so it stays
    * one button. A disabled `Button` cannot open a tooltip: a disabled control
-   * receives no pointer or focus events. Wrap it in a focusable, non-disabled
-   * element (for example a `span` with `tabIndex={0}`) or keep the control
-   * enabled and use `aria-disabled`.
+   * receives no pointer or focus events. To explain why it is disabled, use
+   * `<Button disabled focusableWhenDisabled>`: Base UI then sets
+   * `aria-disabled` instead of `disabled`, so the button stays focusable and
+   * the tooltip opens on focus. Better still, explain the disabled state in
+   * visible copy beside the control, where every user sees it without
+   * hovering or focusing anything.
    */
   children: ReactElement
   /** Which side of the trigger the tooltip prefers. Defaults to `top`. */

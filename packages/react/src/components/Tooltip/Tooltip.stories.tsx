@@ -231,3 +231,32 @@ export const DisabledButton: Story = {
     await expect(body().queryByRole('tooltip')).toBeNull()
   },
 }
+
+/**
+ * The documented way to explain a disabled `Button`: `disabled` with
+ * `focusableWhenDisabled`. Base UI then sets `aria-disabled` instead of
+ * `disabled`, so the button stays in the tab order and keyboard focus opens
+ * the tooltip. Perturbation: dropping `focusableWhenDisabled` makes it
+ * natively disabled, Tab skips it, and no tooltip opens.
+ */
+export const DisabledFocusable: Story = {
+  args: { content: 'Add a title before saving' },
+  render: (args) => (
+    <div style={{ padding: '4rem' }}>
+      <Tooltip {...args}>
+        <Button disabled focusableWhenDisabled>
+          Save
+        </Button>
+      </Tooltip>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const trigger = within(canvasElement).getByRole('button', { name: 'Save' })
+    await expect(trigger).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.tab()
+    await expect(trigger).toHaveFocus()
+    const tip = await body().findByRole('tooltip')
+    await expect(tip).toHaveTextContent('Add a title before saving')
+    await waitFor(() => expect(trigger).toHaveAccessibleDescription('Add a title before saving'))
+  },
+}

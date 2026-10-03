@@ -2,6 +2,7 @@
 import { act } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { Button } from '../Button/Button.js'
 import { Tooltip } from './Tooltip.js'
 
 /** As in Select.test.tsx: generated ids differ between renders, nothing else may. */
@@ -102,5 +103,36 @@ describe('Tooltip (convenience)', () => {
       await vi.advanceTimersByTimeAsync(300)
     })
     expect(screen.queryByRole('tooltip')).toBeNull()
+  })
+})
+
+describe('Tooltip on a disabled Button', () => {
+  // The JSDoc's recommendation. `focusableWhenDisabled` makes Base UI's button
+  // drop the `disabled` attribute for `aria-disabled` and keep `tabIndex` 0
+  // (`utils/useFocusableWhenDisabled.js:33-42`), so the button still takes
+  // focus and the tooltip opens on it. Perturbation: dropping
+  // `focusableWhenDisabled` sets `disabled` and fails the attribute checks.
+  // jsdom focuses even a natively disabled button, so the focus and open
+  // checks alone would not catch that: the real-browser proof is the
+  // `DisabledFocusable` story.
+  it('opens on keyboard focus with disabled and focusableWhenDisabled', async () => {
+    render(
+      <Tooltip content="Add a title before saving">
+        <Button disabled focusableWhenDisabled>
+          Save
+        </Button>
+      </Tooltip>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Save' })
+    expect(trigger.hasAttribute('disabled')).toBe(false)
+    expect(trigger.getAttribute('aria-disabled')).toBe('true')
+    expect(trigger.tabIndex).toBe(0)
+    act(() => trigger.focus())
+    expect(document.activeElement).toBe(trigger)
+    const popup = await waitFor(() => screen.getByRole('tooltip'))
+    expect(popup.textContent).toBe('Add a title before saving')
+    await waitFor(() =>
+      expect(trigger.getAttribute('aria-describedby')).toBe(popup.getAttribute('id')),
+    )
   })
 })
