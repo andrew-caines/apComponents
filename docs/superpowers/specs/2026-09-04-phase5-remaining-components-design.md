@@ -439,10 +439,10 @@ are relative to `node_modules/@base-ui/react/`.
   (`popover/trigger/PopoverTrigger.js:122-124`).
 - `openOnHover`, `delay` and `closeDelay` are **trigger** props, not root props
   (`popover/trigger/PopoverTrigger.js:41-43`).
-- A Popover dismisses on an outside press (`popover/root/PopoverRoot.js:115`, `useDismiss`)
-  inside a `FloatingTree` (`:94`). Two sibling Popovers therefore cannot stay open together:
-  opening the second is an outside press for the first. A nested Popover stays open with
-  its parent. We keep this default.
+- A Popover dismisses on an outside press (`popover/root/PopoverRoot.js:115`, `useDismiss`).
+  Two sibling Popovers do not stay open together: opening the second closes the first,
+  pinned by the `SiblingsClose` story. Nested Popovers are unverified: no story or test
+  exercises them. We keep this default.
 
 **Tooltip.**
 
@@ -507,11 +507,12 @@ Paths are relative to `node_modules/@base-ui/react/`, Base UI 1.7.0.
   hovering another closes the first. Pinned by the `TwoOpen` characterisation story, so
   §4.4.1's "holds for any number of open tooltips" is true of the wiring, not of what Base UI
   lets stay open. Separately, two uncontrolled `defaultOpen` Tooltip Roots cannot both stay
-  open on mount: Base UI closes the first, with reason `none`
-  (`utils/popups/popupStoreUtils.js:363-368`). Use controlled `open` for that.
+  open on mount: Base UI closes the first, with reason `none`. This is observed (Task 1's
+  tests, reproduced with bare `Tooltip.Root` and `Tooltip.Trigger`), not traced to a line of
+  source. Use controlled `open` for that.
 - **`keepMounted` does not put a popup in server HTML.** `FloatingPortal` starts with
-  `portalNode` null and sets it only on the client
-  (`floating-ui-react/components/FloatingPortal.js:44,199`). The unit assertions that server
+  `portalNode` null (`:44`) and sets it only from a ref callback, on the client
+  (`:45-50`); the portal renders only once it is set (`:195-199`). The unit assertions that server
   HTML has no `role="tooltip"` or `role="dialog"` are therefore regression guards, and
   `keepMounted` cannot make them fail. The real-browser proof is `overlays.spec.ts`, which
   reads the raw response.

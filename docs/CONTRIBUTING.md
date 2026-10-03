@@ -1034,9 +1034,9 @@ focus manager:
 - **Tab out closes it.** `FloatingFocusManager` defaults `closeOnFocusOut = true`
   (`floating-ui-react/components/FloatingFocusManager.js:127`) and `PopoverPopup` does not
   override it. The `TabOut` story pins this, with a `TabOutTrapped` control.
-- **Sibling popovers cannot stay open together.** Opening the second is an outside press
-  for the first (`popover/root/PopoverRoot.js:115`); a nested one stays open with its
-  parent.
+- **Sibling popovers do not stay open together.** Opening the second closes the first,
+  pinned by the `SiblingsClose` story; the mechanism is `useDismiss`'s outside-press
+  dismissal (`popover/root/PopoverRoot.js:115`). Nested popovers are unverified.
 
 ## `openOnHover`, `delay` and `closeDelay` are trigger props
 
