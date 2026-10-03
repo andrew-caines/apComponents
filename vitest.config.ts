@@ -38,7 +38,13 @@ export default defineConfig({
         // "unexpectedly reloaded a test" warning). Listing it here lets Vite
         // bundle it up front instead of discovering it mid-run.
         optimizeDeps: {
-          include: ['@vanilla-extract/recipes/createRuntimeFn'],
+          include: [
+            '@vanilla-extract/recipes/createRuntimeFn',
+            // Base UI entry points the Tooltip and Popover stories pull in mid-run.
+            '@base-ui/react/merge-props',
+            '@base-ui/react/tooltip',
+            '@base-ui/react/popover',
+          ],
         },
         test: {
           name: 'storybook',

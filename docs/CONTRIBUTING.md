@@ -646,6 +646,16 @@ way `useButton`/`useFocusableWhenDisabled` do, and if so, apply the same
 `{ role: undefined, tabIndex: undefined }` override for the literal-anchor
 case rather than assuming Base UI's default is always right.
 
+**Update: deriving `nativeButton` through our own `Button`.** `deriveNativeButton`
+(`packages/react/src/internal/deriveNativeButton.ts`) used to return false for
+`<Button />`, because `Button` is a composite and its tag is unknowable from outside.
+`<Popover trigger={<Button>}>` therefore told Base UI a real `<button>` was non-native,
+which logged a console error and produced wrong ARIA. `Button` now carries a
+`NATIVE_BUTTON_DERIVABLE` marker and the helper derives through it. This affects
+`PopoverTrigger`, `PopoverClose` and `SelectTrigger`. A `Button` rendering an anchor with
+`href`/`to` clears the forced role; an anchor used as a *popover* trigger keeps
+`role="button"`, because activating it opens the popover rather than navigating.
+
 ## Base UI's Field discards a caller-supplied `id` from server markup
 
 **A caller-supplied `id` on a control inside a `Field` is not in the
@@ -988,6 +998,55 @@ labelable provider before the root registers the caller's, and
 `LabelableProvider` keeps the id it already has. `Select.Trigger` renders an
 `id` it is given directly, so it is in the server HTML too — the exception
 to the section on `Field` discarding a caller-supplied id above.
+
+## Base UI's Tooltip emits no ARIA
+
+**`Tooltip.Popup` has no `role` and the trigger has no `aria-describedby`.** The only ARIA
+Base UI's Tooltip emits is `aria-hidden` on its arrow (`tooltip/arrow/TooltipArrow.js:49`);
+no part calls Floating UI's `useRole`, and no popup id is generated. Our `Tooltip` adds it:
+
+- `Tooltip.Root` (`TooltipParts.tsx`) generates an id with `useId` and provides it
+  through a context of our own.
+- `Tooltip.Popup` sets that `id` and `role="tooltip"`.
+- `Tooltip.Trigger` reads the render state's `open` (true only when *this* trigger opened
+  the tooltip, `tooltip/trigger/TooltipTrigger.js:207-208`) and adds `aria-describedby`
+  only while open, appended to any the consumer set. Closed, server and client HTML carry
+  no reference to the absent popup.
+- **A function `render` must spread its `props`.** `Tooltip.Trigger` accepts an element or
+  a function; the function receives `props` that already carry `aria-describedby` while
+  open. A function that drops them silently removes the description.
+
+The tooltip is a description, never a name: an icon-only trigger still needs its own
+`aria-label`.
+
+## A Popover traps focus only with `modal !== false` and a close part
+
+Base UI traps focus only when `modal !== false` **and** a close part is present
+(`popover/popup/PopoverPopup.js:76`), and `modal` defaults to `false`
+(`popover/root/PopoverRoot.js:26`), so a default Popover never traps, close part or not.
+Our convenience component is always non-modal. Three more facts that follow from the
+focus manager:
+
+- **Hover-open disables it.** The focus manager is off for a hover-opened popover
+  (`popover/popup/PopoverPopup.js:107`), so focus stays on the trigger. A click-opened one
+  moves focus to its first tabbable element, or to the popup on touch
+  (`utils/popups/popupStoreUtils.js:45-46`).
+- **Tab out closes it.** `FloatingFocusManager` defaults `closeOnFocusOut = true`
+  (`floating-ui-react/components/FloatingFocusManager.js:127`) and `PopoverPopup` does not
+  override it. The `TabOut` story pins this, with a `TabOutTrapped` control.
+- **Sibling popovers do not stay open together.** Opening the second closes the first,
+  pinned by the `SiblingsClose` story; the mechanism is `useDismiss`'s outside-press
+  dismissal (`popover/root/PopoverRoot.js:115`). Nested popovers are unverified.
+
+## `openOnHover`, `delay` and `closeDelay` are trigger props
+
+On Popover all three live on the **trigger**, not the root
+(`popover/trigger/PopoverTrigger.js:41-43`). On Tooltip, `delay` and `closeDelay` are
+trigger props too (`tooltip/trigger/TooltipTrigger.js`); a tooltip always opens on hover,
+so it has no `openOnHover`. The convenience components take them and route them
+to the trigger; a hand assembly must put them on `Popover.Trigger` or `Tooltip.Trigger`
+itself. `Tooltip.Provider` separately takes `delay`, `closeDelay` and `timeout`, which
+group delays between triggers only.
 
 ## Known caveats
 

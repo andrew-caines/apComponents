@@ -3,7 +3,7 @@
 import { forwardRef } from 'react'
 import { Button as BaseButton } from '@base-ui/react/button'
 import type { Button as BaseButtonNamespace } from '@base-ui/react/button'
-import { deriveNativeButton } from '../../internal/deriveNativeButton.js'
+import { NATIVE_BUTTON_DERIVABLE, deriveNativeButton } from '../../internal/deriveNativeButton.js'
 import { buttonRecipe } from './Button.css.js'
 
 export { BUTTON_TOKENS } from './Button.tokens.js'
@@ -100,7 +100,7 @@ function isNavigationRenderElement(render: ButtonProps['render']): boolean {
   )
 }
 
-export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
+const ButtonBase = forwardRef<HTMLElement, ButtonProps>(function Button(
   { variant = 'solid', size = 'md', tone = 'action', className, render, nativeButton, ...rest },
   ref,
 ) {
@@ -132,3 +132,6 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
     />
   )
 })
+
+/** The marker lets `deriveNativeButton` see through `<Button>` as a trigger's `render`. */
+export const Button = Object.assign(ButtonBase, { [NATIVE_BUTTON_DERIVABLE]: true as const })

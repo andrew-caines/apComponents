@@ -69,6 +69,28 @@ export type {
   SelectGroupLabelProps,
   SelectSeparatorProps,
 } from './components/Select/index.js'
+export { Tooltip, TOOLTIP_TOKENS } from './components/Tooltip/index.js'
+export type {
+  TooltipProps,
+  TooltipProviderProps,
+  TooltipRootProps,
+  TooltipTriggerProps,
+  TooltipPopupProps,
+  TooltipPositionerOptions,
+} from './components/Tooltip/index.js'
+export { Popover, POPOVER_TOKENS } from './components/Popover/index.js'
+export type {
+  PopoverProps,
+  PopoverName,
+  PopoverRootProps,
+  PopoverTriggerProps,
+  PopoverPopupProps,
+  PopoverPositionerOptions,
+  PopoverTitleProps,
+  PopoverDescriptionProps,
+  PopoverCloseProps,
+  PopoverDismissProps,
+} from './components/Popover/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,

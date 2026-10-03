@@ -1,5 +1,8 @@
 'use client'
 
+/** Static marker on `Button`: `deriveNativeButton` derives through an element whose type carries it. */
+export const NATIVE_BUTTON_DERIVABLE: unique symbol = Symbol.for('ap.button.nativeButtonDerivable')
+
 /**
  * Base UI's `nativeButton` prop (default `true`) tells its internal
  * `useButton` hook whether the element it renders is a real `<button>`. That
@@ -30,9 +33,30 @@
  * Select's parts from Phase 5c on), so the parameter is typed `unknown`
  * rather than any one part's own `render` prop type — each part's narrower
  * type is assignable into `unknown` with no cast at the call site.
+ *
+ * `Button` is the one composite this helper can see through. It renders a
+ * real `<button>` by default, yet its element `type` is a component, so the
+ * "any other element" rule above would call it not native and Base UI would
+ * log an error for `trigger={<Button>}`. `Button` therefore carries
+ * `[NATIVE_BUTTON_DERIVABLE]: true` as a static property (the same protocol
+ * as `NON_NATIVE_LABEL`), and for such an element the answer is Button's own:
+ * its `nativeButton` prop if set, else derived from its own `render` prop.
+ * Every other composite still returns false.
  */
 export function deriveNativeButton(render: unknown): boolean {
   if (render === undefined) return true
   if (typeof render === 'function') return false
-  return (render as { type?: unknown }).type === 'button'
+  const element = render as { type?: unknown; props?: Record<string, unknown> }
+  const type = element.type
+  if (
+    type !== null &&
+    (typeof type === 'function' || typeof type === 'object') &&
+    (type as Record<PropertyKey, unknown>)[NATIVE_BUTTON_DERIVABLE] === true
+  ) {
+    const props = element.props ?? {}
+    return typeof props.nativeButton === 'boolean'
+      ? props.nativeButton
+      : deriveNativeButton(props.render)
+  }
+  return type === 'button'
 }

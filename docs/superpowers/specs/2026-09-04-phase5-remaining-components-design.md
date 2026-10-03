@@ -408,8 +408,140 @@ between adjacent triggers does not re-wait. It is context only, so it costs noth
 server.
 
 `Popover` is the interactive counterpart: `role="dialog"`, labelled by its own title and
-description parts, focus trapped only when it contains a close part. Base UI's hover-open
-option makes it the sanctioned "infotip" when content must be richer than a tooltip.
+description parts, and non-modal (§4.4.1). Base UI's hover-open option makes it the
+sanctioned "infotip" when content must be richer than a tooltip.
+
+*Corrected 2026-10-03:* this section first said focus is "trapped only when it contains a
+close part". Base UI traps only when `modal !== false` **and** a close part is present
+(`popover/popup/PopoverPopup.js:76`), and `modal` defaults to `false`
+(`popover/root/PopoverRoot.js:26`). So a default Popover never traps focus, close part or
+not.
+
+#### 4.4.1 Scope and API — settled 2026-10-03, before the plan
+
+Every Base UI claim below was checked against the installed `@base-ui/react` 1.7.0; paths
+are relative to `node_modules/@base-ui/react/`.
+
+**Base UI facts this plan relies on.**
+
+- Tooltip emits no ARIA except `aria-hidden` on its arrow (`tooltip/arrow/TooltipArrow.js:49`).
+  No part calls Floating UI's `useRole`. Base UI generates no popup id for it.
+- `Tooltip.Trigger` renders a `<button>` through `useRenderElement`, not `useButton`
+  (`tooltip/trigger/TooltipTrigger.js`, the `useRenderElement('button', …)` call), so it
+  has no `nativeButton` prop and §4.1.1's derivation does not apply to it.
+- The trigger's render state carries `open`, true only when *this* trigger opened the
+  tooltip (`tooltip/trigger/TooltipTrigger.js:207-208`).
+- `Tooltip.Provider` takes `delay`, `closeDelay` and `timeout` (default 400), and groups
+  delays only (`tooltip/provider/TooltipProvider.js:21-23`).
+- `Popover.Popup` sets `role="dialog"`, with `aria-labelledby`/`aria-describedby` from the
+  Title/Description parts (`popover/popup/PopoverPopup.js:91-94`). The trigger sets
+  `aria-haspopup="dialog"`, `aria-expanded` and `aria-controls`
+  (`popover/trigger/PopoverTrigger.js:122-124`).
+- `openOnHover`, `delay` and `closeDelay` are **trigger** props, not root props
+  (`popover/trigger/PopoverTrigger.js:41-43`).
+- A Popover dismisses on an outside press (`popover/root/PopoverRoot.js:115`, `useDismiss`).
+  Two sibling Popovers do not stay open together: opening the second closes the first,
+  pinned by the `SiblingsClose` story. Nested Popovers are unverified: no story or test
+  exercises them. We keep this default.
+
+**Tooltip.**
+
+- **Convenience:** `<Tooltip content={node} side? delay? closeDelay?>{trigger}</Tooltip>`.
+  The child is rendered *through* `Tooltip.Trigger`, as `Dialog` renders its `trigger`, so
+  it stays one button. `side` defaults to `top` (§4.1.7).
+- **Content is any `ReactNode`.** The JSDoc states that interactive content and the only
+  copy of an accessible name do not belong in a tooltip; those go to `Popover`.
+- **ARIA wiring.** `Tooltip.Root` generates an id with `useId` and provides it through a
+  context of our own. `Tooltip.Popup` sets that `id` and `role="tooltip"`.
+  `Tooltip.Trigger` adds `aria-describedby` from its render state, only while `open`,
+  appended to any `aria-describedby` the consumer set. While closed, server and client
+  HTML carry no reference to the absent popup. Each Root has its own id, so the wiring
+  holds for any number of open tooltips.
+- **Describe, never name.** The tooltip is always a description. An icon-only trigger still
+  needs its own `aria-label`; a story shows the pattern.
+- **`ApProvider` gains one `Tooltip.Provider`** with Base UI's default delays.
+- **Look:** a raised surface (`bgRaised`, `textPrimary`, a `borderSubtle` border and the popup
+  shadow), `text.sm`, no arrow, `enter.fade-rise`/`exit.fade`. Not inverse: the theme has no
+  inverse colour role (`theme/contract.css.ts`), and adding one is a token-system change
+  outside this plan.
+- **Parts:** `Tooltip.Provider`, `Root`, `Trigger`, `Popup`. `Popup` bundles Portal and
+  Positioner as `Select.Popup` does, so neither is a part of ours. *(Corrected during
+  execution: this list first named `Portal` and `Positioner`, contradicting this sentence.)*
+
+**Popover.**
+
+- **Convenience:** `<Popover trigger={…} title? aria-label? description? dismissible?
+  openOnHover? delay? closeDelay? side?>{children}</Popover>`. `side` defaults to `bottom`.
+- **A name is required.** The props are a union: `title` (rendered as `Popover.Title`) or
+  `aria-label`. Neither is a compile error. `description` renders `Popover.Description`.
+- **Non-modal, always in the convenience component.** Escape and outside press close it
+  (Base UI's, §4.1.6). Where focus lands on open, and whether Tab out of the popup closes
+  it, are **not yet verified in source** (settled in §4.4.2): the plan cites
+  `FloatingFocusManager`'s non-modal behaviour by file and line, and a story pins each. The convenience component
+  does not expose `modal`; the parts do.
+- **`dismissible`** (default `false`) renders a × `Popover.Close` labelled with the
+  existing `close` message key (`providers/messages.ts`). No new key.
+- `openOnHover`, `delay` and `closeDelay` route to the trigger, where Base UI reads them.
+- `Popover.Trigger` and `Popover.Close` use the `nativeButton` derivation (§4.1.1).
+- **Look:** Select's popup surface tokens, no arrow, `enter.fade-rise`/`exit.fade`.
+- **Parts:** `Popover.Root`, `Trigger`, `Popup` (bundling Portal and Positioner), `Title`,
+  `Description`, `Close`, and `Dismiss` (the × icon `Close` labelled with the `close` message
+  key, which `dismissible` renders).
+
+**Shared:** `POSITIONER_SIDE_OFFSET`; no `keepMounted` (§4.1.9); every assertion names the
+perturbation that makes it fail, `play` functions included (5c retrospective).
+
+#### 4.4.2 Verified during the plan
+
+Paths are relative to `node_modules/@base-ui/react/`, Base UI 1.7.0.
+
+- **Initial focus (open in §4.4.1, now settled).** A click-opened Popover moves focus to its
+  first tabbable element, or to the popup on touch (`utils/popups/popupStoreUtils.js:45-46`).
+  The focus manager is disabled for a hover-opened popover (`popover/popup/PopoverPopup.js:107`),
+  so focus stays on the trigger. Pinned by the `Default` and `HoverInfotip` stories and
+  `fixtures/ssr-app/e2e/overlays.spec.ts`.
+- **Tab out closes (open in §4.4.1, now settled).** `FloatingFocusManager` defaults
+  `closeOnFocusOut = true` (`floating-ui-react/components/FloatingFocusManager.js:127`) and
+  `PopoverPopup` does not override it. Pinned by the `TabOut` story (with the
+  `TabOutTrapped` control) and the fixture spec.
+- **Two tooltips at once.** Base UI keeps one tooltip visible: focusing one trigger and then
+  hovering another closes the first. Pinned by the `TwoOpen` characterisation story, so
+  §4.4.1's "holds for any number of open tooltips" is true of the wiring, not of what Base UI
+  lets stay open. The mechanism is the delay group: every `Tooltip.Trigger` calls
+  `useDelayGroup` unconditionally (`tooltip/trigger/TooltipTrigger.js:106`), and when a
+  tooltip opens, the group's effect closes the previously open one with reason `none`
+  (`floating-ui-react/components/FloatingDelayGroup.js:144-166`, the close at `:166`).
+  `ApProvider`'s `Tooltip.Provider` gives its tooltips one shared group; with no provider,
+  the default context's `currentIdRef` and `currentContextRef` are module-level objects
+  (`FloatingDelayGroup.js:17-33`), so every unprovided tooltip shares one group too.
+  Removing the provider therefore does not let two stay open.
+- **Two `defaultOpen` Roots.** Two uncontrolled `defaultOpen` Tooltip Roots cannot both stay
+  open on mount, by the same mechanism: the second to open closes the first with reason
+  `none` (`FloatingDelayGroup.js:166`). Checked during the fix wave: wrapping each Root in its
+  own `Tooltip.Provider` (two groups) keeps both open. Controlled `open` also keeps both open,
+  because the close is only a request to `onOpenChange`; the two-Roots test in
+  `TooltipParts.test.tsx` relies on that.
+- **`keepMounted` does not put a popup in server HTML.** `FloatingPortal` starts with
+  `portalNode` null (`:44`) and sets it only from a ref callback, on the client
+  (`:45-50`); the portal renders only once it is set (`:195-199`). The unit assertions that server
+  HTML has no `role="tooltip"` or `role="dialog"` are therefore regression guards, and
+  `keepMounted` cannot make them fail. The real-browser proof is `overlays.spec.ts`, which
+  reads the raw response.
+- **`deriveNativeButton` and our own `Button` (Ruling R5).** `deriveNativeButton(<Button/>)`
+  returned false, because `Button` is a composite, so `<Popover trigger={<Button>}>` told Base
+  UI a real `<button>` was non-native: a console error and wrong ARIA. `Button` now carries a
+  `NATIVE_BUTTON_DERIVABLE` marker and the helper derives through it
+  (`packages/react/src/internal/deriveNativeButton.ts`). This corrects §4.1.1's reuse for
+  `PopoverTrigger`, `PopoverClose` and `SelectTrigger`.
+- **An anchor as a Popover trigger keeps `role="button"` (Ruling R3).** `Button` clears the
+  forced role only for navigation elements (`href`/`to`), because activating them navigates.
+  Activating a popover trigger opens the popover, so `role="button"` is truthful. `SelectTrigger`
+  already behaves this way.
+- **`Tooltip.Trigger`'s `render`** takes an element or a function. A function receives `props`
+  that already carry `aria-describedby` while open, and must spread them.
+- **Programmatic open still describes the trigger.** With a single trigger, Base UI claims it
+  as the active trigger (`utils/popups/popupStoreUtils.js:232-237`, `:350-356`), so the
+  render state's `open` is true and `aria-describedby` is set.
 
 ### 4.5 Plan 5e — `Tabs`, `Accordion`
 
