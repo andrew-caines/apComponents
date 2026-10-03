@@ -123,10 +123,26 @@ describe('Select (convenience)', () => {
     expect(selected.textContent).toBe('France')
   })
 
-  // Review Focus 4. Base UI's children-function branch never falls back to
-  // `placeholder` (SelectValue.js), so the function returns it. Fails if the
-  // function returns `null` for an unmatched value.
-  it('shows the placeholder for an object defaultValue matching no item', () => {
+  // A value matching no option still posts, so the trigger shows it rather
+  // than the placeholder: a placeholder there reads as "nothing chosen" while
+  // the form submits a value. Each fails if the unmatched branch falls back
+  // to the placeholder again.
+  it('shows the raw value for a string value matching no option', () => {
+    renderIn(
+      <Select
+        aria-label="Country"
+        placeholder="Choose a country"
+        options={COUNTRIES}
+        defaultValue="de"
+      />,
+    )
+    const trigger = screen.getByRole('combobox', { name: 'Country' })
+    expect(trigger.textContent).toBe('de')
+    // Base UI counts it as selected, so it is not styled as a placeholder.
+    expect(trigger.querySelector('[data-placeholder]')).toBeNull()
+  })
+
+  it('shows the serialised value for an object value matching no option', () => {
     renderIn(
       <Select
         aria-label="Country"
@@ -136,9 +152,19 @@ describe('Select (convenience)', () => {
         defaultValue={{ code: 'de', name: 'Germany' }}
       />,
     )
-    expect(screen.getByRole('combobox', { name: 'Country' }).textContent).toBe('Choose a country')
+    expect(screen.getByRole('combobox', { name: 'Country' }).textContent).toBe('de')
   })
 
+  it('lists an unmatched value raw among the matched labels when multiple', () => {
+    renderIn(
+      <Select multiple aria-label="Countries" options={COUNTRIES} defaultValue={['ca', 'de']} />,
+    )
+    expect(screen.getByRole('combobox', { name: 'Countries' }).textContent).toBe('Canada and de')
+  })
+
+  // Review Focus 4. Base UI's children-function branch never falls back to
+  // `placeholder` (SelectValue.js), so the function returns it. Fails if the
+  // function returns `null` with nothing selected.
   it('shows the placeholder with no selection', () => {
     renderIn(<Select aria-label="Country" placeholder="Choose a country" options={COUNTRIES} />)
     expect(screen.getByRole('combobox', { name: 'Country' }).textContent).toBe('Choose a country')

@@ -332,6 +332,10 @@ object values.** All three are Base UI capabilities; the decision is to expose t
   produce identical text.
 - **`placeholder`** is consumer-supplied content, not a message key. An empty `options`
   list shows the existing `noResults` key; no new key is needed.
+- **A value matching no option shows serialised, not as the placeholder** (settled
+  2026-10-03). It still posts and Base UI counts it as selected, so the placeholder there
+  would read as "nothing chosen" while the form submits a value. In a multiple select the
+  unmatched entries appear raw in the locale list.
 - **`size`** is `sm | md | lg`, as on `Input`.
 
 **Compound parts:** `Select.Root`, `Trigger`, `Value`, `Icon`, `Popup`, `List`, `Item`,

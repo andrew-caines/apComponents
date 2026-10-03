@@ -192,14 +192,18 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
 
   // Base UI's `Select.Value` never falls back to `placeholder` when its
   // children is a function (`SelectValue.js`), so the function returns it.
+  //
+  // A value matching no option shows as its serialised self, never as the
+  // placeholder: it still posts, and Base UI counts it as selected, so a
+  // placeholder there would read as "nothing chosen" in body-text colour
+  // while the form submits something.
+  const labelOf = (value: Value): string => findLabel(value, flat, toString) ?? toString(value)
   const renderValue = (value: unknown): ReactNode => {
     if (multiple) {
-      const labels = (Array.isArray(value) ? (value as Value[]) : [])
-        .map((v) => findLabel(v, flat, toString))
-        .filter((label): label is string => label !== undefined)
-      return labels.length > 0 ? formatLabelList(labels, locale) : fallback
+      const values = Array.isArray(value) ? (value as Value[]) : []
+      return values.length > 0 ? formatLabelList(values.map(labelOf), locale) : fallback
     }
-    return findLabel(value as Value | null, flat, toString) ?? fallback
+    return value === null || value === undefined ? fallback : labelOf(value as Value)
   }
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
