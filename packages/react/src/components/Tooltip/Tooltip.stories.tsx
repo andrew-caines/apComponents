@@ -1,29 +1,29 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, waitFor, within } from "storybook/test";
-import { Button } from "../Button/Button.js";
-import { Icon } from "../../icons/index.js";
-import { Tooltip } from "./Tooltip.js";
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
+import { Button } from '../Button/Button.js'
+import { Icon } from '../../icons/index.js'
+import { Tooltip } from './Tooltip.js'
 
 const meta = {
-  title: "Components/Tooltip",
+  title: 'Components/Tooltip',
   component: Tooltip,
   argTypes: {
     side: {
-      control: "inline-radio",
-      options: ["top", "right", "bottom", "left"],
+      control: 'inline-radio',
+      options: ['top', 'right', 'bottom', 'left'],
     },
   },
   args: {
-    content: "Saves your work to the server",
+    content: 'Saves your work to the server',
     // Placeholder child: every story renders its own trigger.
     children: <Button>Save</Button>,
   },
-} satisfies Meta<typeof Tooltip>;
+} satisfies Meta<typeof Tooltip>
 
-export default meta;
-type Story = StoryObj<typeof meta>;
+export default meta
+type Story = StoryObj<typeof meta>
 
-const body = () => within(document.body);
+const body = () => within(document.body)
 
 /**
  * A `Button` trigger. Keyboard focus opens the tooltip, the trigger's
@@ -34,37 +34,37 @@ const body = () => within(document.body);
  */
 export const Default: Story = {
   render: (args) => (
-    <div style={{ padding: "4rem" }}>
+    <div style={{ padding: '4rem' }}>
       <Tooltip {...args}>
         <Button>Save</Button>
       </Tooltip>
     </div>
   ),
   play: async ({ canvasElement, step }) => {
-    const trigger = within(canvasElement).getByRole("button", { name: "Save" });
-    await expect(trigger.getAttribute("aria-describedby")).toBeNull();
+    const trigger = within(canvasElement).getByRole('button', { name: 'Save' })
+    await expect(trigger.getAttribute('aria-describedby')).toBeNull()
 
     await step(
-      "focus opens the tooltip and the trigger describes itself with it",
+      'focus opens the tooltip and the trigger describes itself with it',
       async () => {
-        await userEvent.tab();
-        await expect(trigger).toHaveFocus();
-        const tip = await body().findByRole("tooltip");
-        await expect(tip).toHaveTextContent("Saves your work to the server");
-        await expect(tip.id).not.toBe("");
+        await userEvent.tab()
+        await expect(trigger).toHaveFocus()
+        const tip = await body().findByRole('tooltip')
+        await expect(tip).toHaveTextContent('Saves your work to the server')
+        await expect(tip.id).not.toBe('')
         await waitFor(() =>
-          expect(trigger.getAttribute("aria-describedby")).toBe(tip.id),
-        );
+          expect(trigger.getAttribute('aria-describedby')).toBe(tip.id),
+        )
       },
-    );
+    )
 
-    await step("Escape closes it and removes the description", async () => {
-      await userEvent.keyboard("{Escape}");
-      await waitFor(() => expect(body().queryByRole("tooltip")).toBeNull());
-      await expect(trigger.getAttribute("aria-describedby")).toBeNull();
-    });
+    await step('Escape closes it and removes the description', async () => {
+      await userEvent.keyboard('{Escape}')
+      await waitFor(() => expect(body().queryByRole('tooltip')).toBeNull())
+      await expect(trigger.getAttribute('aria-describedby')).toBeNull()
+    })
   },
-};
+}
 
 /**
  * An icon-only `Button`. Its own `aria-label` is its name, the tooltip is its
@@ -74,9 +74,9 @@ export const Default: Story = {
  * `aria-describedby`.
  */
 export const IconButton: Story = {
-  args: { content: "Close the panel" },
+  args: { content: 'Close the panel' },
   render: (args) => (
-    <div style={{ padding: "4rem" }}>
+    <div style={{ padding: '4rem' }}>
       <Tooltip {...args}>
         <Button aria-label="Close" variant="ghost">
           <Icon name="close" />
@@ -85,18 +85,18 @@ export const IconButton: Story = {
     </div>
   ),
   play: async ({ canvasElement }) => {
-    const trigger = within(canvasElement).getByRole("button", {
-      name: "Close",
-    });
-    await userEvent.tab();
-    const tip = await body().findByRole("tooltip");
-    await expect(tip).toHaveTextContent("Close the panel");
+    const trigger = within(canvasElement).getByRole('button', {
+      name: 'Close',
+    })
+    await userEvent.tab()
+    const tip = await body().findByRole('tooltip')
+    await expect(tip).toHaveTextContent('Close the panel')
     await waitFor(() =>
-      expect(trigger).toHaveAccessibleDescription("Close the panel"),
-    );
-    await expect(trigger).toHaveAccessibleName("Close");
+      expect(trigger).toHaveAccessibleDescription('Close the panel'),
+    )
+    await expect(trigger).toHaveAccessibleName('Close')
   },
-};
+}
 
 /**
  * The default `side` is `top`: once open, the tooltip's bottom edge is at or
@@ -105,31 +105,31 @@ export const IconButton: Story = {
  */
 export const Placement: Story = {
   render: (args) => (
-    <div style={{ padding: "6rem" }}>
+    <div style={{ padding: '6rem' }}>
       <Tooltip {...args}>
         <Button>Save</Button>
       </Tooltip>
     </div>
   ),
   play: async ({ canvasElement }) => {
-    const trigger = within(canvasElement).getByRole("button", { name: "Save" });
-    await userEvent.tab();
-    const tip = await body().findByRole("tooltip");
+    const trigger = within(canvasElement).getByRole('button', { name: 'Save' })
+    await userEvent.tab()
+    const tip = await body().findByRole('tooltip')
     await waitFor(() => {
       // Prove Floating UI has positioned it before measuring: an unpositioned
       // popup sits near (0,0), where "above the trigger" is trivially true.
-      const positioner = tip.closest("[data-side]");
-      expect(positioner?.getAttribute("data-side")).toBe("top");
-      const t = tip.getBoundingClientRect();
-      const b = trigger.getBoundingClientRect();
-      expect(t.width).toBeGreaterThan(0);
+      const positioner = tip.closest('[data-side]')
+      expect(positioner?.getAttribute('data-side')).toBe('top')
+      const t = tip.getBoundingClientRect()
+      const b = trigger.getBoundingClientRect()
+      expect(t.width).toBeGreaterThan(0)
       expect(
         Math.abs(t.left + t.width / 2 - (b.left + b.width / 2)),
-      ).toBeLessThan(4);
-      expect(t.bottom).toBeLessThanOrEqual(b.top);
-    });
+      ).toBeLessThan(4)
+      expect(t.bottom).toBeLessThanOrEqual(b.top)
+    })
   },
-};
+}
 
 /**
  * Real-browser proof of `ApProvider`'s delay grouping (the fake-timer unit
@@ -140,7 +140,7 @@ export const Placement: Story = {
  */
 export const DelayGroup: Story = {
   render: () => (
-    <div style={{ padding: "4rem", display: "flex", gap: "1rem" }}>
+    <div style={{ padding: '4rem', display: 'flex', gap: '1rem' }}>
       <Tooltip content="First tip">
         <Button>First</Button>
       </Tooltip>
@@ -150,20 +150,20 @@ export const DelayGroup: Story = {
     </div>
   ),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const first = canvas.getByRole("button", { name: "First" });
-    const second = canvas.getByRole("button", { name: "Second" });
+    const canvas = within(canvasElement)
+    const first = canvas.getByRole('button', { name: 'First' })
+    const second = canvas.getByRole('button', { name: 'Second' })
 
-    await userEvent.hover(first);
-    await body().findByText("First tip", undefined, { timeout: 3000 });
+    await userEvent.hover(first)
+    await body().findByText('First tip', undefined, { timeout: 3000 })
 
-    const start = performance.now();
-    await userEvent.hover(second);
-    await body().findByText("Second tip", undefined, { timeout: 3000 });
-    const elapsed = performance.now() - start;
-    await expect(elapsed).toBeLessThan(200);
+    const start = performance.now()
+    await userEvent.hover(second)
+    await body().findByText('Second tip', undefined, { timeout: 3000 })
+    const elapsed = performance.now() - start
+    await expect(elapsed).toBeLessThan(200)
   },
-};
+}
 
 /**
  * Characterisation test for the open question in spec section 4.4.1: with one
@@ -176,7 +176,7 @@ export const DelayGroup: Story = {
  */
 export const TwoOpen: Story = {
   render: () => (
-    <div style={{ padding: "4rem", display: "flex", gap: "1rem" }}>
+    <div style={{ padding: '4rem', display: 'flex', gap: '1rem' }}>
       <Tooltip content="First tip">
         <Button>First</Button>
       </Tooltip>
@@ -186,20 +186,20 @@ export const TwoOpen: Story = {
     </div>
   ),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const second = canvas.getByRole("button", { name: "Second" });
-    await userEvent.tab();
-    await body().findByText("First tip");
+    const canvas = within(canvasElement)
+    const second = canvas.getByRole('button', { name: 'Second' })
+    await userEvent.tab()
+    await body().findByText('First tip')
 
-    await userEvent.hover(second);
-    await body().findByText("Second tip", undefined, { timeout: 3000 });
+    await userEvent.hover(second)
+    await body().findByText('Second tip', undefined, { timeout: 3000 })
     // Let any close of the first tooltip finish before counting.
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const open = body().queryAllByRole("tooltip");
-    await expect(open).toHaveLength(1);
-    await expect(open[0]).toHaveTextContent("Second tip");
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const open = body().queryAllByRole('tooltip')
+    await expect(open).toHaveLength(1)
+    await expect(open[0]).toHaveTextContent('Second tip')
   },
-};
+}
 
 /**
  * Pins the documented limitation: a disabled `Button` cannot open a tooltip.
@@ -208,19 +208,19 @@ export const TwoOpen: Story = {
  */
 export const DisabledButton: Story = {
   render: (args) => (
-    <div style={{ padding: "4rem" }}>
+    <div style={{ padding: '4rem' }}>
       <Tooltip {...args}>
         <Button disabled>Save</Button>
       </Tooltip>
     </div>
   ),
   play: async ({ canvasElement }) => {
-    const trigger = within(canvasElement).getByRole("button", { name: "Save" });
-    await expect(trigger).toBeDisabled();
-    await userEvent.hover(trigger);
-    await userEvent.tab();
+    const trigger = within(canvasElement).getByRole('button', { name: 'Save' })
+    await expect(trigger).toBeDisabled()
+    await userEvent.hover(trigger)
+    await userEvent.tab()
     // Longer than the 600 ms open delay, so a late open would be caught.
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    await expect(body().queryByRole("tooltip")).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    await expect(body().queryByRole('tooltip')).toBeNull()
   },
-};
+}
