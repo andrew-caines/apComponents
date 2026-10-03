@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, within } from 'storybook/test'
+import { hoverBorderRuleApplies } from '../../../../../storybook/support/hoverRule.js'
 import { Field } from '../Field/Field.js'
 import { Checkbox } from './Checkbox.js'
 
@@ -65,5 +66,35 @@ export const Toggles: Story = {
     await expect(box).toHaveAttribute('aria-checked', 'false')
     await userEvent.click(box)
     await expect(box).toHaveAttribute('aria-checked', 'true')
+  },
+}
+
+/**
+ * Hover changes the border of a resting box only. A checked, indeterminate or
+ * invalid box keeps its own border under the pointer: `:hover:not(…)`
+ * outranks `[data-checked]` and `[data-invalid]` on specificity, so the hover
+ * rule has to exclude those states itself. `hoverBorderRuleApplies` explains
+ * why this reads the stylesheet instead of hovering.
+ */
+export const HoverRule: Story = {
+  render: () => (
+    <div style={{ display: 'grid', gap: '0.5rem' }}>
+      <Checkbox label="Resting" />
+      <Checkbox label="Checked" defaultChecked />
+      <Checkbox label="Indeterminate" indeterminate />
+      <Field.Root invalid>
+        <Checkbox label="Invalid" />
+      </Field.Root>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const box = (name: string) => canvas.getByRole('checkbox', { name })
+    // Non-vacuity: without this, a stylesheet with no hover rule passes.
+    await expect(hoverBorderRuleApplies(box('Resting'))).toBe(true)
+    // Each fails when its `:not(…)` is removed from the hover selector.
+    await expect(hoverBorderRuleApplies(box('Checked'))).toBe(false)
+    await expect(hoverBorderRuleApplies(box('Indeterminate'))).toBe(false)
+    await expect(hoverBorderRuleApplies(box('Invalid'))).toBe(false)
   },
 }

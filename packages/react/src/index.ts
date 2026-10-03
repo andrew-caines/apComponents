@@ -54,9 +54,9 @@ export type {
 export { Select, SELECT_TOKENS } from './components/Select/index.js'
 export type {
   SelectProps,
-  SelectItem,
-  SelectGroup,
-  SelectItems,
+  SelectOption,
+  SelectOptionGroup,
+  SelectOptions,
   SelectRootProps,
   SelectTriggerProps,
   SelectValueProps,

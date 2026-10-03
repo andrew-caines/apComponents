@@ -11,14 +11,14 @@ const COUNTRIES = [
 const GROUPED_COUNTRIES = [
   {
     label: 'North America',
-    items: [
+    options: [
       { value: 'ca', label: 'Canada' },
       { value: 'us', label: 'United States' },
     ],
   },
   {
     label: 'Europe',
-    items: [
+    options: [
       { value: 'fr', label: 'France' },
       { value: 'de', label: 'Germany' },
     ],
@@ -30,13 +30,13 @@ export default function SelectPage() {
     <Page slug="select">
       <Specimen label="single">
         <Field label="Country">
-          <Select name="country" items={COUNTRIES} placeholder="Choose a country" defaultValue="ca" />
+          <Select name="country" options={COUNTRIES} placeholder="Choose a country" defaultValue="ca" />
         </Field>
       </Specimen>
 
       <Specimen label="grouped">
         <Field label="Country">
-          <Select name="country-grouped" items={GROUPED_COUNTRIES} placeholder="Choose a country" />
+          <Select name="country-grouped" options={GROUPED_COUNTRIES} placeholder="Choose a country" />
         </Field>
       </Specimen>
 
@@ -45,7 +45,7 @@ export default function SelectPage() {
           <Select
             multiple
             name="countries"
-            items={COUNTRIES}
+            options={COUNTRIES}
             placeholder="Choose countries"
             defaultValue={['ca', 'fr']}
           />

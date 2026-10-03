@@ -1,41 +1,38 @@
 'use client'
 
 /**
- * The convenience `<Select>` (Task 5) accepts either a flat list of items or
- * a list of groups. Every helper below operates on that union so the
+ * The convenience `<Select>` (Task 5) accepts either a flat list of options
+ * or a list of groups. Every helper below operates on that union so the
  * component never has to branch on shape more than once.
+ *
+ * Named `SelectOption`, not `SelectItem`, to match `RadioGroupOption` and to
+ * keep the data shape apart from the `Select.Item` part (`SelectItemProps`).
  */
-export interface SelectItem<Value> {
+export interface SelectOption<Value> {
   value: Value
   label: string
   disabled?: boolean
 }
 
-/**
- * A type alias, not an interface, on purpose: Base UI types a group in
- * `Select.Root`'s `items` with an index signature, and only a type alias is
- * implicitly assignable to one. As an interface, a hand assembly passing
- * these same `items` to `Select.Root` would need a cast.
- */
-export type SelectGroup<Value> = {
+export interface SelectOptionGroup<Value> {
   label: string
-  items: ReadonlyArray<SelectItem<Value>>
+  options: ReadonlyArray<SelectOption<Value>>
 }
 
-export type SelectItems<Value> =
-  | ReadonlyArray<SelectItem<Value>>
-  | ReadonlyArray<SelectGroup<Value>>
+export type SelectOptions<Value> =
+  | ReadonlyArray<SelectOption<Value>>
+  | ReadonlyArray<SelectOptionGroup<Value>>
 
 /**
- * A `SelectGroup` is told apart from a `SelectItem` by the presence of an
- * `items` array — `SelectItem` never has one. An empty list is treated as
- * ungrouped: there is nothing in it to prove otherwise, and `flattenItems`
- * returns `[]` for it either way.
+ * A `SelectOptionGroup` is told apart from a `SelectOption` by the presence
+ * of an `options` array — `SelectOption` never has one. An empty list is
+ * treated as ungrouped: there is nothing in it to prove otherwise, and
+ * `flattenItems` returns `[]` for it either way.
  */
 export function isGrouped<Value>(
-  items: SelectItems<Value>,
-): items is ReadonlyArray<SelectGroup<Value>> {
-  return items.length > 0 && 'items' in items[0]!
+  items: SelectOptions<Value>,
+): items is ReadonlyArray<SelectOptionGroup<Value>> {
+  return items.length > 0 && 'options' in items[0]!
 }
 
 /**
@@ -44,10 +41,10 @@ export function isGrouped<Value>(
  * grouping.
  */
 export function flattenItems<Value>(
-  items: SelectItems<Value>,
-): ReadonlyArray<SelectItem<Value>> {
+  items: SelectOptions<Value>,
+): ReadonlyArray<SelectOption<Value>> {
   if (!isGrouped(items)) return items
-  return items.flatMap((group) => group.items)
+  return items.flatMap((group) => group.options)
 }
 
 /**
@@ -91,7 +88,7 @@ export function equalBySerialisation<Value>(
  */
 export function findLabel<Value>(
   value: Value | null | undefined,
-  flat: ReadonlyArray<SelectItem<Value>>,
+  flat: ReadonlyArray<SelectOption<Value>>,
   toString: (value: Value) => string,
 ): string | undefined {
   if (value === null || value === undefined) return undefined

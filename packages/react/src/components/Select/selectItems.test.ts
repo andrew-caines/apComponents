@@ -6,8 +6,8 @@ import {
   flattenItems,
   formatLabelList,
   isGrouped,
-  type SelectGroup,
-  type SelectItem,
+  type SelectOptionGroup,
+  type SelectOption,
 } from './selectItems.js'
 
 interface Country {
@@ -16,13 +16,13 @@ interface Country {
 }
 
 describe('isGrouped', () => {
-  it('is true for a list of groups (each item has an `items` array)', () => {
-    const groups: ReadonlyArray<SelectGroup<string>> = [{ label: 'G', items: [] }]
+  it('is true for a list of groups (each group has an `options` array)', () => {
+    const groups: ReadonlyArray<SelectOptionGroup<string>> = [{ label: 'G', options: [] }]
     expect(isGrouped(groups)).toBe(true)
   })
 
   it('is false for a flat list of items', () => {
-    const items: ReadonlyArray<SelectItem<string>> = [{ value: 'a', label: 'A' }]
+    const items: ReadonlyArray<SelectOption<string>> = [{ value: 'a', label: 'A' }]
     expect(isGrouped(items)).toBe(false)
   })
 
@@ -33,7 +33,7 @@ describe('isGrouped', () => {
 
 describe('flattenItems', () => {
   it('passes a flat list through unchanged', () => {
-    const items: ReadonlyArray<SelectItem<string>> = [
+    const items: ReadonlyArray<SelectOption<string>> = [
       { value: 'a', label: 'A' },
       { value: 'b', label: 'B' },
     ]
@@ -44,17 +44,17 @@ describe('flattenItems', () => {
     // Perturbation: flattening with `[...groups].reverse().flatMap(...)` (or
     // any group-order shuffle) makes this fail, since it asserts the exact
     // sequence, not just set membership.
-    const groups: ReadonlyArray<SelectGroup<string>> = [
+    const groups: ReadonlyArray<SelectOptionGroup<string>> = [
       {
         label: 'Group 1',
-        items: [
+        options: [
           { value: 'a', label: 'A' },
           { value: 'b', label: 'B' },
         ],
       },
       {
         label: 'Group 2',
-        items: [{ value: 'c', label: 'C' }],
+        options: [{ value: 'c', label: 'C' }],
       },
     ]
     expect(flattenItems(groups).map((item) => item.value)).toEqual(['a', 'b', 'c'])
@@ -93,7 +93,7 @@ describe('equalBySerialisation', () => {
 
 describe('findLabel', () => {
   const toString = (country: Country) => country.code
-  const flat: ReadonlyArray<SelectItem<Country>> = [
+  const flat: ReadonlyArray<SelectOption<Country>> = [
     { value: { code: 'ca', name: 'California' }, label: 'California' },
     { value: { code: 'ny', name: 'New York' }, label: 'New York' },
   ]

@@ -116,11 +116,12 @@ export const switchTrackRecipe = recipe({
         selectors: {
           // Order matches Checkbox.css.ts: hover, then focus-visible, then
           // checked, then invalid, then disabled. Order alone cannot keep
-          // hover off a checked track: `:hover:not(…)` outranks
-          // `[data-checked]` on specificity, so hover also skips
-          // `[data-checked]`, or a hovered checked pill regains a
-          // `borderHover` ring.
-          '&:hover:not([data-disabled]):not([data-checked])': {
+          // hover off a checked or invalid track: `:hover:not(…)` outranks
+          // `[data-checked]` and `[data-invalid]` on specificity, so hover
+          // skips both, or a hovered checked pill regains a `borderHover`
+          // ring and a hovered invalid one loses its error border. Asserted
+          // by the `HoverRule` story.
+          '&:hover:not([data-disabled]):not([data-checked]):not([data-invalid])': {
             borderColor: t.borderHover,
           },
           // Longhand, matching Input.css.ts/Checkbox.css.ts: `outline`, never

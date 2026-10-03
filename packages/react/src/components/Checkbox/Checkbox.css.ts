@@ -69,7 +69,11 @@ export const checkboxRecipe = recipe({
         borderRadius: t.radius,
         cursor: 'pointer',
         selectors: {
-          '&:hover:not([data-disabled])': {
+          // Hover is for a resting box only. `:hover:not(…)` outranks
+          // `[data-checked]`, `[data-indeterminate]` and `[data-invalid]` on
+          // specificity, so ordering cannot protect those borders: the hover
+          // rule excludes them itself. Asserted by the `HoverRule` story.
+          '&:hover:not([data-disabled]):not([data-checked]):not([data-indeterminate]):not([data-invalid])': {
             borderColor: t.borderHover,
           },
           // Longhand, matching Input.css.ts/Textarea.css.ts: `outline`, never

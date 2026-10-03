@@ -290,7 +290,8 @@ Two decisions carry this component:
   Without `items` it renders the raw value, and a server-rendered form would show `us`
   where it should show "United States". Children-based composition remains available
   through the parts for grouped and custom-rendered cases; the convenience component takes
-  `items`.
+  the list as `options` (renamed from `items` after 5c, see §4.3.1) and passes Base UI a
+  flat `items`.
 - **Trigger-item alignment is off.** Base UI defaults to overlapping the trigger with the
   selected item, which ignores `side` and `align` entirely and behaves differently on
   touch. A predictable listbox below the trigger is worth more than the native-select
@@ -310,8 +311,10 @@ pre-hydration exactly as `Input`'s does — gate 6 asserts it with a real form p
 object values.** All three are Base UI capabilities; the decision is to expose them on
 `Select` itself rather than only through the parts.
 
-- **`items`** is a flat list `{ value, label, disabled? }[]` or a grouped list
-  `{ label, items }[]`. Groups render as `Select.Group` with a `Select.GroupLabel`, and a
+- **`options`** is a flat list `{ value, label, disabled? }[]` (`SelectOption`) or a grouped
+  list `{ label, options }[]` (`SelectOptionGroup`). Named after `RadioGroup`'s `options` and
+  `RadioGroupOption`, and kept apart from the `Select.Item`/`Select.Group` parts; renamed
+  from `items`/`SelectItem`/`SelectGroup` on 2026-10-03, before any release. Groups render as `Select.Group` with a `Select.GroupLabel`, and a
   `Select.Separator` between consecutive groups.
 - **`multiple`** is a type parameter, as in Base UI: `value`/`defaultValue` become arrays.
   Base UI renders one inline hidden input per selected value, so a pre-hydration post
@@ -327,8 +330,12 @@ object values.** All three are Base UI capabilities; the decision is to expose t
   `", "`. `Select` instead joins them with `Intl.ListFormat` at `LocaleProvider`'s locale,
   on one line with an ellipsis on overflow. The locale is explicit, so server and client
   produce identical text.
-- **`placeholder`** is consumer-supplied content, not a message key. An empty `items`
+- **`placeholder`** is consumer-supplied content, not a message key. An empty `options`
   list shows the existing `noResults` key; no new key is needed.
+- **A value matching no option shows serialised, not as the placeholder** (settled
+  2026-10-03). It still posts and Base UI counts it as selected, so the placeholder there
+  would read as "nothing chosen" while the form submits a value. In a multiple select the
+  unmatched entries appear raw in the locale list.
 - **`size`** is `sm | md | lg`, as on `Input`.
 
 **Compound parts:** `Select.Root`, `Trigger`, `Value`, `Icon`, `Popup`, `List`, `Item`,
@@ -380,7 +387,7 @@ fix. The marker is internal, not exported.
   serialising the object, even with `items` and `itemToStringValue` both supplied. The
   convenience component does not rely on this path at all: it always passes `Select.Value`
   a children function that looks up the label itself from the same `items`, so Base UI's
-  resolution never runs for anything built through `<Select items={…} />`. Only a
+  resolution never runs for anything built through `<Select options={…} />`. Only a
   hand-assembled `<Select.Value />` with no children function is exposed to it.
 
 ### 4.4 Plan 5d — `Tooltip`, `Popover`

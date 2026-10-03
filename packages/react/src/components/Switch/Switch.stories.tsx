@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, within } from 'storybook/test'
+import { hoverBorderRuleApplies } from '../../../../../storybook/support/hoverRule.js'
 import { Field } from '../Field/Field.js'
 import { Switch } from './Switch.js'
 
@@ -41,9 +42,8 @@ export const Checked: Story = {
     // Differential, so it needs no resolved colour string. Real Chromium, so
     // `getComputedStyle` sees the cascade (jsdom cannot).
     //
-    // The hovered case is not asserted here: `storybook/test`'s `userEvent`
-    // dispatches synthetic events and never sets `:hover`, so a hover
-    // assertion here could not fail. See the hover rule in `Switch.css.ts`.
+    // The hovered case is asserted in `HoverRule`, from the stylesheet:
+    // `userEvent` never sets `:hover`.
     await expect(getComputedStyle(sw).borderColor).toBe(getComputedStyle(sw).backgroundColor)
   },
 }
@@ -98,5 +98,33 @@ export const Toggles: Story = {
     // that the toggle is a real round trip rather than a one-way latch.
     await userEvent.click(sw)
     await expect(sw).toHaveAttribute('aria-checked', 'false')
+  },
+}
+
+/**
+ * Hover changes the border of a resting track only. A checked or invalid
+ * track keeps its own border under the pointer: `:hover:not(…)` outranks
+ * `[data-checked]` and `[data-invalid]` on specificity, so the hover rule has
+ * to exclude those states itself. `hoverBorderRuleApplies` explains why this
+ * reads the stylesheet instead of hovering.
+ */
+export const HoverRule: Story = {
+  render: () => (
+    <div style={{ display: 'grid', gap: '0.5rem' }}>
+      <Switch label="Resting" />
+      <Switch label="Checked" defaultChecked />
+      <Field.Root invalid>
+        <Switch label="Invalid" />
+      </Field.Root>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const sw = (name: string) => canvas.getByRole('switch', { name })
+    // Non-vacuity: without this, a stylesheet with no hover rule passes.
+    await expect(hoverBorderRuleApplies(sw('Resting'))).toBe(true)
+    // Each fails when its `:not(…)` is removed from the hover selector.
+    await expect(hoverBorderRuleApplies(sw('Checked'))).toBe(false)
+    await expect(hoverBorderRuleApplies(sw('Invalid'))).toBe(false)
   },
 }

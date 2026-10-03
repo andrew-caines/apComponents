@@ -7,7 +7,7 @@ import { LocaleProvider } from '../../providers/LocaleProvider.js'
 import { DEFAULT_MESSAGES } from '../../providers/messages.js'
 import { Select } from './Select.js'
 import { selectSeparatorClass, selectTriggerRecipe } from './Select.css.js'
-import { equalBySerialisation, findLabel, flattenItems, type SelectItems } from './selectItems.js'
+import { equalBySerialisation, findLabel, flattenItems, type SelectOptions } from './selectItems.js'
 
 const renderIn = (ui: ReactElement, locale?: string) =>
   render(<LocaleProvider {...(locale !== undefined ? { locale } : {})}>{ui}</LocaleProvider>)
@@ -56,12 +56,12 @@ describe('Select (convenience)', () => {
     // an object, which is the escape hatch behind this type error.
     const unserialisable = (
       // @ts-expect-error an object Value has no default serialisation, so itemToStringValue is required
-      <Select items={[{ value: { id: 1 }, label: 'A' }]} aria-label="No serialiser" />
+      <Select options={[{ value: { id: 1 }, label: 'A' }]} aria-label="No serialiser" />
     )
     expect(unserialisable).toBeTruthy()
     renderIn(
       <Select
-        items={[{ value: { id: 1 }, label: 'A' }]}
+        options={[{ value: { id: 1 }, label: 'A' }]}
         itemToStringValue={(v) => String(v.id)}
         aria-label="Serialised"
       />,
@@ -75,7 +75,7 @@ describe('Select (convenience)', () => {
         multiple
         // @ts-expect-error `multiple` makes defaultValue an array of Value
         defaultValue="a"
-        items={[{ value: 'a', label: 'A' }]}
+        options={[{ value: 'a', label: 'A' }]}
       />,
     )
     expect(screen.getByRole('combobox')).toBeTruthy()
@@ -93,7 +93,7 @@ describe('Select (convenience)', () => {
   it('is labelled by a div label through Field', () => {
     renderIn(
       <Field label="Country">
-        <Select items={COUNTRIES} />
+        <Select options={COUNTRIES} />
       </Field>,
     )
     expect(screen.getByText('Country').tagName).toBe('DIV')
@@ -107,7 +107,7 @@ describe('Select (convenience)', () => {
     renderIn(
       <Select
         aria-label="Country"
-        items={OBJECT_ITEMS}
+        options={OBJECT_ITEMS}
         itemToStringValue={byCode}
         defaultValue={{ code: 'fr', name: 'France' }}
       />,
@@ -123,24 +123,50 @@ describe('Select (convenience)', () => {
     expect(selected.textContent).toBe('France')
   })
 
-  // Review Focus 4. Base UI's children-function branch never falls back to
-  // `placeholder` (SelectValue.js), so the function returns it. Fails if the
-  // function returns `null` for an unmatched value.
-  it('shows the placeholder for an object defaultValue matching no item', () => {
+  // A value matching no option still posts, so the trigger shows it rather
+  // than the placeholder: a placeholder there reads as "nothing chosen" while
+  // the form submits a value. Each fails if the unmatched branch falls back
+  // to the placeholder again.
+  it('shows the raw value for a string value matching no option', () => {
     renderIn(
       <Select
         aria-label="Country"
         placeholder="Choose a country"
-        items={OBJECT_ITEMS}
+        options={COUNTRIES}
+        defaultValue="de"
+      />,
+    )
+    const trigger = screen.getByRole('combobox', { name: 'Country' })
+    expect(trigger.textContent).toBe('de')
+    // Base UI counts it as selected, so it is not styled as a placeholder.
+    expect(trigger.querySelector('[data-placeholder]')).toBeNull()
+  })
+
+  it('shows the serialised value for an object value matching no option', () => {
+    renderIn(
+      <Select
+        aria-label="Country"
+        placeholder="Choose a country"
+        options={OBJECT_ITEMS}
         itemToStringValue={byCode}
         defaultValue={{ code: 'de', name: 'Germany' }}
       />,
     )
-    expect(screen.getByRole('combobox', { name: 'Country' }).textContent).toBe('Choose a country')
+    expect(screen.getByRole('combobox', { name: 'Country' }).textContent).toBe('de')
   })
 
+  it('lists an unmatched value raw among the matched labels when multiple', () => {
+    renderIn(
+      <Select multiple aria-label="Countries" options={COUNTRIES} defaultValue={['ca', 'de']} />,
+    )
+    expect(screen.getByRole('combobox', { name: 'Countries' }).textContent).toBe('Canada and de')
+  })
+
+  // Review Focus 4. Base UI's children-function branch never falls back to
+  // `placeholder` (SelectValue.js), so the function returns it. Fails if the
+  // function returns `null` with nothing selected.
   it('shows the placeholder with no selection', () => {
-    renderIn(<Select aria-label="Country" placeholder="Choose a country" items={COUNTRIES} />)
+    renderIn(<Select aria-label="Country" placeholder="Choose a country" options={COUNTRIES} />)
     expect(screen.getByRole('combobox', { name: 'Country' }).textContent).toBe('Choose a country')
   })
 
@@ -151,7 +177,7 @@ describe('Select (convenience)', () => {
       <Select
         multiple
         aria-label="Farben"
-        items={[
+        options={[
           { value: 'r', label: 'Rot' },
           { value: 'g', label: 'Grün' },
           { value: 'b', label: 'Blau' },
@@ -169,9 +195,9 @@ describe('Select (convenience)', () => {
       <Select
         aria-label="City"
         defaultOpen
-        items={[
-          { label: 'Canada', items: [{ value: 'yvr', label: 'Vancouver' }] },
-          { label: 'France', items: [{ value: 'cdg', label: 'Paris' }] },
+        options={[
+          { label: 'Canada', options: [{ value: 'yvr', label: 'Vancouver' }] },
+          { label: 'France', options: [{ value: 'cdg', label: 'Paris' }] },
         ]}
       />,
     )
@@ -194,7 +220,7 @@ describe('Select (convenience)', () => {
   // real `Select.Item` — Base UI never registers it as one, so it cannot be
   // the `null` item that reads as selected whenever nothing else is.
   it('shows noResults for an empty list, overridable through LocaleProvider', async () => {
-    const { unmount } = renderIn(<Select<string> aria-label="Empty" defaultOpen items={[]} />)
+    const { unmount } = renderIn(<Select<string> aria-label="Empty" defaultOpen options={[]} />)
     const listbox = await waitFor(() => screen.getByRole('listbox'))
     expect(listbox.textContent).toBe(DEFAULT_MESSAGES.noResults)
     const option = listbox.querySelector('[role="option"]')
@@ -205,15 +231,15 @@ describe('Select (convenience)', () => {
 
     render(
       <LocaleProvider locale="fr-FR" messages={{ noResults: 'Aucun résultat' }}>
-        <Select<string> aria-label="Vide" defaultOpen items={[]} />
+        <Select<string> aria-label="Vide" defaultOpen options={[]} />
       </LocaleProvider>,
     )
     const french = await waitFor(() => screen.getByRole('listbox'))
     expect(french.textContent).toBe('Aucun résultat')
   })
 
-  // Fails if the empty branch tests `items.length` rather than the flattened
-  // list: a group with no items is still one entry in `items`, so the list
+  // Fails if the empty branch tests `options.length` rather than the flattened
+  // list: a group with no options is still one entry in `options`, so the list
   // would render a labelled group with no option in it, which is the listbox
   // `aria-required-children` violation the `noResults` row exists to avoid.
   it('shows noResults, and no group, when every group is empty', async () => {
@@ -221,9 +247,9 @@ describe('Select (convenience)', () => {
       <Select<string>
         aria-label="City"
         defaultOpen
-        items={[
-          { label: 'Europe', items: [] },
-          { label: 'Asia', items: [] },
+        options={[
+          { label: 'Europe', options: [] },
+          { label: 'Asia', options: [] },
         ]}
       />,
     )
@@ -243,12 +269,12 @@ describe('Select (convenience)', () => {
       <Select
         aria-label="City"
         defaultOpen
-        items={[
-          { label: 'Europe', items: [] },
-          { label: 'Canada', items: [{ value: 'yvr', label: 'Vancouver' }] },
-          { label: 'Asia', items: [] },
-          { label: 'France', items: [{ value: 'cdg', label: 'Paris' }] },
-          { label: 'Africa', items: [] },
+        options={[
+          { label: 'Europe', options: [] },
+          { label: 'Canada', options: [{ value: 'yvr', label: 'Vancouver' }] },
+          { label: 'Asia', options: [] },
+          { label: 'France', options: [{ value: 'cdg', label: 'Paris' }] },
+          { label: 'Africa', options: [] },
         ]}
       />,
     )
@@ -262,7 +288,7 @@ describe('Select (convenience)', () => {
 
   it('forwards ref and className to the trigger', () => {
     const ref = createRef<HTMLButtonElement>()
-    renderIn(<Select aria-label="Country" items={COUNTRIES} ref={ref} className="mine" size="sm" />)
+    renderIn(<Select aria-label="Country" options={COUNTRIES} ref={ref} className="mine" size="sm" />)
     expect(ref.current).toBe(screen.getByRole('combobox', { name: 'Country' }))
     expect(ref.current!.className).toBe(`${selectTriggerRecipe({ size: 'sm' })} mine`)
   })
@@ -270,7 +296,7 @@ describe('Select (convenience)', () => {
   // Fails if `id` stops reaching the trigger; removing `id` from
   // `SelectProps` fails this at compile time.
   it('passes id through to the trigger', () => {
-    renderIn(<Select id="x" aria-label="Country" items={COUNTRIES} />)
+    renderIn(<Select id="x" aria-label="Country" options={COUNTRIES} />)
     expect(screen.getByRole('combobox', { name: 'Country' }).getAttribute('id')).toBe('x')
   })
 
@@ -280,7 +306,7 @@ describe('Select (convenience)', () => {
   it('passes id through to the trigger inside a Field, after effects', async () => {
     renderIn(
       <Field label="Country">
-        <Select id="x" items={COUNTRIES} />
+        <Select id="x" options={COUNTRIES} />
       </Field>,
     )
     await waitFor(() =>
@@ -296,7 +322,7 @@ describe('Select (convenience)', () => {
         data-testid="s"
         data-kind="country"
         aria-label="Country"
-        items={COUNTRIES}
+        options={COUNTRIES}
         defaultOpen
       />,
     )
@@ -314,7 +340,7 @@ describe('Select (convenience)', () => {
     const onBlur = vi.fn()
     renderIn(
       <>
-        <Select aria-label="Country" items={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
+        <Select aria-label="Country" options={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
         <button type="button">After</button>
       </>,
     )
@@ -339,7 +365,7 @@ describe('Select (convenience)', () => {
     const onBlur = vi.fn()
     renderIn(
       <>
-        <Select aria-label="Country" items={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
+        <Select aria-label="Country" options={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
         <button type="button">After</button>
       </>,
     )
@@ -369,7 +395,7 @@ describe('Select (convenience)', () => {
     })
     renderIn(
       <>
-        <Select aria-label="Country" items={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
+        <Select aria-label="Country" options={COUNTRIES} onFocus={onFocus} onBlur={onBlur} />
         <button type="button">After</button>
       </>,
     )
@@ -401,7 +427,7 @@ describe('Select (convenience)', () => {
     renderIn(
       <Field.Root>
         <Field.Label>Country</Field.Label>
-        <Select items={COUNTRIES} />
+        <Select options={COUNTRIES} />
       </Field.Root>,
     )
     await waitFor(() => {
@@ -413,7 +439,7 @@ describe('Select (convenience)', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     renderIn(
       <Field label="Country">
-        <Select items={COUNTRIES} />
+        <Select options={COUNTRIES} />
       </Field>,
     )
     // Let every effect and re-render settle before asserting the absence.
@@ -437,9 +463,9 @@ describe('Select (convenience)', () => {
    * `FocusWithin` story.
    */
   it('produces exactly the DOM its own compound parts produce', async () => {
-    const items: SelectItems<string> = [
-      { label: 'North America', items: [{ value: 'ca', label: 'Canada' }] },
-      { label: 'Europe', items: [{ value: 'fr', label: 'France', disabled: true }] },
+    const items: SelectOptions<string> = [
+      { label: 'North America', options: [{ value: 'ca', label: 'Canada' }] },
+      { label: 'Europe', options: [{ value: 'fr', label: 'France', disabled: true }] },
     ]
     const flat = flattenItems(items)
     const toString = (v: string) => v
@@ -451,7 +477,7 @@ describe('Select (convenience)', () => {
         aria-label="Country"
         name="country"
         placeholder="Pick"
-        items={items}
+        options={items}
         defaultValue="ca"
         defaultOpen
       />,
@@ -467,7 +493,7 @@ describe('Select (convenience)', () => {
     renderIn(
       <Select.Root
         name="country"
-        items={items}
+        items={flat}
         itemToStringValue={toString}
         isItemEqualToValue={equalBySerialisation(toString)}
         defaultValue="ca"

@@ -153,7 +153,11 @@ export const radioRecipe = recipe({
         borderRadius: t.radius,
         cursor: 'pointer',
         selectors: {
-          '&:hover:not([data-disabled])': {
+          // Hover is for a resting option only. `:hover:not(…)` outranks
+          // `[data-checked]` and `[data-invalid]` on specificity, so ordering
+          // cannot protect those borders: the hover rule excludes them itself.
+          // Asserted by the `HoverRule` story.
+          '&:hover:not([data-disabled]):not([data-checked]):not([data-invalid])': {
             borderColor: t.borderHover,
           },
           // Longhand, matching Input/Textarea/Checkbox/Switch: `outline`,

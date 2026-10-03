@@ -35,6 +35,7 @@
     "test:hydration": "npm --prefix fixtures/ssr-app run test:e2e",
     "typecheck": "tsc -b packages/tokens packages/motion packages/react packages/vite",
     "report:contrast": "tsx scripts/contrast-report.ts",
+    "check:lockfiles": "tsx scripts/check-lockfiles.ts",
     "gen:font-metrics": "tsx scripts/gen-font-metrics.ts",
     "gen:fonts": "tsx scripts/gen-fonts.ts",
     "gen:theme-contract": "tsx scripts/gen-theme-contract.ts",

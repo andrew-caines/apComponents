@@ -867,10 +867,10 @@ are the common case, not an edge case.
 
 **`Select`'s convenience component (`Select.tsx`) never lets Base UI's
 resolution run.** It always passes `Select.Value` a children *function*
-that looks up the label itself, from the same `items`/`itemToStringValue`
+that looks up the label itself, from the same `options`/`itemToStringValue`
 the caller supplied (`findLabel` in `selectItems.ts`, keyed by serialised
 value) — so `resolveSelectedLabel` is simply never reached for anything built
-through `<Select items={…} />`. This only matters when assembling the parts
+through `<Select options={…} />`. This only matters when assembling the parts
 by hand: a hand-written `<Select.Value />` with no children function is
 exposed to the JSON-rendering behaviour above.
 
@@ -878,9 +878,11 @@ exposed to the JSON-rendering behaviour above.
 falls back to its own `placeholder` prop when `children` is a function
 (`select/value/SelectValue.js`) — the function branch is checked first and
 always wins, so a children function that returns `undefined`/`null` renders
-nothing, not the placeholder. `Select.tsx`'s `renderValue` function computes
-the placeholder fallback itself (`findLabel(...) ?? fallback`) for exactly
-this reason; a hand-written children function must do the same.
+nothing, not the placeholder. `Select.tsx`'s `renderValue` function returns
+the placeholder itself when nothing is selected, for exactly this reason; a
+hand-written children function must do the same. A value that matches no
+option is a different case: it still posts, so `renderValue` shows it
+serialised (`itemToStringValue`) rather than as the placeholder.
 
 ## `Field.Label`'s `nativeLabel={false}` still renders a `<label>`
 
