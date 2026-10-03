@@ -71,6 +71,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm --prefix fixtures/consumer install
+      - name: Fail if fixtures/consumer/package-lock.json drifted from its dependencies
+        run: |
+          if ! git diff --exit-code fixtures/consumer/package-lock.json; then
+            echo "::error::fixtures/consumer/package-lock.json is stale. Run 'npm --prefix fixtures/consumer install' and commit the result."
+            exit 1
+          fi
       - run: npm --prefix fixtures/consumer run typecheck
       - run: npm run test:consumer
 
@@ -85,6 +91,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm --prefix fixtures/ssr-app install
+      - name: Fail if fixtures/ssr-app/package-lock.json drifted from its dependencies
+        run: |
+          if ! git diff --exit-code fixtures/ssr-app/package-lock.json; then
+            echo "::error::fixtures/ssr-app/package-lock.json is stale. Run 'npm --prefix fixtures/ssr-app install' and commit the result."
+            exit 1
+          fi
       - run: npm --prefix fixtures/ssr-app run typecheck
       - run: npm run test:ssr
       - run: npm run test:spa
@@ -123,6 +135,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run showcase:install
+      - name: Fail if showcase/package-lock.json drifted from its dependencies
+        run: |
+          if ! git diff --exit-code showcase/package-lock.json; then
+            echo "::error::showcase/package-lock.json is stale. Run 'npm run showcase:install' and commit the result."
+            exit 1
+          fi
       - run: npm --prefix showcase run typecheck
       - run: npx --prefix showcase playwright install --with-deps chromium
       - run: npm run showcase:test
