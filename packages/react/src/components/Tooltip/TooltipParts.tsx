@@ -144,13 +144,15 @@ export const TooltipTrigger = forwardRef<HTMLElement, TooltipTriggerProps>(funct
   )
 })
 
-/** The placement a consumer may change. Everything else about the positioner is fixed. */
+/** The placement a consumer may change, plus the positioner's `ref`. Everything else is fixed. */
 export type TooltipPositionerOptions = Pick<
   TooltipPositionerProps,
   'side' | 'align' | 'sideOffset' | 'alignOffset' | 'collisionPadding'
->
+> & {
+  ref?: Ref<HTMLDivElement>
+}
 
-export interface TooltipPopupProps extends Omit<BasePopupProps, 'className' | 'id'> {
+export interface TooltipPopupProps extends Omit<BasePopupProps, 'className' | 'id' | 'role'> {
   /** Overrides for the positioner's placement. `className` and `ref` address the popup. */
   positioner?: TooltipPositionerOptions
   className?: string
@@ -163,9 +165,10 @@ export interface TooltipPopupProps extends Omit<BasePopupProps, 'className' | 'i
  * - **`side="top"`** and the token-derived `sideOffset` (§4.1.7), passed
  *   explicitly though they match Base UI's side default, so neither is ever
  *   inherited by accident.
- * - **`role="tooltip"`** and the Root's **id**. The id is set after the
- *   consumer's props and is not a prop at all: the trigger's
- *   `aria-describedby` points at it, and an override would break that link.
+ * - **`role="tooltip"`** and the Root's **id**. Both are set after the
+ *   consumer's props and neither is a prop at all: the trigger's
+ *   `aria-describedby` points at the id, an override would break that link,
+ *   and any other role would stop the popup being a tooltip.
  *
  * A closed tooltip's popup is absent from server HTML (§4.1.9): the portal
  * renders only when `mounted || keepMounted`, and `keepMounted` defaults to
@@ -190,8 +193,8 @@ export const TooltipPopup = forwardRef<HTMLDivElement, TooltipPopupProps>(functi
         className={tooltipPositionerClass}
       >
         <BaseTooltip.Popup
-          role="tooltip"
           {...rest}
+          role="tooltip"
           {...(id !== undefined ? { id } : {})}
           ref={ref}
           className={merge(tooltipPopupClass, className)}

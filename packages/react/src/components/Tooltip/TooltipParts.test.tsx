@@ -27,6 +27,35 @@ describe('Tooltip parts', () => {
     await waitFor(() => expect(describedBy(trigger)).toContain(id))
   })
 
+  // Fails if `role="tooltip"` is set before the consumer's props: their `role`
+  // would then win and the popup would stop being a tooltip.
+  it('keeps role=tooltip when the consumer passes another role', async () => {
+    render(
+      <TooltipRoot defaultOpen>
+        <TooltipTrigger>Save</TooltipTrigger>
+        {/* @ts-expect-error `role` is pinned, so it is not a TooltipPopup prop. */}
+        <TooltipPopup role="nonsense">Saves the draft</TooltipPopup>
+      </TooltipRoot>,
+    )
+    const popup = await waitFor(() => screen.getByText('Saves the draft'))
+    expect(popup.getAttribute('role')).toBe('tooltip')
+  })
+
+  // Fails if `positioner.ref` is dropped before it reaches the positioner (for
+  // example if the overrides were filtered to the placement keys only).
+  it("forwards positioner.ref to the positioner, the popup's parent", async () => {
+    const positionerRef = createRef<HTMLDivElement>()
+    render(
+      <TooltipRoot defaultOpen>
+        <TooltipTrigger>Save</TooltipTrigger>
+        <TooltipPopup positioner={{ ref: positionerRef }}>Saves the draft</TooltipPopup>
+      </TooltipRoot>,
+    )
+    const popup = await waitFor(() => screen.getByRole('tooltip'))
+    expect(positionerRef.current).toBeInstanceOf(HTMLDivElement)
+    expect(positionerRef.current).toBe(popup.parentElement)
+  })
+
   // Fails if the id is appended unconditionally: a closed tooltip has no
   // popup in the DOM, so the reference would dangle.
   it('leaves a closed trigger with no aria-describedby', () => {
