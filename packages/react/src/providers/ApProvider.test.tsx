@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { act } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApProvider } from './ApProvider.js'
 import { useLocale, useMessages } from './LocaleProvider.js'
 import { DEFAULT_SCHEME_STORAGE_KEY, useColorScheme } from './ThemeProvider.js'
 import { Icon } from '../icons/index.js'
+import { Tooltip } from '../components/Tooltip/Tooltip.js'
 
 function Probe() {
   const [scheme] = useColorScheme()
@@ -28,7 +29,39 @@ function LocaleProbe() {
   return <span data-testid="locale-v">{`${timeZone}|${currency}|${m.close}`}</span>
 }
 
+function TwoTooltips() {
+  return (
+    <>
+      <Tooltip content="First tip">
+        <button type="button">First</button>
+      </Tooltip>
+      <Tooltip content="Second tip">
+        <button type="button">Second</button>
+      </Tooltip>
+    </>
+  )
+}
+
+/** Hover opens after the delay; leaving the first and entering the second is the grouped move. */
+async function hoverFirstThenSecond() {
+  const first = screen.getByRole('button', { name: 'First' })
+  const second = screen.getByRole('button', { name: 'Second' })
+  fireEvent.mouseEnter(first)
+  fireEvent.mouseMove(first)
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(650)
+  })
+  expect(screen.queryByText('First tip')).not.toBeNull()
+  fireEvent.mouseLeave(first)
+  fireEvent.mouseEnter(second)
+  fireEvent.mouseMove(second)
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0)
+  })
+}
+
 afterEach(() => {
+  vi.useRealTimers()
   // Mirrors ThemeProvider.test.tsx: the scheme click test writes state
   // outside React's tree (the <html> attribute and localStorage) that no
   // unmount reverses.
@@ -132,5 +165,26 @@ describe('ApProvider', () => {
       </ApProvider>,
     )
     expect(screen.getByTestId('locale-v').textContent).toBe('undefined|USD|Fermer')
+  })
+
+  // Fails if ApProvider stops wrapping its tree in the tooltip provider: the
+  // second tooltip then waits its own full delay.
+  it('groups tooltip delays across the app', async () => {
+    vi.useFakeTimers()
+    render(
+      <ApProvider>
+        <TwoTooltips />
+      </ApProvider>,
+    )
+    await hoverFirstThenSecond()
+    expect(screen.queryByText('Second tip')).not.toBeNull()
+  })
+
+  // The control: with no provider the same sequence needs the full delay.
+  it('needs the full delay for the second tooltip without ApProvider', async () => {
+    vi.useFakeTimers()
+    render(<TwoTooltips />)
+    await hoverFirstThenSecond()
+    expect(screen.queryByText('Second tip')).toBeNull()
   })
 })
