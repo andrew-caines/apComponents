@@ -86,7 +86,7 @@ describe('Select (convenience) under SSR', () => {
   // is dropped from Root and the trigger uses a plain `Select.Value`: the
   // trigger then reads `ca`.
   it('server-renders the selected label in the trigger', () => {
-    const html = ssr(<Select aria-label="Country" items={COUNTRIES} defaultValue="ca" />)
+    const html = ssr(<Select aria-label="Country" options={COUNTRIES} defaultValue="ca" />)
     const body = triggerBody(html)
     expect(body).toContain('>Canada<')
     expect(body).not.toContain('>ca<')
@@ -99,7 +99,7 @@ describe('Select (convenience) under SSR', () => {
   it('carries aria-labelledby equal to the Field label div id', () => {
     const html = ssr(
       <Field label="Country">
-        <Select items={COUNTRIES} />
+        <Select options={COUNTRIES} />
       </Field>,
     )
     const label = /<div[^>]*\bid="([^"]+)"[^>]*>Country<\/div>/.exec(html)
@@ -109,7 +109,7 @@ describe('Select (convenience) under SSR', () => {
 
   // Fails if `id` stops reaching the trigger.
   it('server-renders a caller-supplied id on the trigger outside a Field', () => {
-    const html = ssr(<Select id="x" aria-label="Country" items={COUNTRIES} />)
+    const html = ssr(<Select id="x" aria-label="Country" options={COUNTRIES} />)
     expect(triggerTag(html)).toMatch(/\sid="x"/)
   })
 
@@ -122,7 +122,7 @@ describe('Select (convenience) under SSR', () => {
   it('server-renders a caller-supplied id on the trigger inside a Field', () => {
     const html = ssr(
       <Field label="Country">
-        <Select id="x" items={COUNTRIES} />
+        <Select id="x" options={COUNTRIES} />
       </Field>,
     )
     expect(triggerTag(html)).toMatch(/\sid="x"/)
@@ -130,7 +130,7 @@ describe('Select (convenience) under SSR', () => {
 
   // Fails if the data attributes are dropped or spread onto the root.
   it('server-renders data attributes on the trigger', () => {
-    const html = ssr(<Select data-testid="s" aria-label="Country" items={COUNTRIES} />)
+    const html = ssr(<Select data-testid="s" aria-label="Country" options={COUNTRIES} />)
     expect(triggerTag(html)).toContain('data-testid="s"')
     expect(html.match(/data-testid=/g)).toHaveLength(1)
   })
@@ -142,7 +142,7 @@ describe('Select (convenience) under SSR', () => {
         multiple
         aria-label="Countries"
         name="countries"
-        items={COUNTRIES}
+        options={COUNTRIES}
         defaultValue={['ca', 'fr']}
       />,
     )
@@ -154,7 +154,7 @@ describe('Select (convenience) under SSR', () => {
 
   // Review Focus 3: nothing selected posts nothing — not one empty value.
   it('emits no named input for a multiple Select with no default', () => {
-    const html = ssr(<Select multiple aria-label="Countries" name="countries" items={COUNTRIES} />)
+    const html = ssr(<Select multiple aria-label="Countries" name="countries" options={COUNTRIES} />)
     expect(html).toContain('role="combobox"')
     expect(namedInputs(html, 'countries')).toHaveLength(0)
   })
@@ -166,7 +166,7 @@ describe('Select (convenience) under SSR', () => {
       <Select
         aria-label="Country"
         name="country"
-        items={[{ value: { code: 'ca' }, label: 'Canada' }]}
+        options={[{ value: { code: 'ca' }, label: 'Canada' }]}
         itemToStringValue={(v) => v.code}
         defaultValue={{ code: 'ca' }}
       />,

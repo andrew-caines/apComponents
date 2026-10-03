@@ -867,10 +867,10 @@ are the common case, not an edge case.
 
 **`Select`'s convenience component (`Select.tsx`) never lets Base UI's
 resolution run.** It always passes `Select.Value` a children *function*
-that looks up the label itself, from the same `items`/`itemToStringValue`
+that looks up the label itself, from the same `options`/`itemToStringValue`
 the caller supplied (`findLabel` in `selectItems.ts`, keyed by serialised
 value) — so `resolveSelectedLabel` is simply never reached for anything built
-through `<Select items={…} />`. This only matters when assembling the parts
+through `<Select options={…} />`. This only matters when assembling the parts
 by hand: a hand-written `<Select.Value />` with no children function is
 exposed to the JSON-rendering behaviour above.
 

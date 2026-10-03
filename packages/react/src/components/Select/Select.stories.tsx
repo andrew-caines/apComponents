@@ -16,14 +16,14 @@ const COUNTRIES = [
 const GROUPED_COUNTRIES = [
   {
     label: 'North America',
-    items: [
+    options: [
       { value: 'ca', label: 'Canada' },
       { value: 'us', label: 'United States' },
     ],
   },
   {
     label: 'Europe',
-    items: [
+    options: [
       { value: 'fr', label: 'France' },
       { value: 'de', label: 'Germany' },
     ],
@@ -54,7 +54,7 @@ const meta = {
     disabled: { control: 'boolean' },
   },
   args: {
-    items: COUNTRIES,
+    options: COUNTRIES,
     placeholder: 'Choose a country',
   },
 } satisfies Meta<typeof Select<string>>
@@ -144,19 +144,19 @@ export const Sizes: Story = {
         size="sm"
         aria-label="Country (sm)"
         placeholder="Choose a country"
-        items={COUNTRIES}
+        options={COUNTRIES}
       />
       <Select
         size="md"
         aria-label="Country (md)"
         placeholder="Choose a country"
-        items={COUNTRIES}
+        options={COUNTRIES}
       />
       <Select
         size="lg"
         aria-label="Country (lg)"
         placeholder="Choose a country"
-        items={COUNTRIES}
+        options={COUNTRIES}
       />
     </div>
   ),
@@ -164,7 +164,7 @@ export const Sizes: Story = {
 
 export const Grouped: Story = {
   render: () => (
-    <Select aria-label="Country" placeholder="Choose a country" items={GROUPED_COUNTRIES} />
+    <Select aria-label="Country" placeholder="Choose a country" options={GROUPED_COUNTRIES} />
   ),
 }
 
@@ -175,7 +175,7 @@ export const Grouped: Story = {
  */
 export const Multiple: Story = {
   render: () => (
-    <Select multiple aria-label="Countries" placeholder="Choose countries" items={COUNTRIES} />
+    <Select multiple aria-label="Countries" placeholder="Choose countries" options={COUNTRIES} />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -206,7 +206,7 @@ export const ObjectValues: Story = {
     <Select<Country>
       aria-label="Country (object values)"
       placeholder="Choose a country"
-      items={OBJECT_COUNTRIES}
+      options={OBJECT_COUNTRIES}
       itemToStringValue={byCode}
       defaultValue={{ code: 'fr', name: 'France' }}
     />
@@ -254,7 +254,7 @@ export const Invalid: Story = {
 }
 
 export const Empty: Story = {
-  render: () => <Select<string> aria-label="No matching countries" items={[]} defaultOpen />,
+  render: () => <Select<string> aria-label="No matching countries" options={[]} defaultOpen />,
   play: async () => {
     const listbox = await within(document.body).findByRole('listbox')
     await expect(listbox).toHaveTextContent(DEFAULT_MESSAGES.noResults)
@@ -297,11 +297,11 @@ export const NativeLabelWarning: Story = {
     <div style={{ display: 'grid', gap: '1rem' }}>
       <Field.Root>
         <Field.Label>Country (label for)</Field.Label>
-        <Select items={COUNTRIES} placeholder="Choose a country" />
+        <Select options={COUNTRIES} placeholder="Choose a country" />
       </Field.Root>
       <label>
         Country (wrapping label)
-        <Select items={COUNTRIES} placeholder="Choose a country" />
+        <Select options={COUNTRIES} placeholder="Choose a country" />
       </label>
     </div>
   ),
@@ -406,7 +406,7 @@ function TouchedSelect({
     <div style={{ display: 'grid', gap: '1rem', maxWidth: 320 }}>
       <Field label="Country">
         <Select
-          items={COUNTRIES}
+          options={COUNTRIES}
           placeholder="Choose a country"
           onFocus={onFocus}
           onBlur={(event) => {

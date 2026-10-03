@@ -175,11 +175,11 @@ export default function FormRoute({
             only, never on `Field` too, for the same reason noted on Textarea.
           */}
           <Field label="Country">
-            <Select name="country" items={COUNTRIES} defaultValue="ca" />
+            <Select name="country" options={COUNTRIES} defaultValue="ca" />
           </Field>
 
           <Field label="Topics">
-            <Select multiple name="topics" items={TOPICS} defaultValue={['roadmap', 'billing']} />
+            <Select multiple name="topics" options={TOPICS} defaultValue={['roadmap', 'billing']} />
           </Field>
 
           <Button type="submit">Save</Button>

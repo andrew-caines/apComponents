@@ -33,12 +33,12 @@ import {
   flattenItems,
   formatLabelList,
   isGrouped,
-  type SelectItem,
-  type SelectItems,
+  type SelectOption,
+  type SelectOptions,
 } from './selectItems.js'
 
 export { SELECT_TOKENS } from './Select.tokens.js'
-export type { SelectGroup, SelectItem, SelectItems } from './selectItems.js'
+export type { SelectOption, SelectOptionGroup, SelectOptions } from './selectItems.js'
 export type {
   SelectGroupLabelProps,
   SelectGroupProps,
@@ -68,8 +68,8 @@ export type SelectProps<Value, Multiple extends boolean | undefined = false> = O
   'items' | 'itemToStringValue' | 'itemToStringLabel' | 'children' | 'id'
 > &
   Serialisation<Value> & {
-    /** A flat list of items, or a list of labelled groups. */
-    items: SelectItems<Value>
+    /** A flat list of options, or a list of labelled groups. */
+    options: SelectOptions<Value>
     /** Shown in the trigger while nothing is selected. Consumer-supplied content. */
     placeholder?: string
     /** Type scale and padding, matching `Input`'s `size`. Defaults to `md`. */
@@ -125,7 +125,7 @@ function assignRef<T>(ref: Ref<T> | undefined, node: T | null): void {
  *
  * ```tsx
  * <Field label={t('country')}>
- *   <Select name="country" placeholder={t('choose')} items={countries} />
+ *   <Select name="country" placeholder={t('choose')} options={countries} />
  * </Field>
  * ```
  *
@@ -135,13 +135,13 @@ function assignRef<T>(ref: Ref<T> | undefined, node: T | null): void {
  *
  * **`Select` must render inside a `LocaleProvider`.** It calls `useLocale()`
  * to get the locale a multiple selection's labels are joined with
- * (`Intl.ListFormat`) and the `noResults` message shown for an empty `items`
+ * (`Intl.ListFormat`) and the `noResults` message shown for an empty `options`
  * list. `ApProvider` composes `LocaleProvider` already, so the common case
  * needs nothing extra; a `Select` rendered with no `ApProvider`/`LocaleProvider`
  * ancestor at all throws from `useLocale` itself
  * (`providers/LocaleProvider.tsx`), the same requirement `Dialog` has.
  *
- * **Item `label` is a string, not a node.** It is what the trigger shows,
+ * **Option `label` is a string, not a node.** It is what the trigger shows,
  * what `Intl.ListFormat` joins for a multiple select and what typeahead
  * matches; each needs text, and a node could not be read back out on the
  * server. A product needing rich item markup uses the parts.
@@ -162,7 +162,7 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
   props: SelectProps<Value, Multiple>,
 ): ReactNode {
   const {
-    items,
+    options,
     placeholder,
     size = 'md',
     className,
@@ -186,7 +186,7 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
   }
   const { locale, messages } = useLocale()
   const toString: (value: Value) => string = itemToStringValue ?? defaultToStringValue
-  const flat = flattenItems(items)
+  const flat = flattenItems(options)
   const multiple = rest.multiple === true
   const fallback = placeholder ?? null
 
@@ -281,7 +281,7 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
     }
   })
 
-  const renderItem = (item: SelectItem<Value>) => (
+  const renderItem = (item: SelectOption<Value>) => (
     <SelectItemPart
       key={toString(item.value)}
       value={item.value}
@@ -292,8 +292,8 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
   )
 
   let list: ReactNode
-  // `flat`, not `items`: a grouped list whose groups are all empty has
-  // entries in `items` but no option to show.
+  // `flat`, not `options`: a grouped list whose groups are all empty has
+  // entries in `options` but no option to show.
   if (flat.length === 0) {
     // A plain `role="option"`, never `Select.Item` (Task 5's own reasoning
     // still holds: an `<Select.Item>` with no `value` is Base UI's `null`
@@ -312,29 +312,32 @@ function SelectBase<Value, Multiple extends boolean | undefined = false>(
         {messages.noResults}
       </div>
     )
-  } else if (isGrouped(items)) {
+  } else if (isGrouped(options)) {
     // An empty group is skipped, separator and all: a labelled group with no
     // option in it is the same listbox violation as above. Filtering first
     // keeps each separator strictly between two groups that are rendered.
-    list = items
-      .filter((group) => group.items.length > 0)
+    list = options
+      .filter((group) => group.options.length > 0)
       .map((group, index) => (
         <Fragment key={`${index}:${group.label}`}>
           {index > 0 ? <SelectSeparator /> : null}
           <SelectGroupPart>
             <SelectGroupLabel>{group.label}</SelectGroupLabel>
-            {group.items.map(renderItem)}
+            {group.options.map(renderItem)}
           </SelectGroupPart>
         </Fragment>
       ))
   } else {
-    list = items.map(renderItem)
+    list = options.map(renderItem)
   }
 
   return (
     <SelectRoot
       {...rest}
-      items={items}
+      // Flat, whatever shape `options` has: Base UI reads `items` only to
+      // resolve labels, which `renderValue` does itself, and a flat list
+      // keeps Base UI from needing to know our group shape.
+      items={flat}
       itemToStringValue={toString}
       isItemEqualToValue={isItemEqualToValue ?? equalBySerialisation(toString)}
     >

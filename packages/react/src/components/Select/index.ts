@@ -1,9 +1,9 @@
 export { Select, SELECT_TOKENS } from './Select.js'
 export type {
   SelectProps,
-  SelectItem,
-  SelectGroup,
-  SelectItems,
+  SelectOption,
+  SelectOptionGroup,
+  SelectOptions,
   SelectRootProps,
   SelectTriggerProps,
   SelectValueProps,
