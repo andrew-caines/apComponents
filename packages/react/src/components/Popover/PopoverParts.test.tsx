@@ -57,9 +57,13 @@ describe('Popover parts', () => {
     expect(accessibleName(popup)).toBe('')
   })
 
-  // Fails if `modal` were defaulted on: the popup would trap focus and Escape
-  // handling/return would differ; and fails if the focus manager were removed.
-  it('is non-modal: focus moves in on click, and Escape returns it to the trigger', async () => {
+  // Pins initial and final focus: a click open moves focus into the popup, and
+  // Escape returns it to the trigger. Fails if focus stayed on the trigger at
+  // open (for example `initialFocus={false}`) or were not returned on close
+  // (`finalFocus={false}`). It does not pin non-modality: with no close part,
+  // `modal: true` yields the same `focusManagerModal: false`
+  // (`popover/popup/PopoverPopup.js:76`); the `TabOut` story pins that.
+  it('moves focus in on click, and Escape returns it to the trigger', async () => {
     render(assembly())
     const trigger = screen.getByRole('button', { name: 'Filters' })
     fireEvent.click(trigger)

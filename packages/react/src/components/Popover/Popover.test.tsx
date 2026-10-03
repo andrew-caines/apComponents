@@ -216,6 +216,9 @@ describe('Popover (convenience)', () => {
 
     expect(a).toBe(b)
     expect(a).toContain('role="dialog"')
+    // The two renders could match with both ignoring `side`. Fails if the Popup
+    // part ignores `positioner`: both would then sit at the default `bottom`.
+    expect(a).toContain('data-side="top"')
   })
 })
 

@@ -69,6 +69,9 @@ describe('Tooltip (convenience)', () => {
 
     expect(a).toBe(b)
     expect(a).toContain('role="tooltip"')
+    // The two renders could match with both ignoring `side`. Fails if the Popup
+    // part ignores `positioner`: both would then sit at the default `top`.
+    expect(a).toContain('data-side="bottom"')
   })
 
   // Fails if `delay` is routed to the Root, where Base UI ignores it: hover

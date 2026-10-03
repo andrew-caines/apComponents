@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { createRef } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { Button } from '../Button/Button.js'
 import { FieldDescription, FieldLabel, FieldRoot } from '../Field/FieldParts.js'
 import { selectTriggerRecipe } from './Select.css.js'
 import {
@@ -176,5 +177,31 @@ describe('Select parts', () => {
     )
     expect(ref.current).toBeInstanceOf(HTMLButtonElement)
     expect(ref.current!.className).toBe(`${selectTriggerRecipe({ size: 'md' })} mine`)
+  })
+})
+
+describe('SelectTrigger with a Button render', () => {
+  // Ruling R5 changed this path too. Perturbation: removing Button's
+  // `[NATIVE_BUTTON_DERIVABLE]` marker makes the derived `nativeButton` false,
+  // so Base UI logs and adds `role="button"`.
+  it('renders a native button and logs nothing', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      render(
+        <SelectRoot>
+          <SelectTrigger render={<Button />} aria-label="Country">
+            <SelectValue />
+          </SelectTrigger>
+        </SelectRoot>,
+      )
+      const trigger = screen.getByRole('combobox', { name: 'Country' })
+      expect(trigger.tagName).toBe('BUTTON')
+      expect(trigger.getAttribute('type')).toBe('button')
+      expect(trigger.getAttribute('role')).toBe('combobox')
+      expect(spy).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+      cleanup()
+    }
   })
 })
