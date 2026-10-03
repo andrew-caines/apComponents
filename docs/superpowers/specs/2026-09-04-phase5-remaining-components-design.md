@@ -460,7 +460,10 @@ are relative to `node_modules/@base-ui/react/`.
 - **Describe, never name.** The tooltip is always a description. An icon-only trigger still
   needs its own `aria-label`; a story shows the pattern.
 - **`ApProvider` gains one `Tooltip.Provider`** with Base UI's default delays.
-- **Look:** an inverse surface, `text.sm`, no arrow, `enter.fade-rise`/`exit.fade`.
+- **Look:** a raised surface (`bgRaised`, `textPrimary`, a `borderSubtle` border and the popup
+  shadow), `text.sm`, no arrow, `enter.fade-rise`/`exit.fade`. Not inverse: the theme has no
+  inverse colour role (`theme/contract.css.ts`), and adding one is a token-system change
+  outside this plan.
 - **Parts:** `Tooltip.Root`, `Trigger`, `Portal`, `Positioner`, `Popup`. `Popup` bundles
   Portal and Positioner as `Select.Popup` does.
 
