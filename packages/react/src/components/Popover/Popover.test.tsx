@@ -3,6 +3,7 @@ import { act } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LocaleProvider } from '../../providers/LocaleProvider.js'
+import { Button } from '../Button/Button.js'
 import { Popover } from './Popover.js'
 import { popoverHeaderClass } from './Popover.css.js'
 
@@ -215,5 +216,29 @@ describe('Popover (convenience)', () => {
 
     expect(a).toBe(b)
     expect(a).toContain('role="dialog"')
+  })
+})
+
+describe('Popover with a Button trigger', () => {
+  // Perturbation: removing Button's `[NATIVE_BUTTON_DERIVABLE]` marker makes
+  // the derived `nativeButton` false, so Base UI logs and adds `role="button"`.
+  it('renders a native button and logs nothing', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      render(
+        <LocaleProvider>
+          <Popover title="T" trigger={<Button>Open</Button>}>
+            x
+          </Popover>
+        </LocaleProvider>,
+      )
+      const trigger = screen.getByRole('button', { name: 'Open' })
+      expect(trigger.getAttribute('type')).toBe('button')
+      expect(trigger.hasAttribute('role')).toBe(false)
+      expect(spy).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+      cleanup()
+    }
   })
 })

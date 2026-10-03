@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
+import { Button } from '../components/Button/Button.js'
 import { deriveNativeButton } from './deriveNativeButton.js'
 
 describe('deriveNativeButton', () => {
@@ -20,5 +21,17 @@ describe('deriveNativeButton', () => {
 
   it('treats a render function as not native, since its output cannot be inspected before it runs', () => {
     expect(deriveNativeButton(() => createElement('span'))).toBe(false)
+  })
+
+  // Perturbation: removing the marker branch makes the first case fail.
+  it('sees through our own Button element', () => {
+    expect(deriveNativeButton(createElement(Button))).toBe(true)
+    expect(deriveNativeButton(createElement(Button, { render: createElement('a', { href: '#' }) }))).toBe(false)
+    expect(deriveNativeButton(createElement(Button, { nativeButton: false }))).toBe(false)
+  })
+
+  it('still treats an arbitrary composite as not native', () => {
+    const Other = () => createElement('button')
+    expect(deriveNativeButton(createElement(Other))).toBe(false)
   })
 })
