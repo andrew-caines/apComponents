@@ -173,6 +173,46 @@ export const Dismissible: Story = {
 }
 
 /**
+ * `aria-label`, a description, `dismissible` and body copy, with no title. The
+ * dismiss sits at the popup's inline end even as the header's only item, and
+ * the body copy is primary text while the description stays secondary.
+ * Perturbations: removing the dismiss's `marginInlineStart: 'auto'` puts it at
+ * the inline start and fails the position check; giving the popup
+ * `descriptionText` as its colour again makes the body match the description
+ * and fails the colour check.
+ */
+export const LabelledDismissible: Story = {
+  render: () => (
+    <div style={{ padding: '4rem' }}>
+      <Popover
+        aria-label="Filter options"
+        description="Narrow the list"
+        dismissible
+        trigger={<Button>Filter</Button>}
+      >
+        <p style={{ margin: 0 }}>Body copy</p>
+      </Popover>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Filter' }))
+    const dialog = await body().findByRole('dialog', { name: 'Filter options' })
+    const dismiss = within(dialog).getByRole('button', { name: 'Close' })
+    await waitFor(() => {
+      const d = dialog.getBoundingClientRect()
+      const x = dismiss.getBoundingClientRect()
+      expect(d.width).toBeGreaterThan(0)
+      expect(x.left).toBeGreaterThan(d.left + d.width / 2)
+    })
+    const bodyCopy = within(dialog).getByText('Body copy')
+    const description = within(dialog).getByText('Narrow the list')
+    await expect(getComputedStyle(bodyCopy).color).not.toBe(getComputedStyle(description).color)
+    await userEvent.keyboard('{Escape}')
+    await expectClosed()
+  },
+}
+
+/**
  * `openOnHover`: hovering opens it and focus stays on the trigger. A keyboard
  * user then opens it with Enter, which moves focus inside. Perturbation:
  * removing `openOnHover` means the hover never opens it and fails the first

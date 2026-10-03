@@ -27,7 +27,7 @@ export const popoverPopupClass = style({
       fontFamily: vars.font.body,
       fontSize: vars.text.sm.size,
       lineHeight: vars.text.sm.lineHeight,
-      color: t.descriptionText,
+      color: t.text,
       background: t.bg,
       borderStyle: 'solid',
       borderWidth: '1px',
@@ -42,7 +42,7 @@ export const popoverPopupClass = style({
   },
 })
 
-/** Title then the dismiss at the inline end. */
+/** Title then the dismiss. The dismiss pins itself to the inline end, title or not. */
 export const popoverHeaderClass = style({
   '@layer': {
     [componentsLayer]: {
@@ -89,6 +89,10 @@ export const popoverDismissClass = style({
       flexShrink: 0,
       padding: vars.space['2'],
       margin: 0,
+      // After `margin: 0`, so it holds. With no title (`aria-label` only) the
+      // dismiss is the header's one item, and `space-between` alone would put
+      // it at the inline start.
+      marginInlineStart: 'auto',
       border: 0,
       borderRadius: vars.radius.sm,
       background: 'transparent',

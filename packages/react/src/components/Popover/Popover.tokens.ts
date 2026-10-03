@@ -9,13 +9,15 @@ import { vars } from '../../theme/contract.css.js'
  * The surface roles (`bg`, `border`, `shadow`, `radius`) are `SELECT_TOKENS`'
  * `popup*` roles by value, so the anchored popups share one surface and one
  * elevation. `maxInlineSize` caps the width so long content wraps instead of
- * spanning the viewport.
+ * spanning the viewport. `text` is the body copy's colour; the description
+ * alone is secondary.
  */
 export const POPOVER_TOKENS = {
   bg: tier3('popover-bg', vars.color.bgSurface),
   border: tier3('popover-border', vars.color.borderNormal),
   shadow: tier3('popover-shadow', vars.shadow['3']),
   radius: tier3('popover-radius', vars.radius.md),
+  text: tier3('popover-text', vars.color.textPrimary),
   titleText: tier3('popover-title-text', vars.color.textPrimary),
   descriptionText: tier3('popover-description-text', vars.color.textSecondary),
   focusRing: tier3('popover-focus-ring', vars.color.focusRing),
