@@ -2,7 +2,8 @@
 import { createRef } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { Switch } from './Switch.js'
+import { FieldRoot } from '../Field/FieldParts.js'
+import { Switch, SWITCH_TOKENS } from './Switch.js'
 import { switchTrackRecipe } from './Switch.css.js'
 
 describe('Switch', () => {
@@ -138,6 +139,42 @@ describe('Switch', () => {
     expect(screen.getByRole('switch').hasAttribute('size')).toBe(false)
     expect(container.querySelector('label')!.hasAttribute('size')).toBe(false)
     expect(container.querySelector('input[type="checkbox"]')!.hasAttribute('size')).toBe(false)
+  })
+
+  // Switch gets no `invalid` prop of its own — invalidity reaches the track
+  // ambiently through Base UI's Field context, the same mechanism `Input` and
+  // `Checkbox` already rely on, so `data-invalid` was landing on the track
+  // before task 8 (see the comment this test replaces in
+  // `Switch.stories.tsx`'s `Invalid` story). What did NOT exist before task 8
+  // is `SWITCH_TOKENS.borderInvalid` and `Switch.css.ts`'s `&[data-invalid]`
+  // rule reading it (spec §4.1.10) — that assertion is the one that is RED
+  // before the token exists and GREEN after. The recipe-class and
+  // `data-invalid` checks stay in the same test, in `Checkbox.test.tsx`'s own
+  // assertion style (recipe class identity, plain `hasAttribute`), and are
+  // differential in both directions — matching `FieldParts.test.tsx`'s and
+  // `RadioGroupParts.test.tsx`'s data-invalid tests — so this still fails if
+  // the state ever stopped reaching the track at all.
+  it('marks the track data-invalid inside an invalid Field, and carries the invalid role token', () => {
+    const { rerender } = render(
+      <FieldRoot invalid>
+        <Switch label="Notifications" />
+      </FieldRoot>,
+    )
+    const track = screen.getByRole('switch')
+    expect(track.className).toBe(switchTrackRecipe({ size: 'md' }))
+    expect(track.hasAttribute('data-invalid'), 'Switch.css.ts styles [data-invalid]').toBe(true)
+
+    rerender(
+      <FieldRoot>
+        <Switch label="Notifications" />
+      </FieldRoot>,
+    )
+    expect(screen.getByRole('switch').hasAttribute('data-invalid')).toBe(false)
+
+    expect(
+      SWITCH_TOKENS.borderInvalid,
+      'spec §4.1.10 requires every control to carry a borderInvalid role',
+    ).not.toBeUndefined()
   })
 
   it('merges a consumer className onto the label row rather than replacing it', () => {

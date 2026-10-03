@@ -51,6 +51,24 @@ export type {
   RadioGroupRootProps,
   RadioGroupItemProps,
 } from './components/RadioGroup/index.js'
+export { Select, SELECT_TOKENS } from './components/Select/index.js'
+export type {
+  SelectProps,
+  SelectItem,
+  SelectGroup,
+  SelectItems,
+  SelectRootProps,
+  SelectTriggerProps,
+  SelectValueProps,
+  SelectIconProps,
+  SelectPopupProps,
+  SelectPositionerOptions,
+  SelectListProps,
+  SelectItemProps,
+  SelectGroupProps,
+  SelectGroupLabelProps,
+  SelectSeparatorProps,
+} from './components/Select/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,

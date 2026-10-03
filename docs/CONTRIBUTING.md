@@ -236,6 +236,25 @@ same file set plus one split, and the split is the point:
   rendering wider than its container once padding or a border is added, so
   copy it from `Input.css.ts` deliberately rather than trusting that you'll
   notice its absence.
+- Every form control's Tier 3 tokens follow the shared contract in spec
+  §4.1.10 — `border`, `borderHover`, `borderInvalid`, `focusRing` and
+  `radius`, each with its own Tier 2 fallback and the rule it serves. A new
+  component's plan lists only the roles *beyond* that shared set, not the
+  whole set again.
+- A control that a native `<label>` must not label (Select's trigger — a
+  `<button role="combobox">`, into which a native label would forward its
+  click and hover — is the one that exists today) opts into `Field`'s label protocol instead of a native
+  `<label for>`: carry `[NON_NATIVE_LABEL]: true` as a static property on the
+  component (`Field/nonNativeLabel.ts`), and add a story that shows the
+  hand-assembled parts wiring the id itself (`Select.stories.tsx`'s
+  `HandAssembled`). See "The non-native-label protocol" below.
+- A component generic over a type parameter needs its story's `meta.component`
+  set to an **instantiation expression** (`Select<string>`), not the bare
+  generic component — `satisfies` only validates and never narrows a
+  property's own recorded type, so a bare `component: Select` leaves
+  `StoryObj`'s inferred `Args` carrying unresolved type parameters. `Select`
+  is the first generic component with stories; `Select.stories.tsx`'s `meta`
+  is the worked example.
 
 - **A story file**, `<Name>.stories.tsx`, beside the component. Controls for
   every union prop, one story per meaningful state, and a grid story rather
@@ -827,6 +846,146 @@ in scope, and never sees this. That is why the fix lives in the fixture's
 `vite.config.ts` and **not** in `@ap/vite`: putting it in the plugin would
 force every consumer to bundle Base UI to work around a problem only this
 repository has.
+
+## `Select`'s object values render as JSON when the default is rebuilt
+
+**A `defaultValue` (or `value`) that is an object renders in the trigger as its
+`JSON.stringify`'d form** — `{"code":"ca","name":"Canada"}` — unless the
+consumer supplies `itemToStringLabel`/a lookup of their own, even with `items`
+and `itemToStringValue` both supplied. The mechanism is Base UI's own label
+resolution, `resolveSelectedLabel`
+(`node_modules/@base-ui/react/internals/resolveValueLabel.js`), which
+`Select.Value`'s default (no-children-function) rendering calls: it matches an
+object value against `items` only by an explicit `label` key on the value
+itself, or by finding an item whose `.value` **is** the value's own `.value`
+property (`=== `, not deep equality). A plain data object with neither of
+those shapes — `{ code: 'ca', name: 'Canada' }` has no `.value` key at all —
+falls through to `stringifyAsLabel`, which serialises it. This is a real
+regression risk: a `defaultValue` reconstructed from a server response on
+every render is a *new* object every time, so identity-only matching paths
+are the common case, not an edge case.
+
+**`Select`'s convenience component (`Select.tsx`) never lets Base UI's
+resolution run.** It always passes `Select.Value` a children *function*
+that looks up the label itself, from the same `items`/`itemToStringValue`
+the caller supplied (`findLabel` in `selectItems.ts`, keyed by serialised
+value) — so `resolveSelectedLabel` is simply never reached for anything built
+through `<Select items={…} />`. This only matters when assembling the parts
+by hand: a hand-written `<Select.Value />` with no children function is
+exposed to the JSON-rendering behaviour above.
+
+**One consequence of that workaround is itself a trap.** `Select.Value` never
+falls back to its own `placeholder` prop when `children` is a function
+(`select/value/SelectValue.js`) — the function branch is checked first and
+always wins, so a children function that returns `undefined`/`null` renders
+nothing, not the placeholder. `Select.tsx`'s `renderValue` function computes
+the placeholder fallback itself (`findLabel(...) ?? fallback`) for exactly
+this reason; a hand-written children function must do the same.
+
+## `Field.Label`'s `nativeLabel={false}` still renders a `<label>`
+
+**Setting `nativeLabel={false}` alone does not change the rendered tag.**
+`FieldLabel.js` (`node_modules/@base-ui/react/field/label/FieldLabel.js`)
+always renders through `useRenderElement('label', componentProps, …)` —
+`'label'` is the element's own default tag, unconditionally. `nativeLabel`
+only changes two things: the `native` flag passed into Base UI's internal
+`useLabel` hook (which governs click-forwarding/association behaviour) and
+which half of a development-mode consistency warning fires. Setting
+`nativeLabel={false}` with no `render` override therefore renders a real
+`<label>` that Base UI now treats as non-native — the exact mismatch its own
+dev warning exists to catch. The only way to get a non-`<label>` element is
+`render={<div />}` (or another non-label element), and the two props have to
+be set together: `nativeLabel={false}` **and** `render={<div />}`.
+
+## The non-native-label protocol
+
+`Select`'s trigger is a `<button role="combobox">`. A `<button>` is
+labelable, and Base UI wires a native `<label for>` to it correctly, so
+association is not the problem. The problem is what a native label does to
+the element it labels (spec §4.3): a click on the label is forwarded to the
+button, which opens the popup, and hovering the label puts the button in
+`:hover`. A Select's label should do neither. `Field` (`Field.tsx`) and
+`Select` (`Select.tsx`) implement a small protocol that labels it with a
+`<div>` and `aria-labelledby` instead, in `Field/nonNativeLabel.ts`:
+
+- **The marker.** A control opts in by carrying a static
+  `[NON_NATIVE_LABEL]: true` property on its component function —
+  `Object.assign(SelectBase, { [NON_NATIVE_LABEL]: true })` is how `Select`
+  does it. The symbol itself is `Symbol.for('ap.field.nonNativeLabel')` —
+  the global registry, not `Symbol()` — deliberately, so the marker still
+  matches if `@ap/react` ever ends up duplicated across two bundled copies
+  (the same failure shape as the two-React-copies trap above).
+- **What `Field` does when it sees the marker on its direct child**
+  (`usesNonNativeLabel`, checked against `children.type`): it renders
+  `Field.Label` with `nativeLabel={false}`, `render={<div />}` and an
+  explicit `id`, instead of its ordinary single `<label>`, and clones the
+  child with `aria-labelledby` set to that same id — unless the child
+  already carries its own `aria-labelledby`, which wins. Only a **direct**
+  child is detected; a Select wrapped inside a consumer's own component is
+  invisible to this check, which is why `Select` also carries a
+  development-only fallback: it reads the trigger button's own `.labels`
+  (the DOM's built-in list of the `<label>`s that label it, by `for` or by
+  wrapping it) and warns if it is non-empty, naming the fix in the message.
+  The check is guarded by a bare `process.env.NODE_ENV !== 'production'`
+  (`Select.tsx`), spelled as Base UI spells it (`field/label/FieldLabel.mjs`).
+  Never add a `typeof process` guard: bundlers replace
+  `process.env.NODE_ENV` but leave `typeof process` alone, and in a browser
+  `process` is undefined, so that guard silently disables the warning in
+  every client bundle. The `NativeLabelWarning` story catches it in a real
+  browser; the jsdom unit test cannot.
+- **Why the id is generated explicitly, in `Field`, with `useId()`, rather
+  than left for Base UI to register.** Base UI registers the label's id
+  from a layout effect (`useRegisteredLabelId`), which does not run during
+  SSR, and the trigger reads its `aria-labelledby` from that registration.
+  So without an explicit id, both are absent from server-rendered HTML, and
+  a `<div>` label has no native `for` to name the trigger instead.
+  This is R16's move (5b plan, "Deviations", corrected), copied here for the
+  same reason: generating the id up front and passing it to both the label
+  and the control closes that gap. **Its rationale is narrow, and stated
+  that way on purpose: this buys a named control in streamed and
+  pre-hydration markup for assistive technology. It does not make the
+  control operable with JavaScript off** — `Select`'s popup still needs
+  hydration to open at all, regardless of whether its trigger has a name.
+- **What a hand assembly must write.** Anyone building a Select from the
+  compound parts instead of `<Field label>` reproduces the three steps by
+  hand: generate one id, pass it as `id` on a `<Field.Label nativeLabel={false}
+  render={<div />}>`, and pass the same id as `aria-labelledby` on
+  `<Select.Trigger>`. `Select.stories.tsx`'s `HandAssembled` story is the
+  worked example.
+
+## `Select`'s `onFocus`/`onBlur` track focus within the trigger and the popup
+
+`Select` (`Select.tsx`) gives the consumer's `onFocus`/`onBlur` focus-within
+semantics over the trigger and the popup's positioner together: `onFocus`
+fires when focus enters either from outside, `onBlur` when it leaves both —
+from the trigger, or from inside the open popup (Tab out of the list, a press
+on another control). Moves between the two, as on open and close, fire
+neither. Base UI's own trigger blur fires as opening moves focus into the
+listbox, and Base UI merges a consumer handler after its own
+(`trigger/SelectTrigger.mjs`), so an unfiltered `onBlur` would mark a form
+field touched the moment it opened, and would never see an exit made from
+inside the popup. The containment element is the **positioner**, not the
+popup: Base UI's focus guards sit inside the positioner beside the popup, and
+Tab out of the list passes through them. `Select.Popup`'s `positioner` option
+takes the positioner's `ref`, `onFocus` and `onBlur` for this.
+
+Two Chromium facts shape it (the `FocusWithin` story, which jsdom cannot
+replace): a focus guard moves focus on from inside its own focus handler, so
+its blur arrives before its focus has bubbled, and a focus whose
+`relatedTarget` is inside the control is never an entry; and a press on
+non-focusable space outside the open popup blurs the item with a `null`
+`relatedTarget` before Base UI returns focus to the trigger, so a `null` blur
+from inside the popup is not an exit (a `null` blur from the trigger is). A
+hand assembly passing `onBlur` to `Select.Trigger` gets Base UI's unfiltered
+event.
+
+**`Select`'s `id` goes to the trigger, not the root.** Given to `Select.Root`
+inside a `Field`, the caller's id never lands at all, not even after
+hydration: the trigger registers the provider's generated id with the
+labelable provider before the root registers the caller's, and
+`LabelableProvider` keeps the id it already has. `Select.Trigger` renders an
+`id` it is given directly, so it is in the server HTML too — the exception
+to the section on `Field` discarding a caller-supplied id above.
 
 ## Known caveats
 

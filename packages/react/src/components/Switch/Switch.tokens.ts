@@ -22,6 +22,27 @@ import { vars } from '../../theme/contract.css.js'
  * role, not `borderInteractive` — matching `Input`/`Button`/`Textarea`/
  * `Checkbox`.
  *
+ * `border`, `borderHover` and `borderInvalid` are the shared control-state
+ * roles spec §4.1.10 requires of every form control, by those names and
+ * fallbacks (`borderNormal`/`borderInteractive`/`dangerBorder`) — Task 8 of
+ * plan 5c, one of two follow-ups 5b deliberately deferred (the other is
+ * `RadioGroup`'s `invalid` JSDoc). Plan 5b gave `Checkbox` these same three
+ * roles but left `Switch` with none, so `Switch` alone had no `[data-invalid]`
+ * rule; §4.1.10 was added specifically to stop that kind of drift. Unlike
+ * `Checkbox`, whose box was already outlined, the track had no border at all
+ * before this — `Switch.css.ts`'s recipe adds one and compensates the
+ * thumb's inset math so the added border does not change the track's outer
+ * footprint or the thumb's travel (see the note there).
+ *
+ * `borderChecked` is `actionBg`, the same value as `trackBgChecked` and the
+ * same role `Checkbox` has: once checked, the border takes the fill's colour
+ * so the pill fills edge to edge instead of wearing a `borderNormal` ring. It
+ * is a distinct token, as on `Checkbox`, so the two can be overridden apart.
+ *
+ * `borderInvalid` is `dangerBorder`, never `dangerBg`: it is the role gated
+ * for 3:1 non-text contrast (ADR-0008), the same reasoning `Checkbox.tokens.ts`
+ * gives for its own `borderInvalid`.
+ *
  * The `label*` roles are the ROW — the `<label>` wrapping the track and its
  * text — and they deliberately carry the same values as
  * `CHECKBOX_TOKENS`'s `label*` and `RADIO_GROUP_TOKENS`'s `option*`, which
@@ -40,6 +61,10 @@ export const SWITCH_TOKENS = {
 
   trackBg: tier3('switch-track-bg', vars.color.borderNormal),
   trackBgChecked: tier3('switch-track-bg-checked', vars.color.actionBg),
+  border: tier3('switch-border', vars.color.borderNormal),
+  borderHover: tier3('switch-border-hover', vars.color.borderInteractive),
+  borderChecked: tier3('switch-border-checked', vars.color.actionBg),
+  borderInvalid: tier3('switch-border-invalid', vars.color.dangerBorder),
   thumbBg: tier3('switch-thumb-bg', vars.color.bgSurface),
   radius: tier3('switch-radius', vars.radius.full),
   focusRing: tier3('switch-focus-ring', vars.color.focusRing),

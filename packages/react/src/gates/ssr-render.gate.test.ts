@@ -272,7 +272,7 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${escapedLabelFor}"`))
   })
 
-  it('posts the server-rendered DEFAULT values of Textarea, Checkbox, Switch and RadioGroup through to the action, with no JavaScript involved', async () => {
+  it('posts the server-rendered DEFAULT values of Textarea, Checkbox, Switch, RadioGroup and Select through to the action, with no JavaScript involved', async () => {
     // Phase 1: pin the expected defaults against the REAL server markup,
     // with literal assertions — this is what makes the whole test non-
     // circular. Without these, phase 2 below could post whatever the markup
@@ -322,30 +322,84 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     const contactValue = /\bvalue="([^"]*)"/.exec(contactEmailTag!)?.[1]!
     expect(contactValue).toBe('email')
 
+    // Select (single, uncontrolled): the label-id lookup follows the same
+    // shape `Field.ssr.test.tsx` already asserts for a non-native-label
+    // control (`<div id=…>Country</div>` + a matching `aria-labelledby` on
+    // the trigger `<button>`) — Field generates that id with `useId()`
+    // synchronously rather than an effect-registered one, so it is present
+    // here, unlike RadioGroup's per-option `aria-labelledby` above.
+    const countryLabelId = /<div[^>]*\sid="([^"]+)"[^>]*>Country<\/div>/.exec(html)?.[1]
+    expect(countryLabelId, 'no server-rendered <div id=…>Country</div> label').toBeDefined()
+    const countryTriggerMatch = new RegExp(
+      `<button\\b[^>]*\\saria-labelledby="${countryLabelId}"[^>]*>([\\s\\S]*?)<\\/button>`,
+    ).exec(html)
+    expect(countryTriggerMatch, 'no <button aria-labelledby="…"> for Country in server HTML').not.toBeNull()
+    // The selected label, not a placeholder — Select's own label lookup
+    // (`findLabel`), never Base UI's raw-JSON fallback (global-constraints.md).
+    expect(countryTriggerMatch![1]).toContain('Canada')
+
+    // Uncontrolled single-select's hidden `<input>` carries `name` and the
+    // serialised value directly — unlike `multiple` below, Base UI never sets
+    // `type="hidden"` on this one (`SelectRoot.js:394-452`), only
+    // `aria-hidden`/`tabIndex=-1`/visually-hidden styling, so this is scoped
+    // by `name` alone, not by a `type="hidden"` filter too.
+    const countryInputTag = inputTags.find((t) => /\bname="country"/.test(t))
+    expect(countryInputTag, 'no input named "country" in server HTML').toBeDefined()
+    const countryValue = /\bvalue="([^"]*)"/.exec(countryInputTag!)?.[1]!
+    expect(countryValue).toBe('ca')
+
+    // Select (multiple, uncontrolled): one `type="hidden" name="topics"
+    // value=…` input PER selected value (global-constraints.md's facts
+    // table) — scoped by both `type="hidden"` and `name="topics"` together,
+    // because the multi-select's own unnamed visually-hidden input is a
+    // plain, untyped `<input>` and would otherwise be an unrelated match for
+    // a `name`-only filter.
+    const topicsHiddenTags = inputTags.filter(
+      (t) => /\btype="hidden"/.test(t) && /\bname="topics"/.test(t),
+    )
+    expect(topicsHiddenTags, 'expected two type="hidden" name="topics" inputs in server HTML').toHaveLength(2)
+    const topicsValues = topicsHiddenTags.map((t) => /\bvalue="([^"]*)"/.exec(t)?.[1]!)
+    expect(topicsValues).toEqual(['roadmap', 'billing'])
+
+    // §4.1.9: the popup portals only on focus/open, never on the server —
+    // this is what actually distinguishes "the trigger's own text says
+    // Canada" from "the whole listbox, options and all, leaked into the
+    // initial HTML". A regression that force-mounted the popup (e.g.
+    // `keepMounted`) would satisfy every assertion above unchanged while
+    // failing only this one.
+    expect(html).not.toContain('role="listbox"')
+
     // Phase 2: POST exactly what phase 1 just extracted from the real
     // markup — not retyped literals — which is a more faithful model of a
     // JavaScript-blocked submission than hand-written values would be: a
     // real browser serialises whatever the server actually rendered, not
     // whatever a test author typed. `email` is the one literal here because
-    // it isn't one of the four controls this test covers (the existing
+    // it isn't one of the six controls this test covers (the existing
     // "serves the form route..." test above already covers that field).
     //
-    // This is gate 6's actual guarantee for these four controls: their
+    // This is gate 6's actual guarantee for these six controls: their
     // SERVER-RENDERED DEFAULT VALUES reach the action without JavaScript. It
     // does NOT prove a no-JS visitor could have CHANGED them — Checkbox's,
-    // Switch's and RadioGroup's operable element is a `role`-bearing `<span>`
-    // that does nothing without JS; the hidden `<input>` sibling that
-    // actually carries the value into the post is aria-hidden, tabIndex=-1
-    // and invisible. Textarea is the one exception: it is a real, editable
-    // `<textarea>`, so a no-JS user genuinely could have changed its value
-    // before this same post.
+    // Switch's, RadioGroup's and Select's operable element is a `role`-
+    // bearing `<span>`/`<button role="combobox">` that does nothing without
+    // JS; the hidden `<input>`(s) that actually carry the value into the post
+    // are aria-hidden, tabIndex=-1 and invisible. Textarea is the one
+    // exception: it is a real, editable `<textarea>`, so a no-JS user
+    // genuinely could have changed its value before this same post.
+    //
+    // `topics` is appended twice, not passed once to the object form: a
+    // JS-blocked browser serialises one `topics=<value>` pair per selected
+    // hidden `<input>` (two of them here), and `URLSearchParams`'s object
+    // constructor can only ever produce one entry per key.
     const body = new URLSearchParams({
       email: 'person@example.com',
       message: messageValue,
       subscribe: subscribeValue,
       notifications: notificationsValue,
       contact: contactValue,
+      country: countryValue,
     })
+    for (const topic of topicsValues) body.append('topics', topic)
     const res = await fetch(`${base}/form`, {
       method: 'POST',
       headers: {
@@ -376,6 +430,8 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(textOf('echo-subscribe')).toBe(`subscribe: ${subscribeValue}`)
     expect(textOf('echo-notifications')).toBe(`notifications: ${notificationsValue}`)
     expect(textOf('echo-contact')).toBe(`contact: ${contactValue}`)
+    expect(textOf('echo-country')).toBe(`country: ${countryValue}`)
+    expect(textOf('echo-topics')).toBe(`topics: ${topicsValues.join(', ')}`)
   })
 })
 
