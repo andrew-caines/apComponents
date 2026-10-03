@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { TooltipProvider } from '../components/Tooltip/TooltipParts.js'
+import { Tooltip as BaseTooltip } from '@base-ui/react/tooltip'
 import { IconProvider, type IconOverrides } from '../icons/index.js'
 import { LocaleProvider, type LocaleProviderProps } from './LocaleProvider.js'
 import { ThemeProvider, type ThemeProviderProps } from './ThemeProvider.js'
@@ -22,7 +22,9 @@ export interface ApProviderProps
  *
  * It also wraps the tree in Base UI's tooltip provider with its defaults, so
  * tooltips across the app share their delay: once one has opened, moving to
- * another opens it at once. The provider renders no DOM.
+ * another opens it at once. The provider renders no DOM. It is imported from
+ * Base UI directly, not from `TooltipParts`, so an app using `ApProvider`
+ * without `Tooltip` does not pull in Tooltip's stylesheet.
  */
 export function ApProvider({
   scheme,
@@ -50,7 +52,7 @@ export function ApProvider({
         {...(messages !== undefined ? { messages } : {})}
       >
         <IconProvider {...(icons !== undefined ? { icons } : {})}>
-          <TooltipProvider>{children}</TooltipProvider>
+          <BaseTooltip.Provider>{children}</BaseTooltip.Provider>
         </IconProvider>
       </LocaleProvider>
     </ThemeProvider>
