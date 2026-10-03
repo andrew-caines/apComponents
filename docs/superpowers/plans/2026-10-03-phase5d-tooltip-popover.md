@@ -374,3 +374,52 @@ Ordered. Each check is a command whose output is the evidence, with the perturba
 | 15 | Every CI job is green | Task 9's sweep, then the PR | — |
 
 **Final proof artifact:** a green CI run of all six jobs on the Phase 5d pull request, plus Task 9's local sweep output.
+
+---
+
+## What actually happened
+
+Eight build tasks, then one whole-branch review and a single fix wave: 24 commits in all. Tasks 1, 2, 3 and 7 passed their first review. Tasks 4, 5, 6 and 8 each needed one fix round, and none needed a second. The local sweep of all six `ci.yml` jobs passed on the final tree: 1431 unit tests plus every gate and `check:lockfiles`, consumer 12, SSR 7 plus SPA plus hydration 19, stories 86 plus the build, and showcase 10.
+
+Seven controller rulings were made (R1–R7). The ledger is gitignored, so the ones that change how 5e–5h should be written are recorded here.
+
+### The 5c lessons held, and one did not go far enough
+
+- **Citing Base UI by file and line** caught the spec's wrong focus-trap claim before planning: a Popover traps only with `modal !== false` **and** a close part. It also settled both "not yet verified" focus facts with source lines. The plan's fact table needed no correction during execution, except the item below.
+- **Naming perturbations in `play` functions** worked. Reviews still found two placement checks that could pass before the popup was positioned (Task 5, then the same shape in Task 6), and one false perturbation.
+- **Citations were still wrong in permanent text, three times.** Task 8's docs cited `popupStoreUtils.js:363-368` for "two `defaultOpen` Roots close the first". That code is the trigger-unmount path. The final review then found the same wrong citation surviving in a test comment, and traced the real cause: `useDelayGroup` runs unconditionally (`TooltipTrigger.js:106`), and with no provider every tooltip shares the module-level default context in `FloatingDelayGroup.js:15-33`, which closes the previous one at `:144-166`. Separately, the spec's own §4.4.1 cited `PopoverRoot.js:115` (a bare `useDismiss` call) for sibling **and nested** popover behaviour. Nothing proved the nested half. **For 5e–5h: a citation must point at the line that causes the claim, not a line nearby in the same feature. When the cause is unknown, write "observed" and cite the test that pins it.**
+
+### A shared helper was wrong for the most common input
+
+`deriveNativeButton(<Button/>)` returned false, because `Button` is a composite. So `<Popover trigger={<Button>}>`, the default usage, told Base UI that a real `<button>` was non-native, which logged a console error and set the wrong ARIA. `SelectTrigger` had carried the same defect since 5c, and no test caught it, because every trigger test used a plain `<button>` or an `<a>`. The Task 6 implementer saw the console error in a story. **R5** gave `Button` a `NATIVE_BUTTON_DERIVABLE` marker that the helper derives through. **For 5e–5h: a part that takes a trigger is tested with our own `Button` as the trigger,** because that is what consumers will pass.
+
+### The plan asserted two things that could not be true
+
+- **"`keepMounted` must fail the SSR test."** It can't. Base UI's `FloatingPortal` sets its node only on the client (`FloatingPortal.js:44-50,195-199`). The unit SSR assertions are honest regression guards, and the real proof is the fixture spec reading the raw response.
+- **"An anchor trigger gets no `role="button"`."** `deriveNativeButton(<a/>)` was already false, so Base UI forces the role. **R3** kept it: activating a popover trigger opens a popover, so `role="button"` is truthful, as on Select.
+
+### Answered during execution
+
+- **Two tooltips at once:** Base UI keeps one. The newer one closes the older through the shared delay group. Both stay open only when their Roots are controlled.
+- **Programmatic open** describes the single trigger. Base UI claims the only trigger as active (`popupStoreUtils.js:232-237,350-356`).
+- **A disabled `Button`** cannot open a tooltip, but `<Button disabled focusableWhenDisabled>` can. A story proves it, and the JSDoc recommends it alongside visible copy.
+- **The theme has no inverse colour role,** so the tooltip is a raised surface. A dark tooltip is a token-system change.
+
+### Process notes
+
+- **R4:** the first story run hit Vite's cold-cache "optimized dependencies changed" reload, the failure `vitest.config.ts` already recorded from CI. Base UI's `merge-props`, `tooltip` and `popover` entry points were added to `optimizeDeps.include`, and a cold run was verified.
+- **Prettier was run twice by implementers** and rewrote a story to double quotes and semicolons. The fix wave restored house style. Later dispatches were told not to run it.
+- **R6:** the final review and fix wave ran before the CI sweep, so the sweep ran once.
+
+### What is still open
+
+- **Decision for the human:** the two width caps are built differently. Tooltip uses an unthemable `calc(space-9 * 4)`; Popover uses `tier3('popover-max-inline-size', '24rem')`.
+- **Deferred minors the final reviewer triaged as can-wait:**
+  - `useMergedRef` ignores React 19 ref cleanups.
+  - The `PopoverClose` derivation is untested.
+  - `PopoverDismissProps` accepts `render`.
+  - Two stories use fixed sleeps behind negative assertions.
+  - `SiblingsClose` names no code perturbation.
+  - The fixture e2e opens the tooltip with programmatic `.focus()`.
+  - The `DelayGroup` threshold (200 ms against 600 ms) could take more headroom if it ever flakes.
+  - Nested popovers are unverified.
