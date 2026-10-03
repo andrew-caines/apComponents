@@ -277,8 +277,11 @@ export const Placement: Story = {
     await userEvent.click(trigger)
     const dialog = await body().findByRole('dialog')
     await waitFor(() => {
-      // Prove Floating UI has positioned it before measuring: an unpositioned
-      // popup sits near (0,0), where an edge comparison can pass whatever the side.
+      // `data-side` holds the requested side from the moment the popup mounts,
+      // so it confirms the side asked for, not that Floating UI has placed it.
+      // The edge check is the positioning proof: an unpositioned popup sits
+      // near (0,0), above the trigger's bottom edge (the trigger is 10rem
+      // down), so it fails until the popup is placed below.
       const positioner = dialog.closest('[data-side]')
       expect(positioner?.getAttribute('data-side')).toBe('bottom')
       const p = dialog.getBoundingClientRect()

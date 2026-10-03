@@ -3,9 +3,12 @@ import { Button, Input, LocaleProvider, Popover, Tooltip } from '@ap/react'
 /**
  * The surface the Tooltip and Popover hydration checks assert against.
  *
- * `LocaleProvider` rather than `ApProvider`, for the reason `dialog.tsx` gives:
- * Popover needs the message registry for its dismiss control and nothing here
- * needs a theme. Tooltip grouping is not part of what this route proves.
+ * This route renders no dismiss control, so it needs no provider: a Popover
+ * without one reads no message (see Popover's JSDoc). The `LocaleProvider`
+ * copies `dialog.tsx`'s choice, kept so that adding `dismissible` here later
+ * needs no other change; it is `LocaleProvider` rather than `ApProvider`
+ * because nothing here needs a theme. Tooltip grouping is not part of what
+ * this route proves.
  *
  * Routed in both SSR and SPA modes: it exports no loader and no action.
  */

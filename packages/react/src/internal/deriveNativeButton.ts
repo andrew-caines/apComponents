@@ -1,5 +1,8 @@
 'use client'
 
+/** Static marker on `Button`: `deriveNativeButton` derives through an element whose type carries it. */
+export const NATIVE_BUTTON_DERIVABLE: unique symbol = Symbol.for('ap.button.nativeButtonDerivable')
+
 /**
  * Base UI's `nativeButton` prop (default `true`) tells its internal
  * `useButton` hook whether the element it renders is a real `<button>`. That
@@ -40,8 +43,6 @@
  * its `nativeButton` prop if set, else derived from its own `render` prop.
  * Every other composite still returns false.
  */
-export const NATIVE_BUTTON_DERIVABLE: unique symbol = Symbol.for('ap.button.nativeButtonDerivable')
-
 export function deriveNativeButton(render: unknown): boolean {
   if (render === undefined) return true
   if (typeof render === 'function') return false

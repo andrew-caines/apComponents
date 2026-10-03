@@ -116,8 +116,11 @@ export const Placement: Story = {
     await userEvent.tab()
     const tip = await body().findByRole('tooltip')
     await waitFor(() => {
-      // Prove Floating UI has positioned it before measuring: an unpositioned
-      // popup sits near (0,0), where "above the trigger" is trivially true.
+      // `data-side` holds the requested side from the moment the popup mounts,
+      // so it confirms the side asked for, not that Floating UI has placed it.
+      // The centre check is the positioning proof: an unpositioned popup sits
+      // near (0,0), where "above the trigger" is trivially true but its centre
+      // is far from the padded trigger's.
       const positioner = tip.closest('[data-side]')
       expect(positioner?.getAttribute('data-side')).toBe('top')
       const t = tip.getBoundingClientRect()
