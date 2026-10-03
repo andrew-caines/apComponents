@@ -69,4 +69,10 @@ export const SECTIONS: readonly Section[] = [
     file: 'routes/select.tsx',
     blurb: 'Single, grouped and multiple selection.',
   },
+  {
+    slug: 'overlays',
+    title: 'Tooltip & Popover',
+    file: 'routes/overlays.tsx',
+    blurb: 'A hover and focus tooltip, and a click-opened popover with a title.',
+  },
 ]

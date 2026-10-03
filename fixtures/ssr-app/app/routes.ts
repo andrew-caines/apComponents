@@ -13,6 +13,8 @@ export default [
   // Routed in BOTH modes, unlike streamed/form: this route exports no loader
   // and no action, and gate 7 (SPA smoke) needs a dialog to boot against.
   route('dialog', 'routes/dialog.tsx'),
+  // Same reasoning: no loader or action, so it is routed in both modes.
+  route('overlays', 'routes/overlays.tsx'),
   route('theme', 'routes/theme.tsx'),
   ...(isSpa ? [] : [route('streamed', 'routes/streamed.tsx'), route('form', 'routes/form.tsx')]),
 ] satisfies RouteConfig
