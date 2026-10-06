@@ -376,3 +376,60 @@ Match `Popover.stories.tsx`'s shape and house style. Every story's JSDoc names i
 | 15 | Every CI job is green | Task 9's sweep, then the PR | — |
 
 **Final proof artifact:** a green CI run of all six jobs on the Phase 5e pull request, plus Task 9's local sweep output.
+
+## What actually happened
+
+Eight build tasks, then one whole-branch review and a single fix wave: 20 commits in all. Tasks 4–8 passed their first review. Tasks 1, 2 and 3 each needed one fix round, and none needed a second. The local sweep of all six `ci.yml` jobs passed on the final tree: 1564 unit tests plus every gate and `check:lockfiles`, consumer 12, SSR 7 plus SPA plus hydration 25, stories 104 plus the build, and showcase 11.
+
+Twelve controller rulings were made (R1–R12). The ledger is gitignored, so the ones that matter for 5f–5h are recorded here. Spec §4.5.2 holds every corrected Base UI fact with its causing line.
+
+### The plan's fact table was wrong four times
+
+The 5d lesson (cite the causing line) was applied while writing the plan, and the facts were still wrong where the plan inferred a consequence instead of reading the code path through:
+
+- **`Tabs.List` has no `orientation` prop (R2).** It reads orientation from root context (`TabsList.js:33-37`). Task 1's first implementer stopped with NEEDS_CONTEXT rather than cast past the type, which is the behaviour we want.
+- **The RTL indicator rule was wrong (R4).** The plan placed it from `--active-tab-right`, but Base UI computes that as `scrollWidth - left - width` (`TabsIndicator.js:89`), so it was 725px off on an overflowing RTL list. The fix places it from `--active-tab-left` on the inline end. The task reviewer caught it by reading the formula. No story existed yet that could have.
+- **The Accordion `collapse` never ran (R6).** The plan keyed it on the ending state. Base UI's collapsible root defers that state (`useCollapsibleRoot.js:33`), so the close-request commit found no animation and unmounted the panel (`useCollapsiblePanel.js:183-189`). It is now keyed on `[data-closed]`.
+- **Disabled tabs are not skipped by arrow keys (R7).** They stay focusable (`TabsTab.js:118`) and are announced as disabled. We kept Base UI's behaviour.
+
+**For 5f–5h: a fact table entry that states a consequence ("so pass X", "so key on Y") must cite the line that produces the consequence, not the line that defines the input.**
+
+### jsdom cannot see vanilla-extract CSS
+
+The unit project injects no stylesheet, so every CSS claim (the `--panel-height` alias, the collapse selector, the focus-ring clearance, indicator geometry) moved to `play` functions. Plans should put CSS-behaviour assertions in stories from the start rather than as a jsdom fallback.
+
+### Answered during execution
+
+- **The indicator's first paint** is a jump, not a slide in from zero width (R3). It is `hidden` until the selected tab measures more than 0 (`TabsIndicator.js:111,124`). The `Indicator` story pins it.
+- **`onValueChange` can receive `null`** from Tabs' uncontrolled fallback (`TabsRoot.js:194,220`), so it is typed `Value | null`. Accordion has no such fallback, so `Value[]` is honest there.
+- **Find-in-page opened disabled Accordion items.** Base UI's `beforematch` ignores `disabled`. A disabled item's panel now opts out of `hiddenUntilFound`.
+- **The derived Tabs default was recomputed on every render,** and Base UI's `useControlled` logs an error when a default changes. It is now computed once.
+- **Under forced colours the indicator vanished,** because it was drawn as a background only. It now draws a `Highlight` border in that mode (R9), and an e2e check uses `emulateMedia`.
+- **Storybook cannot send a native Tab,** because user-event is selector-based. Review Focus 3 is proven by a `page.keyboard` Tab in the fixture e2e. The story uses a focus-acceptance helper.
+
+### Process notes
+
+- **R8:** as in 5d, the final review and fix wave ran before the CI sweep, so the sweep ran once.
+- The session was paused once mid-Task 1. The ledger's RESUME note made the restart cost one re-dispatch.
+- No implementer ran prettier.
+
+### What is still open
+
+- **Decisions for the human:**
+  - The horizontal underline sits above the list's hairline rather than covering it.
+  - `:dir()` needs Chrome 120+, above the ~2022 floor in ADR-0016/0017.
+  - The Tooltip and Popover width caps, carried over from 5d.
+- **Known caveats:**
+  - Base UI's server HTML gives every tab `tabindex="-1"`, so the tab list isn't keyboard-reachable before hydration.
+  - The Inter fallback's metrics shift the indicator about 3px on a cold first paint.
+- **Deferred minors the final reviewer triaged as can-wait:**
+  - The Tabs "no error on items change" test depends on Base UI's per-module warning de-duplication. It should move to its own file (R11).
+  - CONTRIBUTING's "Base UI's examples put the indicator after the tabs" needs its citation, `docs/react/components/tabs.md:259-262` in the package (R12).
+  - The vertical RTL underline is unproven by a story.
+  - The pill's `insetBlockStart` is unpinned.
+  - `TabsRoot` accepts only a string `className`, while `AccordionRoot` accepts a function.
+  - Accordion `value` rejects readonly arrays.
+  - The Accordion content box takes no `className` or Tier 3 padding token.
+  - `tabFrom` has no guard when `from` is missing.
+  - Motion story seek times are tied to the current token durations.
+  - The SPA gate never requests `/disclosure`.
