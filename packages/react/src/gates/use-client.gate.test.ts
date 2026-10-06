@@ -91,6 +91,10 @@ const TS_EXEMPTIONS: Array<{ path: string; why: string }> = [
     path: join(SRC, 'components', 'Tabs', 'Tabs.tokens.ts'),
     why: 'a frozen object of Tier 3 token strings, built with tier3() — pure data like Popover.tokens.ts',
   },
+  {
+    path: join(SRC, 'components', 'Accordion', 'Accordion.tokens.ts'),
+    why: 'a frozen object of Tier 3 token strings, built with tier3() — pure data like Tabs.tokens.ts',
+  },
 ]
 
 // Barrels (index.ts) only re-export; they hold no behaviour of their own to
