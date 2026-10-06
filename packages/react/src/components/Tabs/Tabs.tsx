@@ -50,7 +50,13 @@ export type TabsProps<Value extends string = string> = Omit<
     items: ReadonlyArray<TabsItem<Value>>
     value?: Value
     defaultValue?: Value
-    onValueChange?: (value: Value, eventDetails: ChangeDetails) => void
+    /**
+     * Called when the selection changes. `value` is `null` when an
+     * uncontrolled root has no enabled tab to fall back to, for example after
+     * the selected tab becomes disabled or every tab unmounts
+     * (`tabs/root/TabsRoot.js:178-194`).
+     */
+    onValueChange?: (value: Value | null, eventDetails: ChangeDetails) => void
     /** Defaults to `underline`. */
     variant?: 'underline' | 'pills'
     /** Defaults to `horizontal`. */
@@ -81,7 +87,8 @@ function TabsBase<Value extends string = string>({
       {...(value !== undefined ? { value } : {})}
       {...(initial !== undefined ? { defaultValue: initial } : {})}
       {...(onValueChange !== undefined
-        ? { onValueChange: (next: unknown, details: ChangeDetails) => onValueChange(next as Value, details) }
+        ? { onValueChange: (next: unknown, details: ChangeDetails) =>
+            onValueChange(next as Value | null, details) }
         : {})}
     >
       <TabsList

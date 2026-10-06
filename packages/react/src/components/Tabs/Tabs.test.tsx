@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Tabs, type TabsItem } from './Tabs.js'
 
 afterEach(cleanup)
@@ -107,5 +107,41 @@ describe('Tabs (convenience)', () => {
     const b = normaliseIds(document.body.innerHTML)
     expect(a).toBe(b)
     expect(a).toContain('aria-orientation="vertical"')
+  })
+
+  // Fails if `onValueChange` is not forwarded to the root.
+  it('calls onValueChange with the clicked tab value and details', () => {
+    const onValueChange = vi.fn()
+    render(<Tabs aria-label="x" items={items} onValueChange={onValueChange} />)
+    onValueChange.mockClear()
+    fireEvent.click(screen.getByRole('tab', { name: 'Beta' }))
+    expect(onValueChange).toHaveBeenCalledTimes(1)
+    expect(onValueChange.mock.calls[0]![0]).toBe('b')
+    expect(typeof onValueChange.mock.calls[0]![1]).toBe('object')
+  })
+
+  // Fails if null is filtered out: Base UI's fallback notifies null when the
+  // selected tab is disabled and no enabled tab remains.
+  it('notifies null when every item becomes disabled', () => {
+    const onValueChange = vi.fn()
+    const { rerender } = render(
+      <Tabs aria-label="x" items={items} onValueChange={onValueChange} />,
+    )
+    onValueChange.mockClear()
+    rerender(
+      <Tabs
+        aria-label="x"
+        items={items.map((i) => ({ ...i, disabled: true }))}
+        onValueChange={onValueChange}
+      />,
+    )
+    expect(onValueChange.mock.calls.map((c) => c[0])).toContain(null)
+  })
+
+  // Fails if `disabled` is not passed to the tab.
+  it('marks a disabled item as a disabled tab', () => {
+    render(<Tabs aria-label="x" items={[{ ...items[0]!, disabled: true }, items[1]!]} />)
+    expect(screen.getByRole('tab', { name: 'Alpha' }).hasAttribute('data-disabled')).toBe(true)
+    expect(screen.getByRole('tab', { name: 'Beta' }).hasAttribute('data-disabled')).toBe(false)
   })
 })
