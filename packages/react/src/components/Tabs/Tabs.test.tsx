@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Tabs, type TabsItem } from './Tabs.js'
 
@@ -121,21 +121,64 @@ describe('Tabs (convenience)', () => {
   })
 
   // Fails if null is filtered out: Base UI's fallback notifies null when the
-  // selected tab is disabled and no enabled tab remains.
-  it('notifies null when every item becomes disabled', () => {
-    const onValueChange = vi.fn()
-    const { rerender } = render(
-      <Tabs aria-label="x" items={items} onValueChange={onValueChange} />,
-    )
-    onValueChange.mockClear()
-    rerender(
-      <Tabs
-        aria-label="x"
-        items={items.map((i) => ({ ...i, disabled: true }))}
-        onValueChange={onValueChange}
-      />,
-    )
-    expect(onValueChange.mock.calls.map((c) => c[0])).toContain(null)
+  // selected tab is disabled and no enabled tab remains
+  // (`tabs/root/TabsRoot.js:220`, `:194`). Also fails if the first-enabled
+  // default is recomputed every render: it changes from 'a' to nothing here,
+  // and `useControlled` logs "changing the default value state of an
+  // uncontrolled Tabs" (`@base-ui/utils/useControlled.js:35-36`).
+  //
+  // Base UI logs each distinct message once per module instance
+  // (`@base-ui/utils/error.js`), and vitest gives each file its own, so only
+  // the first test in this file to provoke the message sees it. This one runs
+  // before the next, so with the perturbation this one fails; the next fails
+  // when run alone (`-t`).
+  it('notifies null when every item becomes disabled, without logging', () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const onValueChange = vi.fn()
+      const { rerender } = render(
+        <Tabs aria-label="x" items={items} onValueChange={onValueChange} />,
+      )
+      onValueChange.mockClear()
+      rerender(
+        <Tabs
+          aria-label="x"
+          items={items.map((i) => ({ ...i, disabled: true }))}
+          onValueChange={onValueChange}
+        />,
+      )
+      expect(onValueChange.mock.calls.map((c) => c[0])).toContain(null)
+      expect(errors.mock.calls).toEqual([])
+    } finally {
+      errors.mockRestore()
+    }
+  })
+
+  // Fails if the first-enabled default is recomputed every render: items
+  // that load after mount (empty, then filled) change it from nothing to
+  // 'a', and the first item turning disabled changes it from 'a' to 'b'.
+  // Either makes `useControlled` log (see the test above). The selection
+  // still lands on an enabled tab through Base UI's client-side fallback.
+  it('logs nothing when the items change after mount', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { rerender } = render(<Tabs aria-label="x" items={[]} />)
+      rerender(<Tabs aria-label="x" items={items} />)
+      await waitFor(() =>
+        expect(screen.getByRole('tab', { name: 'Alpha' }).getAttribute('aria-selected')).toBe(
+          'true',
+        ),
+      )
+      rerender(<Tabs aria-label="x" items={[{ ...items[0]!, disabled: true }, items[1]!]} />)
+      await waitFor(() =>
+        expect(screen.getByRole('tab', { name: 'Beta' }).getAttribute('aria-selected')).toBe(
+          'true',
+        ),
+      )
+      expect(errors.mock.calls).toEqual([])
+    } finally {
+      errors.mockRestore()
+    }
   })
 
   // Fails if `disabled` is not passed to the tab.

@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   TabsIndicator,
   TabsList,
@@ -54,7 +54,7 @@ export type TabsProps<Value extends string = string> = Omit<
      * Called when the selection changes. `value` is `null` when an
      * uncontrolled root has no enabled tab to fall back to, for example after
      * the selected tab becomes disabled or every tab unmounts
-     * (`tabs/root/TabsRoot.js:178-194`).
+     * (`tabs/root/TabsRoot.js:220` picks the null fallback, `:194` notifies it).
      */
     onValueChange?: (value: Value | null, eventDetails: ChangeDetails) => void
     /** Defaults to `underline`. */
@@ -76,11 +76,14 @@ function TabsBase<Value extends string = string>({
   ...root
 }: TabsProps<Value>) {
   // Base UI's own fallback picks the first tab only on the client, so the
-  // server HTML would carry no panel. Choose the first enabled item here.
-  const initial =
-    value === undefined && defaultValue === undefined
-      ? items.find((item) => item.disabled !== true)?.value
-      : defaultValue
+  // server HTML would carry no panel. Choose the first enabled item here,
+  // once: Base UI hands `defaultValue` to `useControlled`
+  // (`tabs/root/TabsRoot.js:43-45`), which logs an error if it changes after
+  // mount (`@base-ui/utils/useControlled.js:35-36`). Recomputing it every
+  // render would change it whenever the items do (loaded later, or the first
+  // one disabled). Base UI's own client-side fallback covers later changes.
+  const [firstEnabled] = useState(() => items.find((item) => item.disabled !== true)?.value)
+  const initial = value === undefined && defaultValue === undefined ? firstEnabled : defaultValue
   return (
     <TabsRoot
       {...root}
