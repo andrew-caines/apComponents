@@ -42,7 +42,7 @@ test('closed accordion content is in the server HTML under plain hidden', async 
   const response = await page.goto('/disclosure')
   const serverHtml = (await response?.text()) ?? ''
 
-  // Fails if the content were unmounted while closed (keepMounted off).
+  // Fails if the content were unmounted while closed (hiddenUntilFound off).
   expect(serverHtml).toContain('id="acc-input"')
   const tag = panelTagAround(serverHtml, 'acc-input')
   expect(tag, 'the panel tag around acc-input was not found').not.toBe('')
