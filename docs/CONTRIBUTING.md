@@ -1071,6 +1071,13 @@ so its first appearance is at the tab, not a transition from no width. And the
 (`tabs/list/TabsList.js:33-37`) and sets `aria-orientation` from it (`:83`), so pass
 `orientation` to the Root only.
 
+**`Tabs.Indicator` must be the first child of `Tabs.List`.** Every tab is `position: relative`
+(`Tabs.css.ts`, `tabRecipe`), so tabs and the absolutely positioned indicator share one paint
+layer and paint in source order, with no `zIndex`. An indicator placed after the tabs, as
+Base UI's own examples place it, paints over them, and in the `pills` variant the pill hides
+the selected tab's label. Our `Tabs` puts it first; a hand assembly must too. The hand-assembly
+test in `Tabs.test.tsx` pins the order.
+
 ## `hidden="until-found"` is client-only
 
 **Server HTML for a closed `Accordion` panel carries a plain boolean `hidden=""`.** React
