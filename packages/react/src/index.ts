@@ -91,6 +91,17 @@ export type {
   PopoverCloseProps,
   PopoverDismissProps,
 } from './components/Popover/index.js'
+export { Tabs, TABS_TOKENS } from './components/Tabs/index.js'
+export type {
+  TabsProps,
+  TabsItem,
+  TabsName,
+  TabsRootProps,
+  TabsListProps,
+  TabsTabProps,
+  TabsIndicatorProps,
+  TabsPanelProps,
+} from './components/Tabs/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,
