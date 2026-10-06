@@ -152,14 +152,23 @@ export const tabRecipe = recipe({
 })
 
 /**
- * Starts the indicator at the selected tab's inline start. Base UI measures
- * `--active-tab-left` from the list's physical start and `--active-tab-right`
- * from its physical end (`TabsIndicator.js:81,89`), so in RTL, where the
- * inline start is the physical end, the start inset is the right-hand one.
+ * Places the indicator at the selected tab. `--active-tab-left` is the tab's
+ * offset from the containing block's physical-left padding edge, in scroll
+ * coordinates (`TabsIndicator.js:81` adds `scrollLeft`), in either direction.
+ * `--active-tab-right` is NOT the mirror of it: Base UI computes it as
+ * `scrollWidth - left - width` (`:89`), the distance from the end of the
+ * scrollable content, not from the padding edge. Once a horizontal list
+ * overflows, which ours may (`overflowX: 'auto'`), the two differ by
+ * `scrollWidth - clientWidth`. So RTL never reads `--active-tab-right`. There
+ * the inline end is the physical-left side, and the indicator is pinned to it
+ * with the same left variable: `insetInlineEnd: var(--active-tab-left)`, with
+ * the start inset released to `auto`.
  */
-const atTabInlineStart = {
+const atSelectedTab = {
   insetInlineStart: 'var(--active-tab-left)',
-  selectors: { '&:dir(rtl)': { insetInlineStart: 'var(--active-tab-right)' } },
+  selectors: {
+    '&:dir(rtl)': { insetInlineStart: 'auto', insetInlineEnd: 'var(--active-tab-left)' },
+  },
 } as const
 
 /**
@@ -190,7 +199,8 @@ export const tabsIndicatorRecipe = recipe({
         boxSizing: 'border-box',
         position: 'absolute',
         pointerEvents: 'none',
-        transitionProperty: 'inset-inline-start, inset-block-start, inline-size, block-size',
+        transitionProperty:
+          'inset-inline-start, inset-inline-end, inset-block-start, inline-size, block-size',
         transitionDuration: vars.duration.fast,
         transitionTimingFunction: vars.ease.out,
         selectors: { '&[hidden]': { display: 'none' } },
@@ -203,7 +213,7 @@ export const tabsIndicatorRecipe = recipe({
       pills: {
         '@layer': {
           [componentsLayer]: {
-            ...atTabInlineStart,
+            ...atSelectedTab,
             insetBlockStart: 'var(--active-tab-top)',
             inlineSize: 'var(--active-tab-width)',
             blockSize: 'var(--active-tab-height)',
@@ -221,7 +231,7 @@ export const tabsIndicatorRecipe = recipe({
       style: {
         '@layer': {
           [componentsLayer]: {
-            ...atTabInlineStart,
+            ...atSelectedTab,
             insetBlockEnd: 0,
             inlineSize: 'var(--active-tab-width)',
             blockSize: t.indicatorThickness,

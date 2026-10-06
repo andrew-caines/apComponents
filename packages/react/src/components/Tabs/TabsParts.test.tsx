@@ -62,7 +62,7 @@ describe('Tabs parts', () => {
 
   // Fails if `activateOnFocus` is passed to the list: selection would then
   // follow focus to Beta on ArrowRight.
-  it('moves focus on ArrowRight without selecting, and Enter selects', async () => {
+  it('moves focus on ArrowRight without selecting, and activating it selects', async () => {
     render(assembly())
     const alpha = screen.getByRole('tab', { name: 'Alpha' })
     const beta = screen.getByRole('tab', { name: 'Beta' })
@@ -71,9 +71,8 @@ describe('Tabs parts', () => {
     await waitFor(() => expect(document.activeElement).toBe(beta))
     expect(alpha.getAttribute('aria-selected')).toBe('true')
     expect(beta.getAttribute('aria-selected')).toBe('false')
-    // A native button turns Enter into a click; jsdom does not synthesise
-    // that click, so it is dispatched here as the browser would.
-    fireEvent.keyDown(beta, { key: 'Enter' })
+    // Activation is a click here. jsdom does not turn Enter on a native
+    // button into a click, so real Enter is pinned by a browser story.
     fireEvent.click(beta)
     await waitFor(() => expect(beta.getAttribute('aria-selected')).toBe('true'))
     expect(screen.getByRole('tabpanel').textContent).toBe('Beta content')
