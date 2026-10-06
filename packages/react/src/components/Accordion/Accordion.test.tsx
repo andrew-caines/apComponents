@@ -88,6 +88,36 @@ describe('Accordion (convenience)', () => {
     expect(screen.getByRole('button', { name: 'Gamma' }).hasAttribute('data-disabled')).toBe(true)
   })
 
+  // Base UI's beforematch listener opens a panel without checking disabled
+  // (`collapsible/panel/useCollapsiblePanel.js:286-293`), so a disabled item
+  // must not be findable. Fails if the panel's `hiddenUntilFound: false`
+  // override is removed: the content stays mounted under until-found and
+  // beforematch opens the item.
+  it('does not keep a disabled closed item findable', async () => {
+    const onValueChange = vi.fn()
+    render(<Accordion items={items} onValueChange={onValueChange} />)
+    // Wait for an enabled closed panel's until-found, so the effects have run.
+    const beta = screen.getByText('Beta content').closest('[role="region"]')!
+    await waitFor(() => expect(beta.getAttribute('hidden')).toBe('until-found'))
+    // What find-in-page would do, if the content were there to match.
+    const gamma = screen.queryByText('Gamma content')?.closest('[role="region"]')
+    if (gamma) fireEvent(gamma, new Event('beforematch'))
+    expect(screen.getByRole('button', { name: 'Gamma' }).getAttribute('aria-expanded')).toBe(
+      'false',
+    )
+    expect(onValueChange).not.toHaveBeenCalled()
+    expect(screen.queryByText('Gamma content')).toBeNull()
+  })
+
+  // The same for a disabled root, which disables every item
+  // (`accordion/item/AccordionItem.js:50`). Fails if the root's `disabled`
+  // is not folded into the override.
+  it('does not keep closed items findable when the root is disabled', () => {
+    render(<Accordion items={items} disabled />)
+    expect(screen.queryByText('Alpha content')).toBeNull()
+    expect(screen.queryByText('Beta content')).toBeNull()
+  })
+
   // Fails if the convenience component adds or drops anything the parts do not.
   it('renders the same DOM as the hand assembly', () => {
     render(<Accordion items={items} headingLevel={2} defaultValue={['a']} />)
@@ -111,7 +141,7 @@ describe('Accordion (convenience)', () => {
           <Accordion.Header render={<h2 />}>
             <Accordion.Trigger>Gamma</Accordion.Trigger>
           </Accordion.Header>
-          <Accordion.Panel>Gamma content</Accordion.Panel>
+          <Accordion.Panel hiddenUntilFound={false}>Gamma content</Accordion.Panel>
         </Accordion.Item>
       </Accordion.Root>,
     )

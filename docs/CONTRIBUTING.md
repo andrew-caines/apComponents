@@ -1084,6 +1084,11 @@ listener opens the panel when find-in-page matches it (`:281-290`). Consequences
   there; the server half is pinned by `Accordion.ssr.test.tsx`.
 - A panel closed on mount runs its collapse from 0 to 0 under `content-visibility: hidden`,
   so nothing is visible.
+- The `beforematch` listener opens the panel without checking `disabled`
+  (`useCollapsiblePanel.js:286-293`), so find-in-page would open a disabled section.
+  Our `Accordion` passes `hiddenUntilFound={false}` to a disabled item's panel (the panel's
+  prop outranks the root's, `accordion/panel/AccordionPanel.js:50`), so its closed content
+  unmounts. A hand assembly must do the same on `Accordion.Panel`.
 - Pinned by `Accordion.test.tsx`, the `FindInPage` story and `disclosure.spec.ts`.
 
 **Collapse must be keyed on `[data-closed]`, not `[data-ending-style]`.** The root defers the

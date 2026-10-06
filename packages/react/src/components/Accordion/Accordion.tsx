@@ -64,6 +64,8 @@ function AccordionBase<Value extends string = string>({
   ...root
 }: AccordionProps<Value>) {
   const heading = HEADINGS[headingLevel]
+  // A disabled root disables every item (`accordion/item/AccordionItem.js:50`).
+  const rootDisabled = root.disabled === true
   return (
     <AccordionRoot
       {...root}
@@ -90,7 +92,18 @@ function AccordionBase<Value extends string = string>({
           <AccordionHeader render={heading}>
             <AccordionTrigger>{item.title}</AccordionTrigger>
           </AccordionHeader>
-          <AccordionPanel>{item.content}</AccordionPanel>
+          {/* A disabled item (or root) opts out of hidden-until-found. Base UI's
+              beforematch listener opens the panel without checking disabled
+              (`collapsible/panel/useCollapsiblePanel.js:286-293`), so find-in-page
+              would open a section its trigger refuses to. The panel's own prop
+              outranks the root's (`accordion/panel/AccordionPanel.js:50`), and
+              with it off a closed panel unmounts (`useCollapsiblePanel.js:297`;
+              `keepMounted` defaults off, `accordion/root/AccordionRoot.js:103`). */}
+          <AccordionPanel
+            {...(item.disabled === true || rootDisabled ? { hiddenUntilFound: false } : {})}
+          >
+            {item.content}
+          </AccordionPanel>
         </AccordionItem>
       ))}
     </AccordionRoot>
@@ -104,6 +117,8 @@ function AccordionBase<Value extends string = string>({
  * Closed content stays in the page (hidden-until-found), so the browser's
  * find-in-page can open a matching section. That works only after hydration:
  * server HTML carries plain `hidden`, and `until-found` is set on the client.
+ * A disabled item is the exception: its closed content is not rendered, so
+ * find-in-page cannot open it.
  * Keep each `title` to text: it is the trigger's accessible name.
  */
 export const Accordion = Object.assign(AccordionBase, {
