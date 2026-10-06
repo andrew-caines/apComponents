@@ -172,6 +172,19 @@ const atSelectedTab = {
 } as const
 
 /**
+ * Forced colours (Windows High Contrast) replace every `background` with the
+ * system canvas, which would erase the indicator, the only cue that is not
+ * colour alone (spec 4.1.4). There the indicator draws a border instead, in
+ * the `Highlight` system colour: the one place a literal colour is right,
+ * because forced colours honour system colours and nothing else. The border
+ * sits inside the box (`border-box`), so size and position do not change,
+ * and outside this query nothing changes at all. Pinned by
+ * `fixtures/ssr-app/e2e/disclosure.spec.ts`.
+ */
+const FORCED_COLORS = '(forced-colors: active)'
+const forcedBorder = `${t.indicatorThickness} solid Highlight`
+
+/**
  * The indicator: Base UI's `<span role="presentation">`, positioned from the
  * `--active-tab-*` variables it writes (`TabsIndicator.js:103-110`).
  *
@@ -219,6 +232,7 @@ export const tabsIndicatorRecipe = recipe({
             blockSize: 'var(--active-tab-height)',
             background: t.pillBg,
             borderRadius: t.radius,
+            '@media': { [FORCED_COLORS]: { border: forcedBorder } },
           },
         },
       },
@@ -235,6 +249,7 @@ export const tabsIndicatorRecipe = recipe({
             insetBlockEnd: 0,
             inlineSize: 'var(--active-tab-width)',
             blockSize: t.indicatorThickness,
+            '@media': { [FORCED_COLORS]: { borderBlockEnd: forcedBorder } },
           },
         },
       },
@@ -248,6 +263,7 @@ export const tabsIndicatorRecipe = recipe({
             insetBlockStart: 'var(--active-tab-top)',
             inlineSize: t.indicatorThickness,
             blockSize: 'var(--active-tab-height)',
+            '@media': { [FORCED_COLORS]: { borderInlineEnd: forcedBorder } },
           },
         },
       },

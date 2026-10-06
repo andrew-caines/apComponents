@@ -23,6 +23,16 @@ export default function DisclosureRoute() {
           ]}
         />
       </section>
+      <section id="pills-host">
+        <Tabs
+          aria-label="Pill sections"
+          variant="pills"
+          items={[
+            { value: 'summary', label: 'Summary', content: <p id="pill-summary">Summary content</p> },
+            { value: 'details', label: 'Details', content: <p id="pill-details">Details content</p> },
+          ]}
+        />
+      </section>
       <section id="accordion-host">
         <Accordion
           items={[

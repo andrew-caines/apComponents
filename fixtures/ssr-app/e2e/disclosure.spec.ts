@@ -110,3 +110,42 @@ test('real Tab does not enter a closed accordion section, and reaches it once op
   // Fails if opening did not make the content reachable.
   await expect(page.locator('#acc-input')).toBeFocused()
 })
+
+/** The widest border side of the indicator, and its style, from logical computed properties. */
+const indicatorBorder = (page: Page, listName: string) =>
+  page
+    .getByRole('tablist', { name: listName })
+    .locator(':scope > [role="presentation"]')
+    .evaluate((el) => {
+      const cs = getComputedStyle(el)
+      const sides = ['block-start', 'block-end', 'inline-start', 'inline-end'].map((side) => ({
+        width: parseFloat(cs.getPropertyValue(`border-${side}-width`)),
+        style: cs.getPropertyValue(`border-${side}-style`),
+      }))
+      return sides.reduce((a, b) => (b.width > a.width ? b : a))
+    })
+
+// Spec 4.1.4: selection is never shown by colour alone. Forced colours replace
+// the indicator's background with the canvas, so there it must draw a border.
+// Fails if the `(forced-colors: active)` rule is removed from
+// `tabsIndicatorRecipe`: the widest side is then 0px and `none`. The second
+// half fails if the border leaks into normal rendering.
+test('under forced colours the selected tab keeps a visible indicator border', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' })
+  await page.goto('/disclosure')
+  await waitForHydration(page)
+  expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true)
+
+  for (const name of ['Employee sections', 'Pill sections']) {
+    const list = page.getByRole('tablist', { name })
+    await expect(list.locator(':scope > [role="presentation"]')).toBeVisible()
+    const border = await indicatorBorder(page, name)
+    expect(border.width, `${name}: indicator border width`).toBeGreaterThan(0)
+    expect(border.style, `${name}: indicator border style`).not.toBe('none')
+  }
+
+  await page.emulateMedia({ forcedColors: 'none' })
+  for (const name of ['Employee sections', 'Pill sections']) {
+    expect((await indicatorBorder(page, name)).width, `${name}: no border normally`).toBe(0)
+  }
+})
