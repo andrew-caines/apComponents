@@ -15,6 +15,8 @@ export default [
   route('dialog', 'routes/dialog.tsx'),
   // Same reasoning: no loader or action, so it is routed in both modes.
   route('overlays', 'routes/overlays.tsx'),
+  // Same reasoning: no loader or action, so it is routed in both modes.
+  route('disclosure', 'routes/disclosure.tsx'),
   route('theme', 'routes/theme.tsx'),
   ...(isSpa ? [] : [route('streamed', 'routes/streamed.tsx'), route('form', 'routes/form.tsx')]),
 ] satisfies RouteConfig
