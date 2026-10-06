@@ -113,17 +113,36 @@ export const accordionChevronClass = style({
  * would cut a keyframe animation short. `[data-open]` stays for the whole
  * open state. A panel that is open on mount does not replay it: Base UI sets
  * `animationName: 'none'` then (`accordion/panel/AccordionPanel.js:117-121`).
- * `collapse` runs on `[data-ending-style]`, which lasts until the close
- * animation finishes (`collapsible/panel/useCollapsiblePanel.js:242-269`).
+ * `collapse` runs on `[data-closed]`, not `[data-ending-style]`. An item's
+ * root defers its ending status by a frame (`useTransitionStatus(open, true,
+ * true)`, `collapsible/root/useCollapsibleRoot.js:33`), so on the commit that
+ * requests the close the panel has `[data-closed]` and no
+ * `[data-ending-style]`. That is the commit where Base UI reads the panel's
+ * animation (`collapsible/panel/useCollapsiblePanel.js:134`); finding none, it
+ * unmounts the panel at once (`:183-189`, as its comment at `:180-182` says).
+ * Keyed on `[data-closed]`, the animation is already there: Base UI measures
+ * the height (`:192`) and waits for the animation to finish before it
+ * unmounts (`:242-269`).
+ *
+ * A panel that is closed on mount does not visibly collapse. Without
+ * `keepMounted` or `hiddenUntilFound` it is not rendered at all
+ * (`useCollapsiblePanel.js:297`). With `keepMounted` it carries `hidden`
+ * (`:63`, `:304`), so `display: none` and no animation runs. With
+ * `hiddenUntilFound` its `hidden` becomes `until-found` before paint (`:279`)
+ * and `collapse` does run, but from `--accordion-panel-height: auto` (no
+ * measured height yet, `accordion/panel/AccordionPanel.js:109`) under the UA's
+ * `content-visibility: hidden`, whose size containment makes `auto` zero for
+ * this padless box: a zero-to-zero animation, nothing to see.
  * The panel has no transition: Base UI treats a panel with both as a
  * transition and warns (`useCollapsiblePanel.js:324-329`).
  *
  * `overflow: hidden` is always on, not only while animating: an expand
  * outlives `[data-starting-style]` by the whole duration, and no attribute
  * marks the rest of it. Once open, Base UI resets the height to `auto`, so
- * the clip then cuts nothing. The padding lives on the owned content box
- * inside, for the same reason: a panel's own padding would stop `collapse`
- * short of zero height.
+ * the clip then cuts only what is drawn outside the panel, such as a focus
+ * ring; the content box's padding leaves room for one. The padding lives on
+ * that owned content box, not on the panel: a panel's own padding would stop
+ * `collapse` short of zero height.
  *
  * The panel never sets `display`, which would beat the UA `[hidden]` rule on
  * a kept-mounted closed panel.
@@ -136,7 +155,7 @@ export const accordionPanelClass = style({
       overflow: 'hidden',
       selectors: {
         '&[data-open]': { animation: `var(${cssVarName('expand')})` },
-        '&[data-ending-style]': { animation: `var(${cssVarName('collapse')})` },
+        '&[data-closed]': { animation: `var(${cssVarName('collapse')})` },
       },
     },
   },
@@ -144,13 +163,17 @@ export const accordionPanelClass = style({
 
 /**
  * The panel's content box: inline padding to line up with the trigger's
- * label, and room on the block end before the next item's hairline.
+ * label, and room on the block end before the next item's hairline. The
+ * block-start padding is exactly a focus ring's reach (offset plus width), so
+ * the panel's `overflow: hidden` does not clip the ring of a first focusable
+ * child; the inline padding already exceeds it.
  */
 export const accordionPanelContentClass = style({
   '@layer': {
     [componentsLayer]: {
       boxSizing: 'border-box',
       paddingInline: vars.space['4'],
+      paddingBlockStart: `calc(${vars.misc.focusRingOffset} + ${vars.misc.focusRingWidth})`,
       paddingBlockEnd: vars.space['4'],
     },
   },
