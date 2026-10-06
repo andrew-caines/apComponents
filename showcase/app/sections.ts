@@ -75,4 +75,10 @@ export const SECTIONS: readonly Section[] = [
     file: 'routes/overlays.tsx',
     blurb: 'A hover and focus tooltip, and a click-opened popover with a title.',
   },
+  {
+    slug: 'disclosure',
+    title: 'Tabs & Accordion',
+    file: 'routes/disclosure.tsx',
+    blurb: 'Manual-activation tabs and an accordion whose closed sections are findable in the page.',
+  },
 ]

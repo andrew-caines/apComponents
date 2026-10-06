@@ -40,10 +40,12 @@ export default defineConfig({
         optimizeDeps: {
           include: [
             '@vanilla-extract/recipes/createRuntimeFn',
-            // Base UI entry points the Tooltip and Popover stories pull in mid-run.
+            // Base UI entry points the Tooltip, Popover, Tabs and Accordion stories pull in mid-run.
             '@base-ui/react/merge-props',
             '@base-ui/react/tooltip',
             '@base-ui/react/popover',
+            '@base-ui/react/tabs',
+            '@base-ui/react/accordion',
           ],
         },
         test: {

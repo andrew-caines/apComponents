@@ -1048,6 +1048,78 @@ to the trigger; a hand assembly must put them on `Popover.Trigger` or `Tooltip.T
 itself. `Tooltip.Provider` separately takes `delay`, `closeDelay` and `timeout`, which
 group delays between triggers only.
 
+## The Tabs indicator measures physical edges
+
+**`Tabs.Indicator` publishes `--active-tab-left`, `-right`, `-top` and `-bottom`, all
+physical.** It measures the active tab against the list's scroll origin: `left` includes
+`scrollLeft` (`tabs/indicator/TabsIndicator.js:81`), and `right` is derived as
+`scrollWidth - left - width` (`:89`). In a right-to-left list the logical start edge is the
+physical right, but `--active-tab-right` is measured from the list's left scroll origin, so
+it is wrong whenever the list overflows (observed: 725px off on an overflowing RTL list).
+
+Ours stays logical without a physical property, and without `--active-tab-right`: under
+`:dir(rtl)` the recipe sets `insetInlineStart: auto` and `insetInlineEnd: var(--active-tab-left)`
+(`Tabs.css.ts`). Base UI's `left` is already in the scroll-origin coordinates that an
+inline-end inset resolves against in a right-to-left box, and the style gate stays happy.
+The `RightToLeft` story asserts the underline's geometry against the active tab on an
+overflowing list. A hand assembly that writes its own indicator CSS must do the same.
+
+Two related facts. The indicator renders `hidden` until the selected tab measures wider and
+taller than zero (`TabsIndicator.js:111`, `:124`) and renders nothing with no value (`:130`),
+so its first appearance is at the tab, not a transition from no width. And the
+`Tabs.List` takes no `orientation` prop: it reads it from the Root's context
+(`tabs/list/TabsList.js:33-37`) and sets `aria-orientation` from it (`:83`), so pass
+`orientation` to the Root only.
+
+**`Tabs.Indicator` must be the first child of `Tabs.List`.** Every tab is `position: relative`
+(`Tabs.css.ts`, `tabRecipe`), so tabs and the absolutely positioned indicator share one paint
+layer and paint in source order, with no `zIndex`. An indicator placed after the tabs, as
+Base UI's own examples place it, paints over them, and in the `pills` variant the pill hides
+the selected tab's label. Our `Tabs` puts it first; a hand assembly must too. The hand-assembly
+test in `Tabs.test.tsx` pins the order.
+
+## `hidden="until-found"` is client-only
+
+**Server HTML for a closed `Accordion` panel carries a plain boolean `hidden=""`.** React
+renders `hidden` as a boolean, so Base UI sets the string value in a layout effect
+(`collapsible/panel/useCollapsiblePanel.js:270-280`, citing react#24740), and a `beforematch`
+listener opens the panel when find-in-page matches it (`:281-290`). Consequences:
+
+- The closed content is in the server response, under `hidden`, so it is in the markup but
+  not findable until hydration. Before hydration, find-in-page does not open it.
+- jsdom keeps the `until-found` value once the effect has run, so unit tests can assert it
+  there; the server half is pinned by `Accordion.ssr.test.tsx`.
+- A panel closed on mount runs its collapse from 0 to 0 under `content-visibility: hidden`,
+  so nothing is visible.
+- The `beforematch` listener opens the panel without checking `disabled`
+  (`useCollapsiblePanel.js:286-293`), so find-in-page would open a disabled section.
+  Our `Accordion` passes `hiddenUntilFound={false}` to a disabled item's panel (the panel's
+  prop outranks the root's, `accordion/panel/AccordionPanel.js:50`), so its closed content
+  unmounts. A hand assembly must do the same on `Accordion.Panel`.
+- Pinned by `Accordion.test.tsx`, the `FindInPage` story and `disclosure.spec.ts`.
+
+**Collapse must be keyed on `[data-closed]`, not `[data-ending-style]`.** The root defers the
+ending state (`useCollapsibleRoot.js:33` passes `deferEndingState` to `useTransitionStatus`,
+`internals/useTransitionStatus.js:31-35`). When the close request commits, the panel sees no
+animation yet (`useCollapsiblePanel.js:134`) and unmounts at once (`:187-189`), so
+`data-ending-style` never styles a transition. `data-closed` is set from the open state itself
+(`utils/collapsibleOpenStateMapping.js:12-14`, `:25-31`). The trigger's open attribute is
+`data-panel-open` (`:15-23`). The `Motion` story pins this; swapping the selector to
+`[data-ending-style]` fails it.
+
+## The Accordion header is an `<h3>`, so `headingLevel` exists
+
+**`Accordion.Header` hardcodes `<h3>`** (`accordion/header/AccordionHeader.js:29`). On a page
+whose sections are `<h2>`, that skips a level and breaks the outline. Our `Accordion` takes
+`headingLevel` (`2 | 3 | 4 | 5 | 6`, default `3`) and passes the matching element as each
+header's `render`. A hand assembly changes the level through `Accordion.Header`'s `render`.
+
+Also on the Accordion: a disabled trigger stays focusable (`focusableWhenDisabled: true`,
+`accordion/trigger/AccordionTrigger.js:45`) with `data-disabled` and `aria-disabled`, and
+cannot be opened by click. Base UI's `value` is an array of item values with no null fallback
+(`accordion/root/AccordionRoot.js:56-61`), so ours is `Value[]`. Tabs differs: its
+`onValueChange` can receive `null` (`tabs/root/TabsRoot.js:220`), and ours is typed to say so.
+
 ## Known caveats
 
 ### Windows drive-letter casing breaks vanilla-extract silently

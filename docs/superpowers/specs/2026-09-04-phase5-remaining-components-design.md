@@ -561,6 +561,185 @@ that hardcodes `<h3>` inside a page whose sections are `<h2>` produces a broken 
 
 Both consume `collapse`/`expand` through the alias in §4.1.5.
 
+*Superseded 2026-10-04 for Accordion:* closed panels are **hidden until found**, not
+unmounted. See §4.5.1.
+
+#### 4.5.1 Scope and API — settled 2026-10-04, before the plan
+
+Every Base UI claim was checked against the installed `@base-ui/react` 1.7.0. Paths are
+relative to `node_modules/@base-ui/react/`. Each citation points at the line that causes
+the claim (5d retrospective).
+
+**Base UI facts this plan relies on.**
+
+- **Tabs activation is manual by default:** `activateOnFocus = false` (`tabs/list/TabsList.js:26`).
+  Focus wraps, with `loopFocus = true` (`:28`). `orientation` sets `aria-orientation` (`:83`).
+- **Inactive tab panels unmount:** `keepMounted = false` (`tabs/panel/TabsPanel.js:36`). A panel renders
+  only when `keepMounted || mounted` (`:100`).
+- **The indicator's pre-hydration script is off by default:** `renderBeforeHydration = false`
+  (`tabs/indicator/TabsIndicator.js:36`). The script is rendered only when that flag is set (`:134-135`).
+  The indicator's geometry comes as `--active-tab-left/right/top/bottom/width/height` (`:104-109`).
+- **A tab is a native button with `role="tab"`:** `nativeButton = true` (`tabs/tab/TabsTab.js:38`) feeds
+  `useButton` (`:115-117`), and `role: 'tab'` is set at `:178`.
+- **The Accordion is single-open and vertical by default:** `multiple = false` and `orientation = 'vertical'`
+  (`accordion/root/AccordionRoot.js:36-37`). `hiddenUntilFound` and `keepMounted` both default to `false`
+  (`:102-103`).
+- **A panel is `role="region"`, labelled by its trigger** (`accordion/panel/AccordionPanel.js:106-107`).
+  The trigger sets `aria-expanded` and, while open, `aria-controls` (`accordion/trigger/AccordionTrigger.js:62-63`).
+  The trigger is a native button: `nativeButton = true` (`:29`).
+- **The header renders `<h3>`:** `useRenderElement('h3', …)` (`accordion/header/AccordionHeader.js:29`).
+- **The panel height variable is `--accordion-panel-height`** (`accordion/panel/AccordionPanelCssVars.js:12`).
+  `@ap/motion`'s `collapse`/`expand` read `--panel-height` (`packages/motion/src/motions.ts:103-116`, in
+  this repo), so the §4.1.5 alias stands.
+- **`hidden="until-found"` is applied on the client only.** React renders `hidden` as a boolean, so Base UI
+  sets the string value in a layout effect (`collapsible/panel/useCollapsiblePanel.js:270-280`, citing
+  react#24740). A `beforematch` listener opens the panel when find-in-page matches it (`:281-290`).
+  **Consequence:** server HTML contains a closed panel's content under a plain `hidden`. Find-in-page can
+  reveal it only after hydration. The plan pins both halves.
+
+**Tabs.**
+
+- **Convenience:** `<Tabs items={[{ value, label, content, disabled? }]} variant? orientation? keepMounted?
+  defaultValue | value onValueChange … />`. Each item renders a `Tabs.Tab` in the list and a
+  `Tabs.Panel` with its `content`.
+- **A name is required.** The tab list needs one, so the props are a union of `aria-label` and
+  `aria-labelledby`, applied to `Tabs.List`. Neither is a compile error, the pattern `Popover` uses.
+- **`variant`:** `underline` (default) or `pills`.
+- **`orientation`:** `horizontal` (default) or `vertical`.
+- **What the indicator looks like:**
+  - `underline` + `horizontal`: a bar along the active tab's block-end edge.
+  - `underline` + `vertical`: a bar along its inline-end edge.
+  - `pills`: a filled background behind the active tab, in either orientation.
+- **How the indicator moves.** It is one `Tabs.Indicator`. Its position and size **transition** on the
+  `--active-tab-*` variables, timed by a duration token (§4.1.5), and nothing is keyframed.
+- **Manual activation and wrapping focus** are Base UI's defaults, kept.
+- **Inactive panels unmount.** `keepMounted` passes through.
+- **No pre-hydration script** (§4.5). The indicator appears at hydration, and its first appearance is a
+  transition from no width, never a jump. The plan pins this.
+- **Parts:** `Tabs.Root`, `List`, `Tab`, `Panel`, `Indicator`. `Tabs.Tab` uses the `nativeButton`
+  derivation (§4.1.1), and is tested with our own `Button` as its `render` (5d retrospective).
+
+**Accordion.**
+
+- **Convenience:** `<Accordion items={[{ value, title, content, disabled? }]} multiple? headingLevel?
+  defaultValue | value onValueChange … />`.
+- **`headingLevel`:** `2 | 3 | 4 | 5 | 6`, default `3`. The convenience component passes the matching
+  heading element as each `Accordion.Header`'s `render`. The parts still accept `render`, so a hand
+  assembly controls the level directly.
+- **Closed panels are hidden until found.** The convenience component passes `hiddenUntilFound`. Closed
+  content is in server HTML (under `hidden`), and after hydration browser find-in-page opens the matching
+  section. This supersedes §4.5's "unmounted when closed". It costs a heavier DOM, which is accepted for
+  searchable content.
+- **Trigger:** a native button whose title text is followed by a decorative chevron (`aria-hidden`) that
+  rotates while open. The trigger uses the `nativeButton` derivation, tested with our own `Button`.
+- **Height motion:** `collapse`/`expand` from `@ap/motion` on the panel's closing and opening states, through
+  `--panel-height: var(--accordion-panel-height)` (§4.1.5). The component has no reduced-motion query.
+- **Single-open by default.** `multiple` passes through.
+- **Parts:** `Accordion.Root`, `Item`, `Header`, `Trigger`, `Panel`.
+
+**Shared.**
+
+- Token roles follow §4.1.10 where a part is a control (tab, trigger).
+- Hover is guarded against disabled **and** against the selected or open state. That is the 5c follow-up's
+  rule: `:hover:not(…)` outranks a state rule on specificity.
+- Every string is consumer content, so no new message key.
+- Every assertion names the perturbation that makes it fail, `play` functions included.
+
+#### 4.5.2 Verified during the plan
+
+Paths are relative to `node_modules/@base-ui/react/`, Base UI 1.7.0. Where the cause is not a
+source line, the entry says "observed" and names the test that pins it. §4.5.1 is left as
+written; this section records what contradicts it, and the Review Focus results.
+
+**Contradicts §4.5.1.**
+
+- **`Tabs.List` has no `orientation` prop.** §4.5.1 and the plan's facts row had the list
+  taking it. `TabsList` reads orientation from the Root's context (`tabs/list/TabsList.js:33-37`)
+  and sets `aria-orientation` at `:83`. Ours passes `orientation` to the Root only; `TabsList`
+  uses our private context just to pick its recipe class. Pinned by the vertical test in
+  `TabsParts.test.tsx` (a regression guard).
+- **The indicator's first paint is not a transition from no width** (§4.5, §4.5.1). The
+  indicator renders `hidden` until the selected tab measures wider and taller than zero
+  (`tabs/indicator/TabsIndicator.js:111`, `:124`) and renders nothing with no value (`:130`),
+  so it appears directly at the tab, with no `@starting-style`. Later changes transition.
+  Pinned by the `Indicator` story.
+- **The right-to-left indicator uses `--active-tab-left`, not `--active-tab-right`.** Base UI
+  measures `left` in scroll-origin coordinates including `scrollLeft` (`TabsIndicator.js:81`)
+  and `right` as `scrollWidth - left - width` (`:89`), so `--active-tab-right` is wrong
+  whenever the list overflows. Under `:dir(rtl)`, `Tabs.css.ts` sets `insetInlineStart: auto`
+  and `insetInlineEnd: var(--active-tab-left)`. Observed: the `--active-tab-right` form was
+  725px off on an overflowing RTL list. Pinned by the `RightToLeft` story's geometry assertion.
+- **Disabled tabs stay focusable, and arrow keys do not skip them** (contradicts Review Focus
+  2 below). `TabsTab` passes `focusableWhenDisabled: true` (`tabs/tab/TabsTab.js:118`) and
+  `TabsList` passes no disabled indices (`TabsList.js:108`). A disabled tab gets
+  `aria-disabled="true"` and cannot be selected by Enter or click. Pinned by the
+  `DisabledTab` story.
+- **`Tabs` `onValueChange` can receive `null`.** An uncontrolled root's automatic fallback
+  notifies `firstEnabledTabValue ?? null` (`tabs/root/TabsRoot.js:220`, notified at `:194`).
+  Ours types `value` as `Value | null`. Pinned by the null-fallback test in `Tabs.test.tsx`.
+- **Accordion `value` is `Value[]`.** Base UI's value is an array of item values with no null
+  fallback (`accordion/root/AccordionRoot.js:56-61`), so `Accordion` narrows `value`,
+  `defaultValue` and `onValueChange` to `Value[]`.
+- **The data type is `AccordionSection`** (the part stays `AccordionItem`), following the 5c
+  `SelectOption` precedent.
+
+**Panel states.** Expand runs on `[data-open]`. Collapse must be keyed on `[data-closed]`,
+not `[data-ending-style]`: the root defers the ending state (`collapsible/root/useCollapsibleRoot.js:33`
+passes `deferEndingState`, applied at `internals/useTransitionStatus.js:31-35`), and on the
+close-request commit the panel sees no animation (`collapsible/panel/useCollapsiblePanel.js:134`)
+and unmounts immediately (`:187-189`). `data-closed` comes from `utils/collapsibleOpenStateMapping.js:12-14`,
+`:25-31`; the trigger's open attribute is `data-panel-open` (`:15-23`). Pinned by the `Motion`
+story; swapping the selector to `[data-ending-style]` fails it.
+
+The panel keeps an always-on `overflow: hidden`, because `data-starting-style` lasts one frame
+(`internals/useTransitionStatus.js:61-63`). Padding therefore lives on an owned inner `div`,
+whose `paddingBlockStart` is the focus ring's offset plus width, so a first focusable child's
+ring is not clipped. Pinned by the `HiddenFocus` story.
+
+**`hidden="until-found"` is client-only (confirms §4.5.1, adds detail).** Server HTML has the
+boolean `hidden=""`; a layout effect sets `until-found` (`useCollapsiblePanel.js:270-280`) and
+`beforematch` opens the panel (`:281-290`). jsdom keeps the `until-found` value. A panel closed
+on mount runs its collapse from 0 to 0 under `content-visibility: hidden`, so nothing is
+visible. Pinned by `Accordion.ssr.test.tsx`, `Accordion.test.tsx`, the `FindInPage` story and
+`disclosure.spec.ts`.
+
+**Server HTML renders every tab with `tabindex="-1"`.** A composite item's `tabIndex` is 0 only
+when `highlightedIndex === index` (`internals/composite/item/useCompositeItem.js:23`, `:27`),
+and the index comes from a DOM registry that is not populated in server markup
+(`internals/composite/list/useCompositeListItem.js:42`). Observed: the keyboard spec in
+`disclosure.spec.ts` waits for hydration. The consequence is that a keyboard user cannot enter
+the tab list before hydration.
+
+**Disabled Accordion trigger.** It stays focusable (`accordion/trigger/AccordionTrigger.js:45`,
+`focusableWhenDisabled: true`; the `useButton` call is at `:43-47`), exposes `data-disabled`
+and `aria-disabled`, and cannot be opened by click. Pinned by the `DisabledItem` story.
+
+**Heading level.** `Accordion.Header` renders `<h3>` (`accordion/header/AccordionHeader.js:29`),
+which is why `headingLevel` exists.
+
+**Review Focus results.**
+
+1. **`Tabs` with neither `value` nor `defaultValue`.** Confirmed. Base UI's Root defaults to
+   `0`, which matches no string value, and the uncontrolled fallback runs in a client layout
+   effect, so server HTML would have no selected tab. `Tabs` computes the first enabled item
+   itself. Pinned by `Tabs.ssr.test.tsx` and `disclosure.spec.ts`.
+2. **Disabled tabs during keyboard navigation.** Contradicted: arrow keys do not skip a
+   disabled tab (see above). The tab is unselectable by click and Enter.
+3. **A focusable control inside a closed Accordion panel.** Confirmed: Tab skips it, and
+   reaches it once the section is open. Proven with a native Playwright Tab in
+   `disclosure.spec.ts`. Storybook's user-event Tab cannot prove it (it picks by selector), so
+   `HiddenFocus` uses a `tabFrom` helper.
+4. **Right-to-left pages.** Confirmed with the correction above: the underline sits under the
+   active tab in `dir="rtl"`, using `--active-tab-left` under `:dir(rtl)`. Pinned by
+   `RightToLeft`.
+5. **More tabs than fit.** Confirmed: a horizontal list scrolls inside its own box, and the
+   indicator follows the active tab, because `left` includes `scrollLeft`
+   (`TabsIndicator.js:81`). Pinned by the overflow story.
+
+**Known issue, observed and not a Base UI fact.** The Inter fallback font's metrics make tabs
+about 3px narrower before the web font loads, so on a cold first paint the indicator follows
+the tabs by about 3px once it loads.
+
 ### 4.6 Plan 5f — `Toast` and `NotificationProvider`
 
 `Toast` is built first, then the provider over it. ADR-0012's provider owns one queue and
