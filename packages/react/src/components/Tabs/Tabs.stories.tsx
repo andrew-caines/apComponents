@@ -233,6 +233,20 @@ export const Vertical: Story = {
       // The inline end, inside the list's 1 px border.
       expect(Math.abs(i.right - l.right)).toBeLessThanOrEqual(2)
     })
+
+    // The panel fills the rest of the root's row, so its width does not
+    // follow its content. Perturbation: dropping the panel's vertical
+    // `flexGrow: 1` rule in `Tabs.css.ts` shrinks it to its text, short of
+    // the root's inline end, and the two tabs' panels differ in width.
+    const root = list.parentElement!
+    const panelBox = () => canvas.getByRole('tabpanel').getBoundingClientRect()
+    const settingsPanel = panelBox()
+    await expect(
+      Math.abs(settingsPanel.right - root.getBoundingClientRect().right),
+    ).toBeLessThanOrEqual(1)
+    await userEvent.click(canvas.getByRole('tab', { name: 'Billing' }))
+    await waitFor(() => expect(canvas.getByRole('tabpanel')).toHaveTextContent('Billing panel'))
+    await expect(Math.abs(panelBox().width - settingsPanel.width)).toBeLessThanOrEqual(1)
   },
 }
 

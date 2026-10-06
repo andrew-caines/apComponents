@@ -276,12 +276,19 @@ export const tabsIndicatorRecipe = recipe({
  * A panel. Base UI makes it focusable (`tabIndex` 0 while open,
  * `tabs/panel/TabsPanel.js:75`), so it carries the same focus ring as
  * `Input.css.ts`'s field.
+ *
+ * Beside a vertical list the panel is a flex item of the root, so it would
+ * shrink to its content and change width from tab to tab. It takes the rest
+ * of the row instead; `minInlineSize: 0` lets long content wrap rather than
+ * push past the root. Base UI writes the root's orientation onto the panel
+ * as `data-orientation` (`tabs/panel/TabsPanel.js:62`).
  */
 export const tabsPanelClass = style({
   '@layer': {
     [componentsLayer]: {
       boxSizing: 'border-box',
       selectors: {
+        '&[data-orientation="vertical"]': { flexGrow: 1, minInlineSize: 0 },
         '&:focus-visible': {
           outlineWidth: vars.misc.focusRingWidth,
           outlineStyle: 'solid',
