@@ -102,6 +102,16 @@ export type {
   TabsIndicatorProps,
   TabsPanelProps,
 } from './components/Tabs/index.js'
+export { Accordion, ACCORDION_TOKENS } from './components/Accordion/index.js'
+export type {
+  AccordionProps,
+  AccordionSection,
+  AccordionRootProps,
+  AccordionItemProps,
+  AccordionHeaderProps,
+  AccordionTriggerProps,
+  AccordionPanelProps,
+} from './components/Accordion/index.js'
 export { useHydrated, useIsomorphicLayoutEffect } from './hooks/index.js'
 export {
   ThemeProvider,
