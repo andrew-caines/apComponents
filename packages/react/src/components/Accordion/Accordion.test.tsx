@@ -76,6 +76,26 @@ describe('Accordion (convenience)', () => {
     expect(onValueChange.mock.calls[0]![0]).toEqual(['a'])
   })
 
+  // Fails if `value` is not forwarded (the spread deleted): the root is then
+  // uncontrolled and the click opens Beta. Also fails if the callback is not
+  // forwarded or fires more than once.
+  it('holds a controlled value until the parent changes it', async () => {
+    const onValueChange = vi.fn()
+    const { rerender } = render(
+      <Accordion items={items} value={['a']} onValueChange={onValueChange} />,
+    )
+    const beta = () => screen.getByRole('button', { name: 'Beta' })
+    fireEvent.click(beta())
+    expect(beta().getAttribute('aria-expanded')).toBe('false')
+    expect(onValueChange).toHaveBeenCalledTimes(1)
+    expect(onValueChange.mock.calls[0]![0]).toEqual(['b'])
+    rerender(<Accordion items={items} value={['b']} onValueChange={onValueChange} />)
+    await waitFor(() => expect(beta().getAttribute('aria-expanded')).toBe('true'))
+    expect(screen.getByRole('button', { name: 'Alpha' }).getAttribute('aria-expanded')).toBe(
+      'false',
+    )
+  })
+
   // Fails if `defaultValue` is not forwarded.
   it('honours defaultValue', () => {
     render(<Accordion items={items} defaultValue={['b']} />)

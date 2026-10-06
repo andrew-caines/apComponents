@@ -181,6 +181,24 @@ describe('Tabs (convenience)', () => {
     }
   })
 
+  // Fails if `value` is not forwarded (the spread deleted): the root is then
+  // uncontrolled and the click moves the selection. Also fails if the
+  // callback is not forwarded or fires more than once.
+  it('holds a controlled value until the parent changes it', async () => {
+    const onValueChange = vi.fn()
+    const { rerender } = render(
+      <Tabs aria-label="x" items={items} value="a" onValueChange={onValueChange} />,
+    )
+    fireEvent.click(screen.getByRole('tab', { name: 'Beta' }))
+    expect(screen.getByRole('tab', { name: 'Alpha' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tabpanel').textContent).toBe('Alpha content')
+    expect(onValueChange).toHaveBeenCalledTimes(1)
+    expect(onValueChange.mock.calls[0]![0]).toBe('b')
+    rerender(<Tabs aria-label="x" items={items} value="b" onValueChange={onValueChange} />)
+    await waitFor(() => expect(screen.getByRole('tabpanel').textContent).toBe('Beta content'))
+    expect(screen.getByRole('tab', { name: 'Beta' }).getAttribute('aria-selected')).toBe('true')
+  })
+
   // Fails if `disabled` is not passed to the tab.
   it('marks a disabled item as a disabled tab', () => {
     render(<Tabs aria-label="x" items={[{ ...items[0]!, disabled: true }, items[1]!]} />)
