@@ -6,8 +6,10 @@ import { ToastList } from '../components/Toast/ToastList.js'
 import { ToastViewport, type ToastPlacement } from '../components/Toast/ToastParts.js'
 import { useIsomorphicLayoutEffect } from '../hooks/index.js'
 import { subscribe } from './channel.js'
+import { DialogHost, useDialogQueue } from './DialogHost.js'
 import { LiveRegions, useAnnouncer, type Announcer } from './LiveRegions.js'
 import { toBaseToast } from './severity.js'
+import type { DialogRequest } from './types.js'
 
 export interface NotificationProviderProps {
   /** Where toasts dock. Defaults to `bottom-end`. */
@@ -24,7 +26,13 @@ const NotificationContext = createContext(false)
  * raised from a page's own mount `useEffect` is not dropped (Base UI's own
  * provider subscribes in a passive effect that runs after its children's).
  */
-function Relay({ announce }: { announce: Announcer['announce'] }) {
+function Relay({
+  announce,
+  enqueue,
+}: {
+  announce: Announcer['announce']
+  enqueue: (request: DialogRequest) => void
+}) {
   const { add, close, promise } = BaseToast.useToastManager()
 
   useIsomorphicLayoutEffect(
@@ -43,14 +51,16 @@ function Relay({ announce }: { announce: Announcer['announce'] }) {
           case 'announce':
             announce(event.message, event.politeness)
             break
-          // Tasks 4 and 5 wire these in: the dialog host and the banner context.
           case 'dialog':
+            enqueue(event.request)
+            break
+          // Task 5 wires these in: the banner context.
           case 'banner':
           case 'banner-close':
             break
         }
       }),
-    [add, close, promise, announce],
+    [add, close, promise, announce, enqueue],
   )
 
   return null
@@ -66,6 +76,7 @@ export function NotificationProvider({ placement = 'bottom-end', children }: Not
   const nested = useContext(NotificationContext)
   const warned = useRef(false)
   const { polite, assertive, announce } = useAnnouncer()
+  const { head, enqueue, shift } = useDialogQueue()
 
   useEffect(() => {
     if (!nested || warned.current) return
@@ -83,13 +94,14 @@ export function NotificationProvider({ placement = 'bottom-end', children }: Not
   return (
     <NotificationContext.Provider value>
       <BaseToast.Provider>
-        <Relay announce={announce} />
+        <Relay announce={announce} enqueue={enqueue} />
         {children}
         <BaseToast.Portal>
           <ToastViewport placement={placement}>
             <ToastList placement={placement} />
           </ToastViewport>
         </BaseToast.Portal>
+        <DialogHost request={head} onClosed={shift} />
         <LiveRegions polite={polite} assertive={assertive} />
       </BaseToast.Provider>
     </NotificationContext.Provider>
