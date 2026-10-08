@@ -35,9 +35,17 @@ import type {
 import { useLocale } from '../providers/LocaleProvider.js'
 
 /** `formatX` bound to the provider: the locale (and zone, currency) is already filled in. */
+type Loose<O> = { [K in keyof O]?: O[K] | undefined }
 type Bound<F> = F extends (value: infer V, options: infer O) => string
-  ? (value: V, options?: Partial<O>) => string
+  ? (value: V, options?: Loose<O>) => string
   : never
+
+// Drops keys whose value is undefined, so an explicit `{ timeZone: undefined }`
+// falls back to the bound default instead of overwriting it.
+type Defined<O> = { [K in keyof O]: Exclude<O[K], undefined> }
+function defined<O extends object>(options: O | undefined): Defined<O> {
+  return Object.fromEntries(Object.entries(options ?? {}).filter(([, value]) => value !== undefined)) as Defined<O>
+}
 
 export interface Formatter {
   locale: string
@@ -46,21 +54,21 @@ export interface Formatter {
   formatDate: Bound<typeof formatDate>
   formatTime: Bound<typeof formatTime>
   formatDateTime: Bound<typeof formatDateTime>
-  formatDateRange: (start: DateInput, end: DateInput, options?: Partial<DateFormatOptions>) => string
-  formatRelative: (value: DateInput, options: Omit<RelativeOptions, 'locale'> & { locale?: string }) => string
+  formatDateRange: (start: DateInput, end: DateInput, options?: Loose<DateFormatOptions>) => string
+  formatRelative: (value: DateInput, options: Omit<RelativeOptions, 'locale'> & { locale?: string | undefined }) => string
   formatDuration: Bound<typeof formatDuration>
   formatNumber: Bound<typeof formatNumber>
-  formatCurrency: (value: number, options?: Partial<NumberFormatOptions> & { currency?: string }) => string
+  formatCurrency: (value: number, options?: Loose<NumberFormatOptions> & { currency?: string | undefined }) => string
   formatPercent: Bound<typeof formatPercent>
-  formatPercentChange: (previous: number, current: number, options?: Partial<NumberFormatOptions>) => string
+  formatPercentChange: (previous: number, current: number, options?: Loose<NumberFormatOptions>) => string
   formatCompact: Bound<typeof formatCompact>
   formatOrdinal: Bound<typeof formatOrdinal>
   formatBytes: Bound<typeof formatBytes>
   formatName: Bound<typeof formatName>
   formatList: Bound<typeof formatList>
   formatAddress: Bound<typeof formatAddress>
-  pluralize: (count: number, forms: PluralForms, options?: { type?: Intl.PluralRuleType }) => string
-  truncate: (text: string, options: { length: number; ellipsis?: string }) => string
+  pluralize: (count: number, forms: PluralForms, options?: { type?: Intl.PluralRuleType | undefined }) => string
+  truncate: (text: string, options: { length: number; ellipsis?: string | undefined }) => string
   collator: (options?: Intl.CollatorOptions) => (a: string, b: string) => number
   /** For `<time dateTime={isoFor(value)}>`; '' for an invalid input. */
   isoFor: (value: DateInput) => string
@@ -99,24 +107,24 @@ export function useFormatter(): Formatter {
     return {
       locale,
       timeZone,
-      formatDate: (v, o) => formatDate(v, { ...Z, ...o }),
-      formatTime: (v, o) => formatTime(v, { ...Z, ...o }),
-      formatDateTime: (v, o) => formatDateTime(v, { ...Z, ...o }),
-      formatDateRange: (a, b, o) => formatDateRange(a, b, { ...Z, ...o }),
-      formatRelative: (v, o) => formatRelative(v, { ...L, ...o }),
-      formatDuration: (v, o) => formatDuration(v, { ...L, ...o } as DurationOptions),
-      formatNumber: (v, o) => formatNumber(v, { ...L, ...o }),
-      formatCurrency: (v, o) => formatCurrency(v, { ...L, currency, ...o }),
-      formatPercent: (v, o) => formatPercent(v, { ...L, ...o }),
-      formatPercentChange: (p, c, o) => formatPercentChange(p, c, { ...L, ...o }),
-      formatCompact: (v, o) => formatCompact(v, { ...L, ...o }),
-      formatOrdinal: (v, o) => formatOrdinal(v, { ...L, ...o }),
-      formatBytes: (v, o) => formatBytes(v, { ...L, ...o }),
-      formatName: (v, o) => formatName(v as PersonName | null | undefined, { ...L, ...o }),
-      formatList: (v, o) => formatList(v, { ...L, ...o }),
-      formatAddress: (v, o) => formatAddress(v as PostalAddress | null | undefined, { ...L, ...o }),
-      pluralize: (n, forms, o) => pluralize(n, forms, { ...L, ...o }),
-      truncate: (t, o) => truncate(t, { ...L, ...o }),
+      formatDate: (v, o) => formatDate(v, { ...Z, ...defined(o) }),
+      formatTime: (v, o) => formatTime(v, { ...Z, ...defined(o) }),
+      formatDateTime: (v, o) => formatDateTime(v, { ...Z, ...defined(o) }),
+      formatDateRange: (a, b, o) => formatDateRange(a, b, { ...Z, ...defined(o) }),
+      formatRelative: (v, o) => formatRelative(v, { ...L, ...defined(o) }),
+      formatDuration: (v, o) => formatDuration(v, { ...L, ...defined(o) } as DurationOptions),
+      formatNumber: (v, o) => formatNumber(v, { ...L, ...defined(o) }),
+      formatCurrency: (v, o) => formatCurrency(v, { ...L, currency, ...defined(o) }),
+      formatPercent: (v, o) => formatPercent(v, { ...L, ...defined(o) }),
+      formatPercentChange: (p, c, o) => formatPercentChange(p, c, { ...L, ...defined(o) }),
+      formatCompact: (v, o) => formatCompact(v, { ...L, ...defined(o) }),
+      formatOrdinal: (v, o) => formatOrdinal(v, { ...L, ...defined(o) }),
+      formatBytes: (v, o) => formatBytes(v, { ...L, ...defined(o) }),
+      formatName: (v, o) => formatName(v as PersonName | null | undefined, { ...L, ...defined(o) }),
+      formatList: (v, o) => formatList(v, { ...L, ...defined(o) }),
+      formatAddress: (v, o) => formatAddress(v as PostalAddress | null | undefined, { ...L, ...defined(o) }),
+      pluralize: (n, forms, o) => pluralize(n, forms, { ...L, ...defined(o) }),
+      truncate: (t, o) => truncate(t, { ...L, ...defined(o) }),
       collator: (o) => collator(locale, o),
       isoFor: (v) => {
         const ms = v instanceof Date ? v.getTime() : new Date(v).getTime()

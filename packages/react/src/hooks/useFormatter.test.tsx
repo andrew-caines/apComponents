@@ -54,6 +54,13 @@ describe('useFormatter inside a provider', () => {
     expect(f().formatCurrency(5, { currency: 'USD' })).toBe('5,00\u00a0$')
   })
 
+  it('an explicit undefined option keeps the bound default', () => {
+    render(wrap(<Capture />))
+    expect(f().formatDate(V, { timeZone: undefined })).toBe('06.03.2026')
+    expect(f().formatCurrency(5, { currency: undefined })).toBe('5,00\u00a0\u20ac')
+    expect(f().formatDate(V, { locale: undefined })).toBe('06.03.2026')
+  })
+
   it('formatRelative takes the provider locale by default', () => {
     render(wrap(<Capture />))
     expect(f().formatRelative(V - 3 * 3600_000, { now: V })).toBe('vor 3 Stunden')
