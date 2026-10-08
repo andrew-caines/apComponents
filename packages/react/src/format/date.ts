@@ -39,6 +39,13 @@ function resolve(
   return [locale, callerPicked ? rest : { ...defaults, ...rest }]
 }
 
+/**
+ * Formats the date part.
+ *
+ * A date-only ISO string such as '1990-05-12' is UTC midnight (ECMAScript), so
+ * in a zone west of UTC it shows the previous day. To render a calendar date
+ * (a birthday, a hire date), pass `timeZone: 'UTC'`.
+ */
 export function formatDate(value: DateInput | null | undefined, options: DateFormatOptions): string {
   const ts = toTimestamp(value)
   return guard('formatDate', value, ts === undefined, () => {
@@ -55,6 +62,13 @@ export function formatTime(value: DateInput | null | undefined, options: DateFor
   })
 }
 
+/**
+ * Formats the date and time.
+ *
+ * A date-only ISO string such as '1990-05-12' is UTC midnight (ECMAScript), so
+ * in a zone west of UTC it shows the previous day. To render a calendar date
+ * (a birthday, a hire date), pass `timeZone: 'UTC'`.
+ */
 export function formatDateTime(value: DateInput | null | undefined, options: DateFormatOptions): string {
   const ts = toTimestamp(value)
   return guard('formatDateTime', value, ts === undefined, () => {
@@ -63,6 +77,13 @@ export function formatDateTime(value: DateInput | null | undefined, options: Dat
   })
 }
 
+/**
+ * Formats a start and end as a range.
+ *
+ * A date-only ISO string such as '1990-05-12' is UTC midnight (ECMAScript), so
+ * in a zone west of UTC it shows the previous day. To render a calendar date
+ * (a birthday, a hire date), pass `timeZone: 'UTC'`.
+ */
 export function formatDateRange(
   start: DateInput | null | undefined,
   end: DateInput | null | undefined,

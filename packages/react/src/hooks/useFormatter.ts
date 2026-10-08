@@ -51,6 +51,11 @@ export interface Formatter {
   locale: string
   /** The zone dates render in right now: the provider's, else UTC until hydrated, then the browser's. */
   timeZone: string
+  /**
+   * A date-only ISO string such as '1990-05-12' is UTC midnight (ECMAScript), so
+   * in a zone west of UTC it shows the previous day. To render a calendar date
+   * (a birthday, a hire date), pass `timeZone: 'UTC'`.
+   */
   formatDate: Bound<typeof formatDate>
   formatTime: Bound<typeof formatTime>
   formatDateTime: Bound<typeof formatDateTime>

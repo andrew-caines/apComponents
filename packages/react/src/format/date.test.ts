@@ -188,3 +188,13 @@ describe('formatDuration', () => {
     })
   })
 })
+
+describe('date-only strings', () => {
+  // A date-only ISO string is UTC midnight, so zones west of UTC show the previous day.
+  it('shows the previous day west of UTC', () => {
+    expect(formatDate('1990-05-12', { locale: 'en-US', timeZone: 'America/New_York' })).toBe('May 11, 1990')
+  })
+  it('shows the same day with timeZone UTC', () => {
+    expect(formatDate('1990-05-12', { locale: 'en-US', timeZone: 'UTC' })).toBe('May 12, 1990')
+  })
+})
