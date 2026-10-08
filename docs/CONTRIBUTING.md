@@ -1165,7 +1165,7 @@ left-to-right page slides, because only there is the toast docked to the edge it
 `exit.fade` in `Toast.css.ts`, and `swipeDirectionsFor` in `ToastParts.tsx` sets the swipe
 directions per placement. A hand assembly that applies `toast.slide-in` unconditionally flies
 a `*-start` or right-to-left toast in from the opposite edge. Pinned by the `RightToLeft` and
-`Motion` stories.
+`Motion` stories in `Toast.stories.tsx`.
 
 Two smaller ones for tests. `ToastClose` is `aria-hidden` until the stack is expanded or
 focused (`toast/close/ToastClose.js:49`), and an unfocused high-priority Root is

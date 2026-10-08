@@ -945,6 +945,14 @@ they are linked, not repeated.
   which is a real-browser regression pin. The deviation from `createToastManager` still
   stands, because Base UI's provider is an ancestor and subscribes after its children's
   passive effects.
+- **A toast action closes its toast after `onClick`; the fallback toast is persistent.** Base UI's
+  `ToastAction` merges `toast.actionProps` into the button and never closes the toast
+  (`toast/action/ToastAction.js:46-48`), so `Relay` wraps `onClick` to call the caller's handler,
+  then `close(id)`. A banner that falls back to a toast gets the same wrap and `timeout: 0`,
+  because banners never auto-dismiss. Two development warnings catch duplicate mounts: a second
+  live channel subscriber (two NotificationProviders in sibling trees deliver every notification
+  twice, `notifications/channel.ts`) and a second `BannerRegion` (every banner renders and is
+  announced in each, `notifications/banners.ts`). StrictMode's replay triggers neither.
 - **Banner icons are shared with toasts.** `notifications/severity.ts` exports `SEVERITY_ICON`,
   which `ToastList.tsx` and `BannerRegion.tsx` both read, so the two surfaces cannot drift.
 - **A `banner()` raised before `BannerRegion` registers falls back to a toast.** The region
