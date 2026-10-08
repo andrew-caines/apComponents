@@ -86,6 +86,13 @@ describe('gate: libphonenumber-js stays behind ./format/phone', () => {
     expect(touchesPhoneLib(hooks.bare)).toEqual([])
   })
 
+  it('hooks/index.ts reaches notifications/api.ts and context.ts but never NotificationProvider.tsx (which pulls Toast CSS; fails if useAnnounce imports it)', () => {
+    const reached = names(reach(join(SRC, 'hooks/index.ts')).files)
+    expect(reached).toContain('notifications/api.ts')
+    expect(reached).toContain('notifications/context.ts')
+    expect(reached).not.toContain('notifications/NotificationProvider.tsx')
+  })
+
   it('format/phone.ts is the only non-test source file importing libphonenumber-js', () => {
     const importers = sourceFiles(SRC, { extensions: ['.ts', '.tsx'] })
       .filter((f) => specifiersOf(f).some((s) => s.startsWith(PHONE_LIB)))

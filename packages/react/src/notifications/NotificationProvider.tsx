@@ -1,12 +1,13 @@
 'use client'
 
-import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react'
+import { useContext, useEffect, useRef, type ReactNode } from 'react'
 import { Toast as BaseToast } from '@base-ui/react/toast'
 import { ToastList } from '../components/Toast/ToastList.js'
 import { ToastViewport, type ToastPlacement } from '../components/Toast/ToastParts.js'
 import { useIsomorphicLayoutEffect } from '../hooks/index.js'
 import { BannerContext, useBannerState, type BannerEntry } from './banners.js'
 import { subscribe } from './channel.js'
+import { NotificationContext } from './context.js'
 import { DialogHost, useDialogQueue } from './DialogHost.js'
 import { LiveRegions, useAnnouncer, type Announcer } from './LiveRegions.js'
 import { toBaseToast } from './severity.js'
@@ -17,9 +18,6 @@ export interface NotificationProviderProps {
   placement?: ToastPlacement
   children: ReactNode
 }
-
-/** Private. True inside a NotificationProvider, so a nested one can step aside. */
-const NotificationContext = createContext(false)
 
 /**
  * Base UI's ToastAction runs `actionProps.onClick` and never closes the toast
