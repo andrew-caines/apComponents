@@ -39,6 +39,9 @@ const PAIRINGS: Array<[string, string, number]> = [
   ['color-border-interactive', 'color-bg-surface', 3],
   ['color-focus-ring', 'color-bg-canvas', 3],
   ['color-focus-ring', 'color-bg-surface', 3],
+  // Toast focus ring on bg-raised; Banner close button text on its hover fill.
+  ['color-focus-ring', 'color-bg-raised', 3],
+  ['color-text-primary', 'color-action-bg-subtle', 4.5],
   ...(['danger', 'warning', 'success', 'info'] as const).flatMap(
     (name): Array<[string, string, number]> => [
       [`color-${name}-on-solid`, `color-${name}-bg`, 4.5],
@@ -46,6 +49,16 @@ const PAIRINGS: Array<[string, string, number]> = [
       [`color-${name}-text`, 'color-bg-canvas', 4.5],
       [`color-${name}-text`, `color-${name}-bg-subtle`, 4.5],
       [`color-${name}-border`, 'color-bg-canvas', 3],
+      // Banner: title and description, its outline action, and the close button's
+      // focus ring, all on the severity fill. Deliberately NOT asserted: the
+      // severity container borders and the toast accent stripe. They are
+      // non-essential boundaries (WCAG 1.4.11); severity is carried by the title
+      // text, the role and the icon, which are asserted. See ADR-0008.
+      ['color-text-primary', `color-${name}-bg-subtle`, 4.5],
+      ['color-action-text', `color-${name}-bg-subtle`, 4.5],
+      ['color-focus-ring', `color-${name}-bg-subtle`, 3],
+      // Toast: the decorative severity icon on bg-raised.
+      [`color-${name}-text`, 'color-bg-raised', 3],
     ],
   ),
 ]

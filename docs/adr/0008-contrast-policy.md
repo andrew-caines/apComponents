@@ -42,6 +42,10 @@ The gate runs over **both modes** and **every semantic pairing** in the Tier 2 c
 
 The test output is a table of every pairing with its computed ratio and pass/fail, written to `reports/contrast.md` on every CI run. **This is the compliance artifact** — it can be handed to an auditor directly.
 
+### What "every pairing the system uses" covers
+
+The gate asserts pairings that carry information or operate a control: text, icons, focus rings and control boundaries. It deliberately does not assert a decorative or redundant boundary, which WCAG 1.4.11 treats as non-essential. The border of a severity container (banner, toast) and the toast's accent stripe are of this kind: the severity is already carried by the title text, the role and the icon, all of which are asserted, and the border exists mainly so the container stays visible under forced colours. A boundary is asserted when it is the only thing that marks a control or its state, and is left out when other asserted signals carry the same meaning.
+
 ### Colour is never the only signal
 
 WCAG 1.4.1 requires that information is not conveyed by colour alone. This is enforced structurally rather than by review: every semantic state in the component API ships an icon or text alongside its colour, and there is no way to render an error state that is colour-only. See [ADR-0011](0011-component-api-conventions.md).
