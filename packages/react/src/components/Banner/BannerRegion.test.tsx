@@ -13,6 +13,7 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -158,6 +159,61 @@ describe('BannerRegion', () => {
     expect(toastEl.getAttribute('data-type')).toBe('warning')
     expect(screen.queryByRole('status')).toBeNull()
     expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the fallback toast past 6 s (fails if the fallback drops timeout: 0 and takes the 5 s default)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.useFakeTimers()
+    mount(false)
+    act(() => {
+      banner({ title: 'Stays', severity: 'info' })
+    })
+    expect(screen.getByRole('dialog', { name: 'Stays' })).toBeTruthy()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000)
+    })
+    expect(screen.queryByRole('dialog', { name: 'Stays', hidden: true })).not.toBeNull()
+  })
+
+  it('closes a fallback toast when its action is clicked (fails if the fallback path skips the closing wrap)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const onClick = vi.fn()
+    mount(false)
+    act(() => {
+      banner({ title: 'Act', action: { label: 'Go', onClick } })
+    })
+    const button = await screen.findByRole('button', { name: 'Go', hidden: true })
+    act(() => {
+      button.click()
+    })
+    expect(onClick).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog', { name: 'Act', hidden: true })).toBeNull()
+  })
+
+  it('warns once when a second region mounts, and not under StrictMode replay (fails if the count check is dropped or StrictMode double-counts)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    render(
+      <StrictMode>
+        <LocaleProvider>
+          <NotificationProvider>
+            <BannerRegion />
+          </NotificationProvider>
+        </LocaleProvider>
+      </StrictMode>,
+    )
+    expect(warn).not.toHaveBeenCalled()
+    cleanup()
+    render(
+      <LocaleProvider>
+        <NotificationProvider>
+          <BannerRegion />
+          <BannerRegion />
+          <BannerRegion />
+        </NotificationProvider>
+      </LocaleProvider>,
+    )
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0]![0])).toContain('BannerRegion')
   })
 
   it('closes the fallback toast through close() (fails if banner-close skips the toast)', async () => {

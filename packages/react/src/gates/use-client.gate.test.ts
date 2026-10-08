@@ -57,7 +57,7 @@ const TS_EXEMPTIONS: Array<{ path: string; why: string }> = [
   },
   {
     path: join(SRC, 'components', 'Banner', 'Banner.tokens.ts'),
-    why: 'a frozen object of Tier 3 token strings, built with tier3() — pure data like Toast.tokens.ts',
+    why: 'a frozen object of Tier 3 token strings, built with tier3() â€” pure data like Toast.tokens.ts',
   },
   {
     path: join(SRC, 'components', 'Spinner', 'Spinner.tokens.ts'),

@@ -2,6 +2,35 @@ import { describe, expect, it, vi } from 'vitest'
 import { emit, nextId, subscribe } from './channel.js'
 
 describe('channel', () => {
+  describe('duplicate subscriber warning', () => {
+    // The flag is module-level, so each case loads a fresh copy of the module.
+    async function fresh() {
+      vi.resetModules()
+      return import('./channel.js')
+    }
+
+    it('warns once when a second listener subscribes while the first is live (fails if the size check is dropped or it warns every time)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const { subscribe: sub } = await fresh()
+      const offs = [sub(vi.fn()), sub(vi.fn()), sub(vi.fn())]
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(String(warn.mock.calls[0]![0])).toContain('separate trees')
+      for (const off of offs) off()
+      warn.mockRestore()
+    })
+
+    it("stays silent for StrictMode's subscribe, unsubscribe, subscribe replay (fails if the warning keys on subscribe count, not live listeners)", async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const { subscribe: sub } = await fresh()
+      const first = sub(vi.fn())
+      first()
+      const second = sub(vi.fn())
+      expect(warn).not.toHaveBeenCalled()
+      second()
+      warn.mockRestore()
+    })
+  })
+
   it('emit with no listener returns false', () => {
     expect(emit({ kind: 'toast-close' })).toBe(false)
   })

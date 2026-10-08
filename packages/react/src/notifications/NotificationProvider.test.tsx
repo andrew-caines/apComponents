@@ -117,7 +117,7 @@ describe('NotificationProvider', () => {
     expect(alertdialogTitles()).toEqual(['Could not save'])
   })
 
-  it('updates in place when the id repeats', async () => {
+  it('updates in place when the id repeats (fails if a repeated id appends a second toast)', async () => {
     mount()
     act(() => {
       toast({ id: 'a', title: 'One' })
@@ -193,7 +193,7 @@ describe('NotificationProvider', () => {
       observer.disconnect()
     })
 
-    it('targets the assertive region', async () => {
+    it('targets the assertive region (fails if politeness is ignored and the polite region is written)', async () => {
       vi.useFakeTimers()
       mount()
       act(() => announce('Failed', { politeness: 'assertive' }))
@@ -204,7 +204,7 @@ describe('NotificationProvider', () => {
       expect(liveRegion('polite').textContent).toBe('')
     })
 
-    it('empties the region after 5000 ms', async () => {
+    it('empties the region after 5000 ms (fails if the clear timer is dropped or longer than 5 s)', async () => {
       vi.useFakeTimers()
       mount()
       act(() => announce('Saved'))
@@ -218,16 +218,50 @@ describe('NotificationProvider', () => {
       expect(liveRegion('polite').textContent).toBe('')
     })
 
-    it('cancels pending frames and timers on unmount, with no update-on-unmounted error', async () => {
+    it('cancels the pending animation frame it scheduled on unmount (fails if the unmount cleanup does not cancel the frame)', () => {
       vi.useFakeTimers()
-      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const frames: number[] = []
+      const realRaf = globalThis.requestAnimationFrame
+      vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
+        const id = realRaf(cb)
+        frames.push(id)
+        return id
+      })
+      const cancel = vi.spyOn(globalThis, 'cancelAnimationFrame')
       const view = mount()
       act(() => announce('Saved'))
-      const cancel = vi.spyOn(globalThis, 'cancelAnimationFrame')
+      expect(frames).toHaveLength(1)
       view.unmount()
-      expect(cancel).toHaveBeenCalled()
-      await vi.advanceTimersByTimeAsync(6000)
-      expect(error).not.toHaveBeenCalled()
+      expect(cancel).toHaveBeenCalledWith(frames[0])
+    })
+
+    it('clears the pending 5 s timer it scheduled on unmount (fails if the unmount cleanup does not clear the timer)', async () => {
+      vi.useFakeTimers()
+      const view = mount()
+      act(() => announce('Saved'))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50)
+      })
+      const clear = vi.spyOn(globalThis, 'clearTimeout')
+      const before = vi.getTimerCount()
+      expect(before).toBeGreaterThan(0)
+      view.unmount()
+      expect(clear).toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBeLessThan(before)
+    })
+
+    it('runs a toast action then closes that toast (fails if the action does not close its toast)', async () => {
+      const onClick = vi.fn()
+      mount()
+      act(() => {
+        toast({ title: 'Undo?', timeout: 0, action: { label: 'Undo', onClick } })
+      })
+      const button = await screen.findByRole('button', { name: 'Undo', hidden: true })
+      act(() => {
+        button.click()
+      })
+      expect(onClick).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('dialog', { name: 'Undo?', hidden: true })).toBeNull()
     })
   })
 })

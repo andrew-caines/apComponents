@@ -200,7 +200,7 @@ describe('ApProvider', () => {
     expect(region.className).not.toContain(toastViewportRecipe({ placement: 'bottom-end' }))
   })
 
-  it('docks toasts at bottom-end without the prop', async () => {
+  it('docks toasts at bottom-end without the prop (fails if the default placement changes or the prop is required)', async () => {
     render(
       <ApProvider>
         <span>x</span>
