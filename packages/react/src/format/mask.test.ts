@@ -82,6 +82,26 @@ describe('maskTaxId', () => {
   })
 })
 
+describe('masks with non-ASCII digits and letters', () => {
+  // Every maskable character except the last four becomes '*'; separators pass through.
+  it('masks a full-width phone number', () => {
+    expect(maskPhone('\uff10\uff19\uff10-\uff11\uff12\uff13\uff14-\uff15\uff16\uff17\uff18')).toBe('***-****-\uff15\uff16\uff17\uff18')
+  })
+  it('masks Arabic-Indic card digits', () => {
+    expect(
+      maskCardNumber('\u0664\u0661\u0661\u0661 \u0661\u0661\u0661\u0661 \u0661\u0661\u0661\u0661 \u0661\u0662\u0663\u0664'),
+    ).toBe('**** **** **** \u0661\u0662\u0663\u0664')
+  })
+  it('masks a full-width JP My Number', () => {
+    expect(maskTaxId('\uff11\uff12\uff13\uff14 \uff15\uff16\uff17\uff18 \uff19\uff10\uff11\uff12', 'JP')).toBe(
+      '**** **** \uff19\uff10\uff11\uff12',
+    )
+  })
+  it('masks accented letters in a tax ID', () => {
+    expect(maskTaxId('\u00c9\u00c9123456', 'FR')).toBe('****3456')
+  })
+})
+
 describe('determinism', () => {
   it('returns identical output across calls', () => {
     const calls = [

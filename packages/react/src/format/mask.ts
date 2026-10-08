@@ -18,9 +18,10 @@ function maskKeepingLast(value: string, keep: number, isMaskable: (char: string)
     .join('')
 }
 
-const isDigit = (char: string): boolean => char >= '0' && char <= '9'
-const isAlphanumeric = (char: string): boolean =>
-  isDigit(char) || (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z')
+// Unicode-aware: full-width and Arabic-Indic digits and accented letters are
+// as sensitive as their ASCII forms. maskKeepingLast iterates by code point.
+const isDigit = (char: string): boolean => /\p{Nd}/u.test(char)
+const isAlphanumeric = (char: string): boolean => /[\p{L}\p{N}]/u.test(char)
 
 /** Keeps the first character of the local part and the whole domain. The last '@' splits. */
 export function maskEmail(value: string | null | undefined): string {
