@@ -18,3 +18,7 @@ export {
   formatPercentChange,
 } from './number.js'
 export type { NumberFormatOptions } from './number.js'
+export { formatAddress } from './address.js'
+export type { PostalAddress } from './address.js'
+export { collator, formatList, formatName, pluralize, truncate } from './text.js'
+export type { PersonName, PluralForms } from './text.js'
