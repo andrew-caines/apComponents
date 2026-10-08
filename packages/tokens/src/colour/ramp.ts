@@ -165,7 +165,13 @@ function solveOnSolid(seed: Oklch, backgrounds: string[]): string {
   return passing.reduce((a, b) => (worst(a) >= worst(b) ? a : b))
 }
 
-export function generateRamp(seed: Oklch, mode: Mode): Ramp {
+/**
+ * `ringBackgrounds` are extra fills the step-8 focus ring must also clear 3:1
+ * on. The theme passes the status ramps' subtle fills (step 3) to the brand
+ * ramp, because a focus ring sits on those fills in banners and toasts, and
+ * they belong to other ramps so the ramp itself cannot see them.
+ */
+export function generateRamp(seed: Oklch, mode: Mode, ringBackgrounds: string[] = []): Ramp {
   const anchored = clampToSrgb(seed)
   const steps: RampStep[] = []
 
@@ -221,7 +227,7 @@ export function generateRamp(seed: Oklch, mode: Mode): Ramp {
     c: round6(seed.c * C_CURVE[7]!),
     h: seed.h,
   }
-  const solved8 = solveTextLightness(base8, borderBgs, mode, 3, 45)
+  const solved8 = solveTextLightness(base8, [...borderBgs, ...ringBackgrounds], mode, 3, 45)
   steps[6] = toBgStep(solved7)
   steps[7] = toBgStep(solved8)
 

@@ -40,14 +40,23 @@ export function generateTheme(seed: ThemeSeed): Theme {
   const brand = hexToOklch(brandHex)
   const seeds = { brand, ...deriveSeeds(brand) }
 
-  const modeRamps = (mode: Mode): Record<RampName, Ramp> => ({
-    brand: generateRamp(seeds.brand, mode),
-    neutral: generateRamp(seeds.neutral, mode),
-    danger: generateRamp(seeds.danger, mode),
-    warning: generateRamp(seeds.warning, mode),
-    success: generateRamp(seeds.success, mode),
-    info: generateRamp(seeds.info, mode),
-  })
+  const modeRamps = (mode: Mode): Record<RampName, Ramp> => {
+    const danger = generateRamp(seeds.danger, mode)
+    const warning = generateRamp(seeds.warning, mode)
+    const success = generateRamp(seeds.success, mode)
+    const info = generateRamp(seeds.info, mode)
+    // The brand focus ring also sits on each status ramp's subtle fill (step 3),
+    // so the brand ramp is solved against those too.
+    const subtleFills = [danger, warning, success, info].map((r) => r.steps[2]!.hex)
+    return {
+      brand: generateRamp(seeds.brand, mode, subtleFills),
+      neutral: generateRamp(seeds.neutral, mode),
+      danger,
+      warning,
+      success,
+      info,
+    }
+  }
 
   return {
     seed: { brand: brandHex },
