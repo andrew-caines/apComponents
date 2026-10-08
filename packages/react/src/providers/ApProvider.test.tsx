@@ -7,6 +7,7 @@ import { useLocale, useMessages } from './LocaleProvider.js'
 import { DEFAULT_SCHEME_STORAGE_KEY, useColorScheme } from './ThemeProvider.js'
 import { Icon } from '../icons/index.js'
 import { Tooltip } from '../components/Tooltip/Tooltip.js'
+import { toastViewportRecipe } from '../components/Toast/Toast.css.js'
 
 function Probe() {
   const [scheme] = useColorScheme()
@@ -186,5 +187,26 @@ describe('ApProvider', () => {
     render(<TwoTooltips />)
     await hoverFirstThenSecond()
     expect(screen.queryByText('Second tip')).toBeNull()
+  })
+
+  it('docks toasts at notifications.placement (fails if the prop is not passed through)', async () => {
+    render(
+      <ApProvider notifications={{ placement: 'top-center' }}>
+        <span>x</span>
+      </ApProvider>,
+    )
+    const region = await screen.findByRole('region')
+    expect(region.className).toContain(toastViewportRecipe({ placement: 'top-center' }))
+    expect(region.className).not.toContain(toastViewportRecipe({ placement: 'bottom-end' }))
+  })
+
+  it('docks toasts at bottom-end without the prop', async () => {
+    render(
+      <ApProvider>
+        <span>x</span>
+      </ApProvider>,
+    )
+    const region = await screen.findByRole('region')
+    expect(region.className).toContain(toastViewportRecipe({ placement: 'bottom-end' }))
   })
 })
