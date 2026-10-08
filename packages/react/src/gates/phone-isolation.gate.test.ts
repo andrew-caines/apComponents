@@ -26,7 +26,8 @@ function resolveRelative(from: string, spec: string): string | undefined {
 }
 
 /** Every file and every bare specifier reachable from `entry`. */
-function reach(entry: string): { files: Set<string>; bare: Set<string> } {
+function reach(entry: string): { files: Set<string>; bare: Set<string>; unresolved: string[] } {
+  const unresolved: string[] = []
   const files = new Set<string>()
   const bare = new Set<string>()
   const queue = [entry]
@@ -41,9 +42,10 @@ function reach(entry: string): { files: Set<string>; bare: Set<string> } {
       }
       const resolved = resolveRelative(file, spec)
       if (resolved) queue.push(resolved)
+      else unresolved.push(`${relative(SRC, file).split(sep).join('/')} -> ${spec}`)
     }
   }
-  return { files, bare }
+  return { files, bare, unresolved }
 }
 
 const rel = (f: string) => relative(SRC, f).split(sep).join('/')
@@ -65,6 +67,17 @@ describe('gate: libphonenumber-js stays behind ./format/phone', () => {
   it('format/index.ts never reaches libphonenumber-js (fails if it re-exports ./phone.js)', () => {
     expect(touchesPhoneLib(format.bare)).toEqual([])
     expect(names(format.files)).not.toContain('format/phone.ts')
+  })
+
+  it('no relative specifier reachable from either barrel fails to resolve (a resolver bug cannot pass vacuously)', () => {
+    expect(format.unresolved).toEqual([])
+    expect(reach(join(SRC, 'hooks/index.ts')).unresolved).toEqual([])
+  })
+
+  it('the walk from hooks/index.ts reaches the state and media hooks (non-vacuity)', () => {
+    const reached = names(reach(join(SRC, 'hooks/index.ts')).files)
+    expect(reached).toContain('hooks/useMediaQuery.ts')
+    expect(reached).toContain('hooks/useControllableState.ts')
   })
 
   it('hooks/index.ts never reaches libphonenumber-js', () => {

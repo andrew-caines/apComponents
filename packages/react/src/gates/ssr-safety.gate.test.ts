@@ -81,6 +81,19 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   const DOCUMENT_RULE = /\bdocument\./.source
   const STORAGE_RULE = /\blocalStorage\b|\bsessionStorage\b/.source
 
+  // useMediaQuery.ts is the one sanctioned place that names `matchMedia` (and
+  // the `window` it hangs off): it is the SSR-safe wrapper the rule above tells
+  // everyone else to use. The browser is only reached from two module-scope
+  // helper functions that useSyncExternalStore calls on the client (subscribe
+  // and getSnapshot), never from the hook body, and the server snapshot is the
+  // caller-supplied default. A blanket exemption would let an inline read slip
+  // into the hook body with the text gate still green, so the AST describe
+  // below pins where those identifiers may appear. Every other rule still
+  // applies to this file.
+  const USE_MEDIA_QUERY_PATH = join(SRC, 'hooks', 'useMediaQuery.ts')
+  const WINDOW_RULE = /\bwindow\./.source
+  const MATCH_MEDIA_RULE = /\bmatchMedia\b/.source
+
   for (const file of files) {
     it(`${file.split('src')[1]} is clean`, () => {
       const text = readFileSync(file, 'utf8')
@@ -93,10 +106,82 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
           (r) => r.pattern.source !== DOCUMENT_RULE && r.pattern.source !== STORAGE_RULE,
         )
       }
+      if (file === USE_MEDIA_QUERY_PATH) {
+        rules = rules.filter((r) => r.pattern.source !== WINDOW_RULE && r.pattern.source !== MATCH_MEDIA_RULE)
+      }
       const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} — ${r.why}`)
       expect(hits, `${file}:\n  ${hits.join('\n  ')}`).toEqual([])
     })
   }
+
+  describe('the file exempted from the matchMedia and window rules (Task 6, ADR-0005)', () => {
+    it('still exists, so the exemption is not stale config for a moved file', () => {
+      expect(existsSync(USE_MEDIA_QUERY_PATH)).toBe(true)
+    })
+
+    const sourceFile = () =>
+      ts.createSourceFile(
+        USE_MEDIA_QUERY_PATH,
+        readFileSync(USE_MEDIA_QUERY_PATH, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS,
+      )
+
+    const topLevelFunction = (sf: ts.SourceFile, name: string) => {
+      let found: ts.FunctionDeclaration | undefined
+      ts.forEachChild(sf, (node) => {
+        if (ts.isFunctionDeclaration(node) && node.name?.text === name) found = node
+      })
+      return found
+    }
+
+    const BROWSER_NAMES = new Set(['matchMedia', 'window'])
+    const namesBrowser = (node: ts.Node) =>
+      (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) && BROWSER_NAMES.has(node.text)
+
+    it('names matchMedia and window only inside subscribeMediaQuery and readMediaQuery', () => {
+      const sf = sourceFile()
+      const allowed = ['subscribeMediaQuery', 'readMediaQuery'].map((n) => {
+        const fn = topLevelFunction(sf, n)
+        if (!fn) {
+          throw new Error(
+            `ssr-safety gate: could not find a function declaration named '${n}' in ` +
+              `${USE_MEDIA_QUERY_PATH}. The AST check has no anchor and cannot silently pass.`,
+          )
+        }
+        return fn
+      })
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (namesBrowser(node) && !allowed.some((fn) => node.pos >= fn.pos && node.end <= fn.end)) {
+          const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf))
+          hits.push(`'${(node as ts.Identifier).text}' at line ${line + 1}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+      expect(hits, `browser globals outside the two helpers: ${hits.join(', ')}`).toEqual([])
+    })
+
+    it('the useMediaQuery function body names neither identifier', () => {
+      const sf = sourceFile()
+      const hook = topLevelFunction(sf, 'useMediaQuery')
+      if (!hook) {
+        throw new Error(
+          `ssr-safety gate: could not find a function declaration named 'useMediaQuery' in ` +
+            `${USE_MEDIA_QUERY_PATH}. The AST check has no anchor and cannot silently pass.`,
+        )
+      }
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (namesBrowser(node)) hits.push((node as ts.Identifier).text)
+        ts.forEachChild(node, visit)
+      }
+      visit(hook)
+      expect(hits, `useMediaQuery names browser globals: ${hits.join(', ')}`).toEqual([])
+    })
+  })
 
   describe('the file exempted from the useLayoutEffect rule', () => {
     const text = () => readFileSync(ISOMORPHIC_LAYOUT_EFFECT_PATH, 'utf8')
