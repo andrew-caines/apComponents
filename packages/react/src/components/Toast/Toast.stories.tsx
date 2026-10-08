@@ -4,6 +4,8 @@ import { Toast as BaseToast } from '@base-ui/react/toast'
 import { cssKeyframeName } from '@ap/motion'
 import { expect, spyOn, userEvent, waitFor, within } from 'storybook/test'
 import { toast } from '../../notifications/index.js'
+import { ICON_PATHS } from '../../icons/paths.js'
+import { SEVERITY_ICON } from '../../notifications/severity.js'
 import { vars } from '../../theme/contract.css.js'
 import { Button } from '../Button/Button.js'
 import { Toast } from './Toast.js'
@@ -64,6 +66,24 @@ const clearToasts = async () => {
   toast.close()
   await waitFor(() => expect(roots()).toHaveLength(0), { timeout: 3000 })
 }
+
+/** The leading glyph wrapper (`toastIconRecipe`): the Root's first child, so the Close button's own icon never matches. */
+const glyphOf = (root: HTMLElement) => root.firstElementChild as HTMLElement
+
+/** Path data of the leading glyph, or null when it is a Spinner or absent. */
+const glyphPath = (root: HTMLElement) => glyphOf(root).querySelector('svg path')?.getAttribute('d') ?? null
+
+/** Wraps a play so the shared manager's toasts are cleared even when an assertion throws. */
+const cleanPlay =
+  <Args extends unknown[]>(run: (...args: Args) => Promise<void>) =>
+  async (...args: Args) => {
+    try {
+      await run(...args)
+    } finally {
+      toast.close()
+      await waitFor(() => expect(roots()).toHaveLength(0), { timeout: 3000 }).catch(() => {})
+    }
+  }
 
 const animationName = (el: HTMLElement) => getComputedStyle(el).animationName
 
@@ -140,7 +160,8 @@ function AssembledInner({
 /**
  * One button per severity. Each toast shows its glyph, and the error toast's
  * border-inline-start colour differs from the info toast's, so the
- * `[data-type]` accents are really applied. Perturbation: dropping the
+ * `[data-type]` accents are really applied. Perturbations: removing the
+ * severity glyph from `ToastList.tsx` fails the glyph-path check; dropping the
  * `[data-type="error"]` rule in `Toast.css.ts` leaves the error edge on the
  * info colour and fails the colour comparison.
  */
@@ -153,7 +174,7 @@ export const Severities: Story = {
       <Button onClick={() => toast.error('Error title')}>Error</Button>
     </div>
   ),
-  play: async ({ canvasElement }) => {
+  play: cleanPlay(async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const edge: Record<string, string> = {}
 
@@ -166,10 +187,10 @@ export const Severities: Story = {
       await userEvent.click(canvas.getByRole('button', { name }))
       const root = await findRoot(title)
       await expect(root.getAttribute('data-type')).toBe(name.toLowerCase())
-      // The glyph is decorative, but it must be there.
-      const glyph = root.querySelector('svg')
-      await expect(glyph).not.toBeNull()
+      // The leading glyph is decorative, but it must be there and be this severity's.
+      const glyph = glyphOf(root).querySelector('svg')
       await expect(glyph?.getAttribute('aria-hidden')).toBe('true')
+      await expect(glyphPath(root)).toBe(ICON_PATHS[SEVERITY_ICON[name.toLowerCase() as keyof typeof SEVERITY_ICON]])
       const style = getComputedStyle(root)
       await expect(style.borderInlineStartWidth).toBe('4px')
       edge[name] = style.borderInlineStartColor
@@ -177,7 +198,7 @@ export const Severities: Story = {
     }
 
     await expect(edge['Error']).not.toBe(edge['Info'])
-  },
+  }),
 }
 
 /** A story per placement: the toast sits `margin` from the named edges, and centred when `center`. */
@@ -190,7 +211,7 @@ function placementStory(placement: ToastPlacement): Story {
         <Button onClick={() => toast({ title: 'Placed', timeout: 0 })}>Show toast</Button>
       </div>
     ),
-    play: async ({ canvasElement }) => {
+    play: cleanPlay(async ({ canvasElement }) => {
       await userEvent.click(within(canvasElement).getByRole('button', { name: 'Show toast' }))
       const root = await findRoot('Placed')
       await settle(root)
@@ -212,9 +233,7 @@ function placementStory(placement: ToastPlacement): Story {
         const fromInlineEdge = inline === 'start' ? rect.left : width - rect.right
         await expect(Math.abs(fromInlineEdge - margin)).toBeLessThanOrEqual(EDGE_TOLERANCE)
       }
-
-      await clearToasts()
-    },
+    }),
   }
 }
 
@@ -263,7 +282,7 @@ export const RightToLeft: Story = {
       <Assembled placement="bottom-start" label="start probe" />
     </div>
   ),
-  play: async ({ canvasElement }) => {
+  play: cleanPlay(async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await waitFor(() => expect(document.documentElement.dir).toBe('rtl'))
     const slideIn = cssKeyframeName('toast.slide-in')
@@ -301,15 +320,18 @@ export const RightToLeft: Story = {
     await expect(animationName(start)).toBe(cssKeyframeName('enter.fade-rise'))
 
     document.documentElement.dir = 'ltr'
-    await expect(animationName(end)).toBe(slideIn)
-    await expect(animationName(start)).not.toBe(slideIn)
-    document.documentElement.dir = 'rtl'
+    try {
+      await expect(animationName(end)).toBe(slideIn)
+      await expect(animationName(start)).not.toBe(slideIn)
+    } finally {
+      document.documentElement.dir = 'rtl'
+    }
 
     for (const probe of [end, start]) {
       await userEvent.click(within(probe).getByLabelText('Dismiss'))
     }
     await waitFor(() => expect(roots()).toHaveLength(0), { timeout: 3000 })
-  },
+  }),
 }
 
 /**
@@ -373,7 +395,7 @@ export const Overflow: Story = {
       </Button>
     </div>
   ),
-  play: async ({ canvasElement }) => {
+  play: cleanPlay(async ({ canvasElement }) => {
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Show five' }))
     await waitFor(() => expect(roots()).toHaveLength(5))
 
@@ -394,9 +416,7 @@ export const Overflow: Story = {
     const revealed = rootTitled('Toast 2') as HTMLElement
     await expect(revealed.hasAttribute('data-limited')).toBe(false)
     await expect(getComputedStyle(revealed).display).not.toBe('none')
-
-    await clearToasts()
-  },
+  }),
 }
 
 /**
@@ -417,7 +437,7 @@ export const Swipe: Story = {
       <Button onClick={() => toast({ title: 'Swipe me', timeout: 0 })}>Show toast</Button>
     </div>
   ),
-  play: async ({ canvasElement }) => {
+  play: cleanPlay(async ({ canvasElement }) => {
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Show toast' }))
     const root = await findRoot('Swipe me')
     await settle(root)
@@ -426,6 +446,9 @@ export const Swipe: Story = {
     const y = rect.top + rect.height / 2
     // Away from the buttons: a swipe ignores a press that starts on one.
     const x = rect.left + 60
+    // Read before swiping: `[data-swiping]` holds the duration at 0s.
+    const entryMs = parseFloat(getComputedStyle(root).animationDuration) * 1000
+    await expect(entryMs).toBeGreaterThan(0)
     let restarts = 0
     root.addEventListener('animationstart', () => {
       restarts += 1
@@ -440,8 +463,9 @@ export const Swipe: Story = {
     ])
     await waitFor(() => expect(root.getAttribute('data-swipe-direction')).toBe('right'))
     await user.pointer({ keys: '[/MouseLeft]' })
-    await new Promise((r) => setTimeout(r, 300))
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    // Bound for "does not happen": a replay would start within a frame of the
+    // release and run for the entry duration, so wait that long plus 200ms.
+    await new Promise((resolve) => setTimeout(resolve, entryMs + 200))
     await expect(root.isConnected).toBe(true)
     await expect(root.hasAttribute('data-ending-style')).toBe(false)
     await expect(restarts).toBe(0)
@@ -456,7 +480,7 @@ export const Swipe: Story = {
     ])
     await user.pointer({ keys: '[/MouseLeft]' })
     await waitFor(() => expect(root.isConnected).toBe(false), { timeout: 3000 })
-  },
+  }),
 }
 
 /**
@@ -493,7 +517,8 @@ export const WithButtonParts: Story = {
  * `toast.promise` on a promise that rejects after 300 ms. The loading toast
  * shows a spinner, then it becomes an error toast with `role="alertdialog"`
  * (high priority, `toast/root/ToastRoot.js:420`), titled and still there.
- * Perturbation: in `severity.ts`, dropping the error branch's priority
+ * Perturbations: rendering the severity icon for `loading` in `ToastList.tsx`
+ * fails the spinner check; in `severity.ts`, dropping the error branch's priority
  * mapping leaves the settled toast `role="dialog"` and fails the role query.
  */
 export const PromiseRejects: Story = {
@@ -519,11 +544,13 @@ export const PromiseRejects: Story = {
       </div>
     )
   },
-  play: async ({ canvasElement }) => {
+  play: cleanPlay(async ({ canvasElement }) => {
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Save' }))
     const loading = await findRoot('Saving')
     await expect(loading.getAttribute('data-type')).toBe('loading')
-    await expect(loading.querySelector('svg')).not.toBeNull()
+    // The leading glyph is the Spinner (a circle, no severity path), not the Close icon.
+    await expect(glyphOf(loading).querySelector('svg circle')).not.toBeNull()
+    await expect(glyphPath(loading)).toBeNull()
 
     // The error toast's Root is aria-hidden while the viewport is unfocused
     // (`ToastRoot.js:425`), so it is found by its attributes, not by role query.
@@ -534,7 +561,6 @@ export const PromiseRejects: Story = {
     })
     await expect(failed.getAttribute('role')).toBe('alertdialog')
     await expect(failed.getAttribute('data-type')).toBe('error')
-    await expect(failed.querySelector('svg')).not.toBeNull()
-    await clearToasts()
-  },
+    await expect(glyphPath(failed)).toBe(ICON_PATHS[SEVERITY_ICON.error])
+  }),
 }
