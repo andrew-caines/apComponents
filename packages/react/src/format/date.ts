@@ -11,7 +11,9 @@ export type DateFormatOptions = ZonedOptions & Omit<Intl.DateTimeFormatOptions, 
 
 // Intl throws if a style (dateStyle/timeStyle) is mixed with a component
 // option, and that is how a caller asks for { month: 'long' } alone. So the
-// style defaults apply only when the caller named none of these.
+// style defaults apply only when the caller named none of these. timeZoneName
+// counts too: Intl rejects it beside timeStyle. hour12 and hourCycle do not,
+// they combine with a style.
 const COMPONENT_KEYS = [
   'dateStyle',
   'timeStyle',
@@ -25,6 +27,7 @@ const COMPONENT_KEYS = [
   'minute',
   'second',
   'fractionalSecondDigits',
+  'timeZoneName',
 ] as const
 
 function resolve(

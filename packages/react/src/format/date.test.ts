@@ -71,6 +71,14 @@ describe('formatTime', () => {
   it('formats in a zone', () => {
     expect(formatTime(T, { locale: 'en-US', timeZone: 'America/New_York' })).toBe('9:30 AM')
   })
+  it('shows the zone name with component options', () => {
+    expect(
+      formatTime(T, { locale: 'en-US', timeZone: 'UTC', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
+    ).toBe('2:30 PM UTC')
+  })
+  it('does not merge the style default when only timeZoneName is given', () => {
+    expect(formatTime(T, { locale: 'en-US', timeZone: 'UTC', timeZoneName: 'short' })).not.toBe('')
+  })
   it('formats 24-hour locales', () => {
     expect(formatTime(T, { locale: 'de-DE', timeZone: 'Europe/Berlin' })).toBe('15:30')
   })
