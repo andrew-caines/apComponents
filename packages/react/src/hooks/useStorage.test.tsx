@@ -303,3 +303,23 @@ describe('hydration', () => {
     container.remove()
   })
 })
+
+describe('value identity', () => {
+  it('returns the same object across renders with an inline default and unchanged storage', () => {
+    localStorage.setItem('o', '{"a":2}')
+    const values: unknown[] = []
+    function Obj() {
+      values.push(useLocalStorage('o', { a: 1 })[0])
+      return null
+    }
+    const { rerender } = render(<Obj />)
+    rerender(<Obj />)
+    rerender(<Obj />)
+    expect(values.length).toBeGreaterThan(2)
+    expect(values[0]).toEqual({ a: 2 })
+    expect(
+      new Set(values).size,
+      'a fresh inline default must not re-run JSON.parse and hand back a new object each render',
+    ).toBe(1)
+  })
+})

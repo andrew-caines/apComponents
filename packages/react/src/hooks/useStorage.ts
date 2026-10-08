@@ -97,8 +97,12 @@ export function resetStorageStateForTests(): void {
   warned.clear()
 }
 
-function parseRaw<T>(kind: StorageKind, key: string, raw: string | null, defaultValue: T): T {
-  if (raw === null) return defaultValue
+const NONE: unique symbol = Symbol('none')
+
+// Returns NONE for an empty key or a parse failure, so callers apply the
+// default by reference and the parse never depends on it.
+function parseRaw<T>(kind: StorageKind, key: string, raw: string | null): T | typeof NONE {
+  if (raw === null) return NONE
   try {
     return JSON.parse(raw) as T
   } catch {
@@ -107,7 +111,7 @@ function parseRaw<T>(kind: StorageKind, key: string, raw: string | null, default
       warned.add(id)
       console.warn(`[ap] storage key "${key}" holds invalid JSON; using the default value.`)
     }
-    return defaultValue
+    return NONE
   }
 }
 
@@ -117,7 +121,8 @@ function useStorageValue<T>(kind: StorageKind, key: string, defaultValue: T): [T
   // The snapshot is the raw string: stable by value, so React never loops, and
   // the server snapshot (null) means the default, which is what hydration renders.
   const raw = useSyncExternalStore(subscribe, getSnapshot, () => null)
-  const value = useMemo(() => parseRaw(kind, key, raw, defaultValue), [kind, key, raw, defaultValue])
+  const parsed = useMemo(() => parseRaw<T>(kind, key, raw), [kind, key, raw])
+  const value = parsed === NONE ? defaultValue : parsed
 
   const defaultRef = useRef(defaultValue)
   useEffect(() => {
@@ -128,7 +133,12 @@ function useStorageValue<T>(kind: StorageKind, key: string, defaultValue: T): [T
     (next) => {
       const resolved =
         typeof next === 'function'
-          ? (next as (prev: T) => T)(parseRaw(kind, key, readRaw(kind, key), defaultRef.current))
+          ? (next as (prev: T) => T)(
+              (() => {
+                const prev = parseRaw<T>(kind, key, readRaw(kind, key))
+                return prev === NONE ? defaultRef.current : prev
+              })(),
+            )
           : next
       writeRaw(kind, key, JSON.stringify(resolved))
     },
