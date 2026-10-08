@@ -7,9 +7,11 @@ import { announce, ApProvider, banner, BannerRegion, Button, confirm, toast } fr
  * `ApProvider` rather than `LocaleProvider`: this is the first route that needs
  * the notification provider, and `ApProvider` mounts it.
  *
- * `MountToast` raises a toast from its own mount effect. Base UI's provider
- * subscribes in a passive effect that runs after its children's, so this is the
- * call a naive design drops silently (Review Focus 1, in a real browser).
+ * `MountToast` raises a toast from its own mount effect. This is a real-browser
+ * regression pin: a toast raised in a page's mount effect survives SSR and
+ * hydration. The layout-versus-passive effect-order discriminator is owned by
+ * the unit test in `packages/react/src/notifications/NotificationProvider.test.tsx`
+ * (the page-before-provider case), not by this route.
  *
  * Routed in both SSR and SPA modes: it exports no loader and no action.
  */

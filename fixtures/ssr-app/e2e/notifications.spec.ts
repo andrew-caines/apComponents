@@ -51,8 +51,10 @@ test('a toast raised from a page mount effect is shown after hydration', async (
   await page.goto('/notifications')
   await waitForHydration(page)
 
-  // Fails if toast() from a child's passive effect is dropped because the
-  // provider subscribes after it (Review Focus 1).
+  // Regression pin, not the effect-order discriminator (the unit test in
+  // NotificationProvider.test.tsx owns that). Fails if a toast raised in a
+  // page's mount effect is lost across SSR and hydration, e.g. if Relay is
+  // moved after the children and subscribes in useEffect.
   await expect(page.getByText('Mounted toast')).toBeVisible()
 })
 
