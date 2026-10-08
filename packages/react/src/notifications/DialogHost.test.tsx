@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { StrictMode, useEffect } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Button } from '../components/Button/Button.js'
 import { buttonRecipe } from '../components/Button/Button.css.js'
@@ -156,6 +157,32 @@ describe('DialogHost: confirm', () => {
     expect(await a).toBe(false)
     expect(await b).toBe(false)
     await c
+  })
+
+  it('keeps a mount-time confirm() alive under StrictMode (fails if the cleanup dismisses immediately)', async () => {
+    // StrictMode replays the child's effect too, so two requests are raised.
+    const raised: Promise<boolean>[] = []
+    function Page() {
+      useEffect(() => {
+        raised.push(confirm({ title: 'Mounted?' }))
+      }, [])
+      return null
+    }
+    render(
+      <StrictMode>
+        <LocaleProvider>
+          <NotificationProvider>
+            <Page />
+          </NotificationProvider>
+        </LocaleProvider>
+      </StrictMode>,
+    )
+    await dialog('Mounted?')
+    fireEvent.click(button(DEFAULT_MESSAGES.confirm))
+    expect(await raised[0]).toBe(true)
+    await dialog('Mounted?')
+    fireEvent.click(button(DEFAULT_MESSAGES.confirm))
+    expect(await raised[1]).toBe(true)
   })
 
   it('returns focus to the button that triggered confirm() (fails if finalFocus is false)', async () => {

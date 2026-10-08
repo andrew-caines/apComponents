@@ -42,14 +42,23 @@ export function useDialogQueue() {
     rerender()
   }, [])
 
-  useEffect(
-    () => () => {
-      const pending = queue.current
-      queue.current = []
-      for (const request of pending) dismiss(request)
-    },
-    [],
-  )
+  // StrictMode replays effects (cleanup, then setup) in development. Dismissing
+  // inside the cleanup would answer a request raised by a child's mount effect,
+  // which production never does. So the cleanup only schedules the dismissal,
+  // and a re-run of the effect cancels it: only a real unmount lets it fire.
+  const unmounting = useRef(false)
+  useEffect(() => {
+    unmounting.current = false
+    return () => {
+      unmounting.current = true
+      queueMicrotask(() => {
+        if (!unmounting.current) return
+        const pending = queue.current
+        queue.current = []
+        for (const request of pending) dismiss(request)
+      })
+    }
+  }, [])
 
   return { head: queue.current[0], enqueue, shift }
 }
