@@ -82,7 +82,7 @@ export function formatAddress(
   address: PostalAddress | null | undefined,
   options: LocaleOptions & { form?: 'multiline' | 'single' | undefined },
 ): string {
-  const bad = address === null || address === undefined || address.country.trim() === ''
+  const bad = typeof address?.country !== 'string' || address.country.trim() === ''
   return guard('formatAddress', address, bad, () => {
     const { locale } = options
     const country = address!.country.trim().toUpperCase()
@@ -90,8 +90,14 @@ export function formatAddress(
     // Name the country only when the reader is elsewhere. A bare language
     // ('en') has no region, so read it from the maximised locale.
     if (new Intl.Locale(locale).maximize().region !== country) {
-      const label = new Intl.DisplayNames(locale, { type: 'region' }).of(country)
-      if (label) lines.push(label)
+      // An unknown code (alpha-3 'USA') makes DisplayNames throw; that drops only
+      // the country line, never the whole address.
+      try {
+        const label = new Intl.DisplayNames(locale, { type: 'region' }).of(country)
+        if (label) lines.push(label)
+      } catch {
+        // no country line
+      }
     }
     return lines.join(options.form === 'single' ? ', ' : '\n')
   })

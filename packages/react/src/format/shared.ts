@@ -33,7 +33,7 @@ export function resetFormatWarningsForTests(): void {
   warned.clear()
 }
 
-function warnOnce(name: string, value: unknown, reason: string): void {
+export function warnOnce(name: string, value: unknown, reason: string, outcome = 'returning an empty string'): void {
   // A bare process.env.NODE_ENV check, never guarded by a typeof check on
   // process: that is the reference bundlers replace (see
   // components/Select/Select.tsx for why).
@@ -45,7 +45,7 @@ function warnOnce(name: string, value: unknown, reason: string): void {
   } catch {
     shown = Object.prototype.toString.call(value)
   }
-  console.warn(`[@ap/react/format] ${name}: ${reason} (${shown}); returning an empty string.`)
+  console.warn(`[@ap/react/format] ${name}: ${reason} (${shown}); ${outcome}.`)
 }
 
 /**

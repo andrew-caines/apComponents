@@ -1,5 +1,5 @@
 import { formatNumber } from './number.js'
-import { guard, isFiniteNumber, type LocaleOptions } from './shared.js'
+import { guard, isFiniteNumber, warnOnce, type LocaleOptions } from './shared.js'
 
 export interface PersonName {
   given?: string | undefined
@@ -93,5 +93,11 @@ export function truncate(
 }
 
 export function collator(locale: string, options?: Intl.CollatorOptions): (a: string, b: string) => number {
-  return new Intl.Collator(locale, options).compare
+  try {
+    return new Intl.Collator(locale, options).compare
+  } catch (error) {
+    // A malformed locale from user data must not crash a sort: fall back to 'en'.
+    warnOnce('collator', locale, error instanceof Error ? error.message : 'invalid locale', "falling back to 'en'")
+    return new Intl.Collator('en', options).compare
+  }
 }

@@ -160,4 +160,10 @@ describe('collator', () => {
   it('passes options through', () => {
     expect(['a10', 'a2'].sort(collator('en', { numeric: true }))).toEqual(['a2', 'a10'])
   })
+
+  it('falls back to en and warns once for a malformed locale', () => {
+    expect(['b', 'a'].sort(collator('en_US'))).toEqual(['a', 'b'])
+    expect(['d', 'c'].sort(collator('en_US'))).toEqual(['c', 'd'])
+    expect(console.warn).toHaveBeenCalledTimes(1)
+  })
 })

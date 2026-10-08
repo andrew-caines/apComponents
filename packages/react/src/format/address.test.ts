@@ -105,4 +105,16 @@ describe('formatAddress', () => {
     expect(formatAddress(US, { locale: 'en_US' })).toBe('')
     expect(console.warn).toHaveBeenCalledTimes(1)
   })
+  it('a null country returns an empty string without throwing', () => {
+    expect(formatAddress({ country: null as unknown as string, locality: 'X' }, { locale: 'en-US' })).toBe('')
+  })
+
+  it('an alpha-3 country drops only the country line', () => {
+    expect(
+      formatAddress(
+        { lines: ['1 Main St'], locality: 'Springfield', region: 'IL', postalCode: '62701', country: 'USA' },
+        { locale: 'en-GB' },
+      ),
+    ).toBe('1 Main St\nSpringfield IL 62701')
+  })
 })
