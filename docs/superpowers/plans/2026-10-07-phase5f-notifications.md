@@ -475,3 +475,64 @@ Match `Popover.stories.tsx`'s shape and house style. Every story's JSDoc names i
 | 18 | Every CI job is green | Task 10's sweep, then the PR | — |
 
 **Final proof artifact:** a green CI run of all six jobs on the Phase 5f pull request, plus Task 10's local sweep output.
+
+---
+
+## What actually happened
+
+Nine build tasks, then one whole-branch review and a single fix wave: 21 commits in all. Tasks 1, 3, 7 and 9 passed their first review. Tasks 2, 4, 5, 6 and 8 each needed one fix round, and none needed a second. Task 3 stopped once as BLOCKED before its first commit. The local sweep of all six `ci.yml` jobs passed on the final tree: 1834 unit tests plus every gate and `check:lockfiles`, consumer 12, SSR 7 plus SPA plus hydration 31, stories 126 plus the build, and showcase 12. Execution was subagent-driven, with a fresh implementer per task and a task review after each.
+
+The user signed off on all seven spec deviations before execution: the channel relay, the `toast.promise` error mapping, `*-end` LTR-only slide, children-only nested providers, explicit `initialFocus`, false-on-unmount, and two new icons. Eight controller rulings were made (R1–R8), and the user made two contrast decisions. The ledger is gitignored, so the ones that matter for 5g–5h are recorded here. Spec §4.6.2 holds every corrected Base UI fact with its causing line.
+
+### The plan's Review Focus 1 test could not discriminate (R3)
+
+Task 3's implementer stopped because the briefed perturbation did not fail. That perturbation subscribes in `useEffect` instead of the layout effect. `Relay` renders as an earlier sibling of the children, so its passive effect already runs before a child's mount effect. The layout effect is still right, because it is order-independent. But only a page rendered **before** the provider in the same commit tells layout from passive. That test is now the discriminator. The child-of-provider test and the fixture e2e remain as regression pins, and their comments now say so (Task 8 fix round). Fact 11 also cited the wrong lines: the subscription is `ToastProvider.js:39-59`, and it exists only when a `toastManager` is passed. Fact 17's first-tabbable resolution is `FloatingFocusManager.js:381-389`.
+
+**For 5g–5h: before prescribing a perturbation, check that the code under test is the only thing standing between the input and the failure. Here, sibling order was doing the work.**
+
+### Contrast: the plan said "run test:contrast", but the gate never saw these pairs (R5)
+
+The banner and toast pairs were absent from `PAIRINGS`, so the gate passed vacuously. Adding them exposed nine light-mode 3:1 failures, which went to the user:
+
+- **Severity container borders and the toast accent stripe are not asserted.** They are non-essential boundaries, because severity is carried by the title, role and icon. ADR-0008 now states this as a principle.
+- **The brand focus ring is now also solved against the status subtle fills.** In `generateRamp`, the `ringBackgrounds` argument moves the light ring from `#5a87e9` to `#5a86e9`. Dark mode is unchanged.
+
+The two snapshot updates this required broke the plan's "never `-u`" rule. They were accepted because each one changed only the approved hex (R6).
+
+**For 5g–5h: a plan step that runs a gate must say which rows of the gate the new code is expected to hit.**
+
+### Answered during execution
+
+- **StrictMode resolved a mount-time `confirm()` as `false` (R4).** The reviewer marked this Minor; it was raised to Important. The unmount cleanup is now deferred with `queueMicrotask` and cancelled by the effect replay.
+- **A toast's action did not close the toast** (final review). Base UI's `ToastAction` only renders its props. `Relay` now wraps `onClick` to close the toast afterwards.
+- **The banner→toast fallback auto-dismissed** after the default 5 s. It now passes `timeout: 0`.
+- **Duplicate mounts.** Development warnings now fire for a second provider tree in a separate root and for a second `BannerRegion`.
+- **A `<Button>` render cannot catch a dropped `nativeButton` derivation,** because `Button` derives `true`, which is also Base UI's default. An `<a>` render test pins it.
+- **Base UI hides `ToastClose` and unfocused high-priority Roots** from the accessibility tree. Tests and stories query them by label or attribute.
+- **Stories found three vacuous assertions in review:** an `svg` query matched the close icon, a swipe wait was unbounded and duplicated, and cleanup was not failure-safe. Plays now scope to the leading glyph, bound waits by the computed animation duration, and clean up in `finally`.
+- **Not in any task's Files list:** `components/Toast/index.ts`. Task 3 created it (R2).
+
+### Process notes
+
+- As in 5d and 5e, the final review and fix wave ran before the CI sweep, so the sweep ran once.
+- One file picked up a Windows-1252 byte (`0x97`) from a shell write. The final reviewer caught it with `iconv`. Check new files for valid UTF-8.
+- No implementer ran prettier.
+
+### What is still open
+
+- **Follow-ups (R8):**
+  - Solve the focus ring against `bg-raised` by construction. It passes at a 3.017 worst case over 1008 seeds.
+  - Widen the notification option types to `?: T | undefined` for consumers with `exactOptionalPropertyTypes`.
+- **Known caveats:**
+  - `:dir()` needs Chrome 120+.
+  - There is no reduced-motion story, because none has a precedent.
+  - The duplicate-subscriber warning fires once per module load.
+  - A throwing action `onClick` leaves its toast open.
+  - `toast.promise` toasts take no action.
+- **Deferred minors the final reviewer triaged as can-wait:**
+  - `emit` has no try/catch around listeners.
+  - The success branch of `toast.promise` honours a caller's severity untested.
+  - `swipeDirectionsFor` has no table test.
+  - Banners persist across a region remount.
+  - The `Queued` story's observer is not disconnected in `finally`.
+  - The F6 e2e relies on Base UI prepending new toasts.
