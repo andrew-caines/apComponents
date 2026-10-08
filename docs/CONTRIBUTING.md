@@ -462,6 +462,24 @@ contract our own components call by. Phase 4 ships five on purpose; ADR-0012's
 fuller set arrives as components need them, since an icon nothing renders is a
 permanent maintenance obligation bought for nothing.
 
+## Hooks and formatters
+
+Formatters live in `packages/react/src/format/` and are imported from `@ap/react/format`;
+hooks live in `packages/react/src/hooks/` and come from `@ap/react/hooks`. Neither is added
+to the main entry, which gate 10's budgets assume stays as it is. The one formatter that
+needs a library, `formatPhone`, is in `format/phone.ts` behind `@ap/react/format/phone`.
+
+- **Formatters are pure.** No `'use client'`, no `react` import, no `Date.now()`, no
+  zero-argument `new Date()`: they have to work in a loader or a Node script. Every file in
+  `src/hooks/` starts with `'use client'`.
+- **Expected strings use escapes for invisible characters.** Write ` `, ` `,
+  ` ` and `‏` in a test, never the pasted character, which no reviewer can see.
+- **Tests must pass on Node 22.22.0 as well as your own Node.** CI runs 22.22.0 (ICU 77.1)
+  and a newer local Node ships newer ICU data. Run
+  `npx --yes node@22.22.0 node_modules/vitest/vitest.mjs run --project unit <paths>`.
+- **Never import `libphonenumber-js` outside `format/phone.ts`.** The phone-isolation gate
+  walks the import graphs of `./format` and `./hooks` and fails if either reaches it.
+
 ## Known gap: several gates scan raw text, comments included
 
 `style-rules.gate.test.ts` checks its physical-property and focus-removal rules

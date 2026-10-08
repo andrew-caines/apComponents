@@ -1207,7 +1207,7 @@ silent bug.
 | Group | Functions and settled behaviour |
 |---|---|
 | Date/time | `formatDate`, `formatTime`, `formatDateTime`, `formatDateRange` wrap `Intl.DateTimeFormat`. `formatRelative(value, { now, locale })` auto-selects the unit (seconds → minutes → hours → days → weeks → months → years). `formatDuration({ hours, minutes, … }, { locale, style })` composes `Intl.NumberFormat` unit style with `Intl.ListFormat` (§5.2) |
-| Number | `formatNumber`, `formatCurrency` (`currency` required), `formatPercent`, `formatCompact` (`notation: 'compact'`). `formatPercentChange` always signs (`+12.5%`, `−3%`) and returns `''` for a zero base. `formatOrdinal` uses the §5.2 suffix table. `formatBytes` is SI with localised units (§5.3) |
+| Number | `formatNumber`, `formatCurrency` (`currency` required), `formatPercent`, `formatCompact` (`notation: 'compact'`). `formatPercentChange` always signs (`+12.5%`, `-3%`) and returns `''` for a zero base. `formatOrdinal` uses the §5.2 suffix table. `formatBytes` is SI with localised units (§5.3) |
 | Text | `formatName(record, { locale, form: 'display' \| 'initials' })` over `{ given, family, displayName?, order? }` (§5.3; particles are a documented limitation). `formatList`. `pluralize(count, forms, { locale })` selects from caller-supplied forms through `Intl.PluralRules`. `truncate(text, { locale, length })` counts grapheme clusters through `Intl.Segmenter`, so it never splits an emoji or a combining sequence |
 | Address | `formatAddress(address, { locale, form: 'multiline' \| 'single' })` — the twelve-country template table plus a generic fallback (§5.3). The country line comes from `Intl.DisplayNames` and is **omitted when the address country is the reader's own region** (the locale's region subtag) |
 | Sorting | `collator(locale, options?)` returns a comparator ready for `.sort()` |
@@ -1275,6 +1275,92 @@ Per §4.1.6, most of these have no in-repo caller; their tests are their only co
   (media query, reduced motion, storage, `useFormatter`'s dates). `useFormatter` gets an
   SSR-then-hydrate test proving no hydration warning and the post-hydration swap.
 - **No stories** — these are not components. **No showcase route** in this phase.
+
+### 5.6 Verified during the plan
+
+Checked on 2026-10-08 on Node 22.22.0 (ICU 77.1) and Node 24.19.0 (ICU 78.3), and against
+the code as built. §5.5 is left as written, except that §5.5.2's `formatPercentChange`
+example read `−3%` and now reads `-3%`: ICU emits a hyphen-minus there, not U+2212. Paths
+are relative to `packages/react/src/` unless they start with `node_modules/`.
+
+**Facts the plan relied on.**
+
+1. Every `Intl` output pinned in the format tests, except `formatPhone`'s (which depend on
+   `libphonenumber-js` metadata), is byte-identical on Node 22.22.0 and Node 24.19.0, so the
+   tables are asserted exactly.
+2. One divergence: `de-DE` `unitDisplay: 'narrow'` hours are `"2 Std."` on ICU 77.1 and
+   `"2h"` on ICU 78.3. No test asserts a narrow duration or unit in `de-DE`, and
+   `formatDuration`'s default style is `'short'`.
+3. `Intl.DurationFormat` is `undefined` on Node 22.22.0 and a function on Node 24.19.0. This
+   is why §5.2 composes and never feature-detects; a test asserts the composed path is used
+   even where the native API exists.
+4. An invalid locale (`'xx_YY'`), an invalid time zone (`'Mars/Base'`) and an invalid `Date`
+   all make `Intl` throw `RangeError`. "Bad input never throws" (§5.5.2) therefore means every
+   formatter catches (the shared `guard` in `format/`).
+5. `new Intl.NumberFormat('en-US', { style: 'unit', unit: 'kilobyte', maximumFractionDigits: 1 }).format(999.95)`
+   is `"1,000 kB"`. `formatBytes` steps up a unit after rounding, so `999_950` bytes is `"1 MB"`.
+6. The `en-US` short form of the `byte` unit is singular (`"512 byte"`); the long form is
+   plural-correct. `formatBytes` formats `byte` with `unitDisplay: 'long'` and every larger
+   unit with `'short'`.
+7. `@base-ui/utils` 0.3.2 exports `./useControlled`, `./useStableCallback`,
+   `./usePreviousValue`, `./useTimeout`, `./useValueAsRef` and `./owner`
+   (`node_modules/@base-ui/utils/package.json`). `useControlled` returns
+   `[value, setValueIfUncontrolled]` and never calls a change handler
+   (`useControlled.mjs:4-42`), so `useControllableState` calls `onChange` itself.
+   `usePreviousValue` returns the previous distinct value, `null` before the first change
+   (`usePreviousValue.mjs:9-20`), so `usePrevious` returns `T | null`. `useStableCallback`
+   throws if called during render (`useStableCallback.d.ts`).
+8. `ownerDocument(null)` returns the global document (`node_modules/@base-ui/utils/owner.mjs:2-4`),
+   so `useFocusReturn` and `useClickOutside` never name the global and need no SSR-safety
+   exemption.
+9. `NotificationContext` was private to `notifications/NotificationProvider.tsx`, which also
+   imports the Toast parts and their CSS. `useAnnounce` importing it would have pulled Toast's
+   CSS into every `./hooks` consumer (gate 10, §6.1), so the context moved to
+   `notifications/context.ts`. The phone-isolation gate asserts `./hooks` does not reach
+   `NotificationProvider.tsx`.
+10. `useHydrated` flips in a passive effect (`hooks/useHydrated.ts:14-18`), so it is `false`
+    on the first render of every mount, client-only mounts included. `useFormatter` would
+    flash UTC on every client-side navigation if it used it, so it uses
+    `useSyncExternalStore(noop, () => true, () => false)`, which is `false` only while
+    hydrating (`hooks/useFormatter.ts`).
+11. `new Date('2026-03-05')` (date-only ISO) is UTC midnight and
+    `new Date('2026-03-05T14:30:00Z')` parses exactly, so formatters accept
+    `Date | number | string` and parse strings with `new Date(string)`.
+12. `new Intl.Locale('en').maximize().region` is `'US'`, `'he'` gives `'IL'` and `'ja'` gives
+    `'JP'`, so `formatAddress` derives the reader's region from the maximised locale.
+
+**Found while building.**
+
+- **`timeZoneName` is a component option.** `formatDate`, `formatTime` and the other date
+  formatters apply their style defaults only when the caller named no component option, and
+  `timeZoneName` is on that list (`COMPONENT_KEYS` in `format/date.ts`). Intl throws
+  `TypeError` for `timeStyle` beside `timeZoneName`, so passing `timeZoneName` has to disable
+  the default style. `hour12` and `hourCycle` combine with a style and are not on the list.
+- **`formatName` and `displayName`.** When `displayName` is present, both the display form
+  and the initials come from it (§5.3, "displayName wins"; `format/text.ts`).
+- **`formatPhone` and an unknown default country.** `libphonenumber-js` 1.13.13 does not
+  throw for `defaultCountry: 'XX'`. A `+`-prefixed number parses regardless of it, and a
+  national number returns `undefined`, so `formatPhone` returns the trimmed input
+  (`format/phone.ts`). The code also catches a throw and retries without a country, in case a
+  later version does throw.
+- **`useClickOutside` and a conditional target.** It attaches whenever `enabled`, on the
+  owner document of the ref (the global one while the ref is empty), and reads the ref at
+  event time, so a target rendered conditionally works without toggling `enabled`
+  (`hooks/useClickOutside.ts`). `useEventListener` (ref form), `useResizeObserver` and
+  `useIntersectionObserver` instead need the ref attached when their effect runs; each says
+  so in its doc comment.
+- **`useFocusReturn` records in a layout effect**, so a child's passive-effect focus move is
+  not recorded as the element to return to. `autoFocus` is not supported: it runs at commit,
+  before any layout effect, and the doc comment states that contract (`hooks/useFocusReturn.ts`).
+- **Storage hooks.** The parse is memoised on the raw string only, so the value's identity is
+  stable even when the caller passes an inline literal default. A failed write keeps the
+  value in memory for the session (`hooks/useStorage.ts`).
+- **Hydration errors in React 19.** Recoverable hydration errors reach `hydrateRoot`'s
+  `onRecoverableError`, and not reliably `console.error`, so the hydration tests assert both
+  (`hooks/useFormatter.test.tsx`).
+- **The phone-isolation gate fails on any relative import it cannot resolve**, so a resolver
+  bug cannot make it pass because the walk silently stopped early (the `unresolved` check in
+  the gate under `gates/`).
 
 ## 6. Gates
 
