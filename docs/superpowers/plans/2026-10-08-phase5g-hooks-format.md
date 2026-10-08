@@ -23,7 +23,7 @@
 - **Development-only warnings** use a bare `process.env.NODE_ENV !== 'production'` check, never guarded by `typeof process` (`components/Select/Select.tsx:265-274` is the precedent, and its comment says why).
 - **`exactOptionalPropertyTypes` is on.** Spread optionals conditionally, and never pass `prop: undefined`. Public option types declare optionals as `?: T | undefined`, which also clears 5f's open follow-up for consumers.
 - **There is no jest-dom in unit tests.** Use plain values and `el.getAttribute(…)`. Files that render to the DOM start with `// @vitest-environment jsdom` (`hooks/useHydrated.test.tsx:1`). A server test has **no** environment docblock and asserts `typeof window === 'undefined'` (`hooks/useHydrated.ssr.test.tsx`).
-- **Expected strings containing invisible characters are written with escapes**, never pasted: U+00A0 as ` `, U+202F as ` `, U+2009 as ` `, U+200F as `‏`. An expected string with a pasted no-break space is a review finding.
+- **Expected strings containing invisible characters are written with escapes**, never pasted: U+00A0 as `\u00a0`, U+202F as `\u202f`, U+2009 as `\u2009`, U+200F as `\u200f`. An expected string with a pasted no-break space is a review finding.
 - **Only two dependencies may be added:** `@base-ui/utils` `0.3.2` (exact, matching `node_modules/@base-ui/react/package.json:33`) as a dependency, and `libphonenumber-js` `1.13.13` as an optional peer (`^1.13.13`) plus a root dev dependency. 1.13.13 was published 2026-09-10; 1.13.14 and 1.13.15 are newer than this repo's two-week floor. **Never run a snapshot-update flag. Never run prettier.** House style is single quotes and no semicolons.
 - **Every assertion names the change that must make it fail.** Apply each perturbation once, watch it fail, and revert. 5f's lesson applies: **before prescribing a perturbation, check that the code under test is the only thing between the input and the failure.**
 - **Check every new file is valid UTF-8** before committing (`iconv -f utf-8 -t utf-8 <file> > /dev/null`). 5f shipped a stray `0x97` byte from a shell write.
@@ -174,7 +174,7 @@ These five inputs are implied by the spec, not exercised by any obvious test, an
   | `formatTime(T, { locale: 'de-DE', timeZone: 'Europe/Berlin' })` | `'15:30'` |
   | `formatDateTime(T, { locale: 'en-US', timeZone: 'UTC' })` | `'Mar 5, 2026, 2:30 PM'` |
   | `formatDateTime(T, { locale: 'he-IL', timeZone: 'Asia/Jerusalem' })` | `'5 במרץ 2026, 16:30'` |
-  | `formatDateRange(T, T + 3 * 864e5, { locale: 'en-US', timeZone: 'UTC' })` | `'Mar 5 – 8, 2026'` |
+  | `formatDateRange(T, T + 3 * 864e5, { locale: 'en-US', timeZone: 'UTC' })` | `'Mar 5\u2009–\u20098, 2026'` |
   | `formatDateRange(T, T + 3 * 864e5, { locale: 'de-DE', timeZone: 'UTC' })` | `'05.–08.03.2026'` |
   | `formatDateRange(T, T, { locale: 'en-US', timeZone: 'UTC' })` | `'Mar 5, 2026'` |
   | `formatDateRange(T, 'nope', …)` | `''` |
@@ -256,27 +256,27 @@ These five inputs are implied by the spec, not exercised by any obvious test, an
   | Call | Expected |
   |---|---|
   | `formatNumber(1234567.891, { locale: 'de-DE' })` | `'1.234.567,891'` |
-  | `formatNumber(1234567.891, { locale: 'fr-FR' })` | `'1 234 567,891'` |
+  | `formatNumber(1234567.891, { locale: 'fr-FR' })` | `'1\u202f234\u202f567,891'` |
   | `formatNumber(1234567.891, { locale: 'en-IN' })` | `'12,34,567.891'` |
   | `formatNumber(1234567.891, { locale: 'he-IL' })` | `'1,234,567.891'` |
   | `formatNumber(NaN, …)`, `formatNumber(Infinity, …)`, `formatNumber(null, …)` | `''` |
   | `formatNumber(1, { locale: 'en_US' })` | `''` (**Review Focus 5**) |
   | `formatCurrency(1234.5, { locale: 'en-US', currency: 'USD' })` | `'$1,234.50'` |
-  | `formatCurrency(1234.5, { locale: 'de-DE', currency: 'EUR' })` | `'1.234,50 €'` |
+  | `formatCurrency(1234.5, { locale: 'de-DE', currency: 'EUR' })` | `'1.234,50\u00a0€'` |
   | `formatCurrency(1234.5, { locale: 'ja-JP', currency: 'JPY' })` | `'￥1,235'` |
-  | `formatCurrency(1234.5, { locale: 'he-IL', currency: 'ILS' })` | `'‏1,234.50 ‏₪'` |
+  | `formatCurrency(1234.5, { locale: 'he-IL', currency: 'ILS' })` | `'\u200f1,234.50\u00a0\u200f₪'` |
   | `formatCurrency(1, { locale: 'en-US', currency: 'XX' })` | `''` (invalid currency code throws inside `Intl`) |
   | `formatPercent(0.125, { locale: 'en-US' })` | `'13%'` |
   | `formatPercent(0.125, { locale: 'en-US', maximumFractionDigits: 1 })` | `'12.5%'` |
-  | `formatPercent(0.125, { locale: 'de-DE' })` | `'13 %'` |
+  | `formatPercent(0.125, { locale: 'de-DE' })` | `'13\u00a0%'` |
   | `formatPercentChange(80, 90, { locale: 'en-US' })` | `'+12.5%'` |
   | `formatPercentChange(100, 97, { locale: 'en-US' })` | `'-3%'` (ICU's hyphen-minus, not U+2212) |
-  | `formatPercentChange(100, 97, { locale: 'de-DE' })` | `'-3 %'` |
+  | `formatPercentChange(100, 97, { locale: 'de-DE' })` | `'-3\u00a0%'` |
   | `formatPercentChange(50, 50, { locale: 'en-US' })` | `'0%'` |
   | `formatPercentChange(-50, -25, { locale: 'en-US' })` | `'+50%'` (divides by the base's magnitude) |
   | `formatPercentChange(0, 10, …)` | `''` (zero base) |
   | `formatCompact(1234567, { locale: 'en-US' })` | `'1.2M'` |
-  | `formatCompact(1234567, { locale: 'de-DE' })` | `'1,2 Mio.'` |
+  | `formatCompact(1234567, { locale: 'de-DE' })` | `'1,2\u00a0Mio.'` |
   | `formatCompact(1234567, { locale: 'ja-JP' })` | `'123万'` |
 
   `formatPercentChange` computes `(current - previous) / Math.abs(previous)` and formats it with `style: 'percent'`, `signDisplay: 'exceptZero'` and `maximumFractionDigits: 1` as defaults the caller can override.
@@ -311,7 +311,7 @@ These five inputs are implied by the spec, not exercised by any obvious test, an
   | `5e18` | `'5,000 PB'` (no unit past petabyte) |
   | `512`, de-DE | `'512 Byte'` |
   | `1500`, de-DE | `'1,5 kB'` |
-  | `1500`, fr-FR | `'1,5 ko'` |
+  | `1500`, fr-FR | `'1,5\u202fko'` |
   | `-1500` | `'-1.5 kB'` |
   | `NaN` | `''` |
 
@@ -388,7 +388,7 @@ These five inputs are implied by the spec, not exercised by any obvious test, an
   |---|---|
   | `truncate('Hello world', { locale: 'en', length: 20 })` | `'Hello world'` |
   | `truncate('Hello world', { locale: 'en', length: 7 })` | `'Hello…'` (the trailing space is trimmed) |
-  | `truncate('👩‍👩‍👧éxyz', { locale: 'en', length: 3 })` | `'👩‍👩‍👧é…'` (the family emoji and the combining accent each count as one) |
+  | `truncate('👩\u200d👩\u200d👧éxyz', { locale: 'en', length: 3 })` | `'👩\u200d👩\u200d👧é…'` (the family emoji and the combining accent each count as one) |
   | `truncate('abc', { locale: 'en', length: 0 })` | `''` |
 
   **`collator`** returns `new Intl.Collator(locale, options).compare`.
@@ -769,7 +769,7 @@ The comment lists US, IN and SG with their citations as "cited, equal to the gen
 
 - [ ] **Step 1: Write the tests.**
   - `useFormatter.test.tsx` (jsdom), inside `<LocaleProvider locale="de-DE" currency="EUR" timeZone="Asia/Tokyo">`:
-    - `formatCurrency(1234.5)` is `'1.234,50 €'`.
+    - `formatCurrency(1234.5)` is `'1.234,50\u00a0€'`.
     - `formatDate(Date.UTC(2026, 2, 5, 23, 30))` is `'06.03.2026'` (the provider zone is honoured).
     - A per-call override wins: `formatDate(T, { timeZone: 'UTC' })` is `'05.03.2026'`.
     - `timeZone` is `'Asia/Tokyo'`.

@@ -472,8 +472,8 @@ needs a library, `formatPhone`, is in `format/phone.ts` behind `@ap/react/format
 - **Formatters are pure.** No `'use client'`, no `react` import, no `Date.now()`, no
   zero-argument `new Date()`: they have to work in a loader or a Node script. Every file in
   `src/hooks/` starts with `'use client'`.
-- **Expected strings use escapes for invisible characters.** Write ` `, ` `,
-  ` ` and `‏` in a test, never the pasted character, which no reviewer can see.
+- **Expected strings use escapes for invisible characters.** Write `\u00a0` (no-break space), `\u202f`
+  (narrow no-break space), `\u2009` (thin space) and `\u200f` (right-to-left mark) in a test, never the pasted character, which no reviewer can see.
 - **Tests must pass on Node 22.22.0 as well as your own Node.** CI runs 22.22.0 (ICU 77.1)
   and a newer local Node ships newer ICU data. Run
   `npx --yes node@22.22.0 node_modules/vitest/vitest.mjs run --project unit <paths>`.
