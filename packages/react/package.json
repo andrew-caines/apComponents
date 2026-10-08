@@ -11,7 +11,8 @@
     "./fonts.css": "./src/theme/fonts.css",
     "./motion.css": "./src/theme/motion.css",
     "./hooks": "./src/hooks/index.ts",
-    "./format": "./src/format/index.ts"
+    "./format": "./src/format/index.ts",
+    "./format/phone": "./src/format/phone.ts"
   },
   "dependencies": {
     "@ap/motion": "file:../motion",
@@ -23,7 +24,13 @@
   },
   "peerDependencies": {
     "react": ">=19.2.7",
-    "react-dom": ">=19.2.7"
+    "react-dom": ">=19.2.7",
+    "libphonenumber-js": "^1.13.13"
+  },
+  "peerDependenciesMeta": {
+    "libphonenumber-js": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22.22.0"

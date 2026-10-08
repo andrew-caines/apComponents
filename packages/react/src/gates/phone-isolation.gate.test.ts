@@ -1,0 +1,82 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join, relative, resolve, sep } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { sourceFiles } from './sourceFiles.js'
+
+const SRC = join(import.meta.dirname, '..')
+const PHONE_LIB = 'libphonenumber-js'
+
+// `from '…'` (import, export-from, import type), side-effect `import '…'`,
+// and dynamic `import('…')`. Type-only imports count too: conservative.
+const SPECIFIER_RE = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"]([^'"]+)['"]/g
+
+function specifiersOf(file: string): string[] {
+  const text = readFileSync(file, 'utf8')
+  return [...text.matchAll(SPECIFIER_RE)].map((m) => m[1]!)
+}
+
+/** `./x.js` resolves to `x.ts` or `x.tsx` beside it; a bare specifier is a leaf. */
+function resolveRelative(from: string, spec: string): string | undefined {
+  if (!spec.startsWith('.')) return undefined
+  const base = resolve(dirname(from), spec.replace(/\.js$/, ''))
+  for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')]) {
+    if (existsSync(candidate)) return candidate
+  }
+  return undefined
+}
+
+/** Every file and every bare specifier reachable from `entry`. */
+function reach(entry: string): { files: Set<string>; bare: Set<string> } {
+  const files = new Set<string>()
+  const bare = new Set<string>()
+  const queue = [entry]
+  while (queue.length > 0) {
+    const file = queue.pop()!
+    if (files.has(file)) continue
+    files.add(file)
+    for (const spec of specifiersOf(file)) {
+      if (!spec.startsWith('.')) {
+        bare.add(spec)
+        continue
+      }
+      const resolved = resolveRelative(file, spec)
+      if (resolved) queue.push(resolved)
+    }
+  }
+  return { files, bare }
+}
+
+const rel = (f: string) => relative(SRC, f).split(sep).join('/')
+const names = (files: Set<string>) => [...files].map(rel)
+const touchesPhoneLib = (bare: Set<string>) => [...bare].filter((s) => s.startsWith(PHONE_LIB))
+
+describe('gate: libphonenumber-js stays behind ./format/phone', () => {
+  const format = reach(join(SRC, 'format/index.ts'))
+
+  // Must pass before the isolation assertions mean anything. Fails if the
+  // resolver stops following `.js` specifiers or re-exports.
+  it('the walk from format/index.ts reaches every sibling formatter (non-vacuity)', () => {
+    const reached = names(format.files)
+    for (const f of ['date', 'number', 'text', 'address', 'mask']) {
+      expect(reached, `format/${f}.ts not reached`).toContain(`format/${f}.ts`)
+    }
+  })
+
+  it('format/index.ts never reaches libphonenumber-js (fails if it re-exports ./phone.js)', () => {
+    expect(touchesPhoneLib(format.bare)).toEqual([])
+    expect(names(format.files)).not.toContain('format/phone.ts')
+  })
+
+  it('hooks/index.ts never reaches libphonenumber-js', () => {
+    const hooks = reach(join(SRC, 'hooks/index.ts'))
+    expect(names(hooks.files).length).toBeGreaterThan(1)
+    expect(touchesPhoneLib(hooks.bare)).toEqual([])
+  })
+
+  it('format/phone.ts is the only non-test source file importing libphonenumber-js', () => {
+    const importers = sourceFiles(SRC, { extensions: ['.ts', '.tsx'] })
+      .filter((f) => specifiersOf(f).some((s) => s.startsWith(PHONE_LIB)))
+      .map(rel)
+    expect(importers).toEqual(['format/phone.ts'])
+  })
+})

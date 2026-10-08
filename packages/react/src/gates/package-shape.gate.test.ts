@@ -6,6 +6,8 @@ const PACKAGE_DIR = join(import.meta.dirname, '../..')
 const pkg = JSON.parse(readFileSync(join(PACKAGE_DIR, 'package.json'), 'utf8')) as {
   exports: Record<string, string>
   dependencies: Record<string, string>
+  peerDependencies: Record<string, string>
+  peerDependenciesMeta: Record<string, { optional?: boolean }>
 }
 const baseUi = JSON.parse(
   readFileSync(join(import.meta.dirname, '../../../../node_modules/@base-ui/react/package.json'), 'utf8'),
@@ -15,7 +17,7 @@ const baseUi = JSON.parse(
 // entry pointing at a file that moved, breaks every consumer's import while
 // the in-repo tests (which import by relative path) stay green.
 describe('gate: @ap/react package shape', () => {
-  for (const subpath of ['./hooks', './format']) {
+  for (const subpath of ['./hooks', './format', './format/phone']) {
     it(`exports ${subpath}, and its target exists on disk`, () => {
       const target = pkg.exports[subpath]
       expect(target, `exports['${subpath}'] is missing`).toBeDefined()
@@ -35,5 +37,13 @@ describe('gate: @ap/react package shape', () => {
     const expected = baseUi.dependencies['@base-ui/utils']
     expect(expected, '@base-ui/react no longer depends on @base-ui/utils').toBeDefined()
     expect(pkg.dependencies['@base-ui/utils']).toBe(expected)
+  })
+
+  // libphonenumber-js is an optional peer, reachable only through
+  // ./format/phone. As a hard dependency it would install for every consumer.
+  it('declares libphonenumber-js as an optional peer, never a dependency', () => {
+    expect(pkg.peerDependencies['libphonenumber-js'], 'peerDependencies entry missing').toBeDefined()
+    expect(pkg.peerDependenciesMeta['libphonenumber-js']?.optional).toBe(true)
+    expect(pkg.dependencies['libphonenumber-js']).toBeUndefined()
   })
 })
