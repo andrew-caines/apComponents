@@ -8,7 +8,20 @@ const preview: Preview = {
   // Every story renders inside the provider stack. This is not decoration:
   // Dialog.Dismiss reads its aria-label from the message registry via
   // useMessages(), and throws outside a LocaleProvider.
-  decorators: [(Story) => <ApProvider><Story /></ApProvider>],
+  //
+  // It is also the ONE NotificationProvider a story gets. A provider a story
+  // mounts itself is nested inside this one, and a nested provider renders
+  // only its children, so its `placement` would be ignored. A story picks its
+  // toast placement with `parameters: { notifications: { placement } }`.
+  decorators: [
+    (Story, context) => (
+      <ApProvider
+        notifications={{ placement: context.parameters.notifications?.placement ?? 'bottom-end' }}
+      >
+        <Story />
+      </ApProvider>
+    ),
+  ],
   parameters: {
     a11y: {
       // 'error' fails the test run on a violation. 'todo' only warns in the
