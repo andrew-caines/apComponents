@@ -81,4 +81,10 @@ export const SECTIONS: readonly Section[] = [
     file: 'routes/disclosure.tsx',
     blurb: 'Manual-activation tabs and an accordion whose closed sections are findable in the page.',
   },
+  {
+    slug: 'notifications',
+    title: 'Notifications',
+    file: 'routes/notifications.tsx',
+    blurb: 'Toasts, banners and confirmation dialogs, raised from plain function calls.',
+  },
 ]

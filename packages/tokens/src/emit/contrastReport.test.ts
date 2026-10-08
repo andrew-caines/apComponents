@@ -5,11 +5,11 @@ import { assertThemeContrast, contrastPairings } from './contrastReport.js'
 const theme = generateTheme({ brand: '#2e5fd9' })
 
 describe('contrastPairings', () => {
-  it('covers 37 pairings in each mode', () => {
+  it('covers 55 pairings in each mode', () => {
     const pairings = contrastPairings(theme)
-    expect(pairings).toHaveLength(74)
-    expect(pairings.filter((p) => p.mode === 'light')).toHaveLength(37)
-    expect(pairings.filter((p) => p.mode === 'dark')).toHaveLength(37)
+    expect(pairings).toHaveLength(110)
+    expect(pairings.filter((p) => p.mode === 'light')).toHaveLength(55)
+    expect(pairings.filter((p) => p.mode === 'dark')).toHaveLength(55)
   })
 
   it('includes the pairings added by the final-review fix wave (I3)', () => {

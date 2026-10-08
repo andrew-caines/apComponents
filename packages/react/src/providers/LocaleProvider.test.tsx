@@ -57,7 +57,19 @@ describe('LocaleProvider', () => {
 
   it('exposes every default key as a typed constant', () => {
     expect(Object.keys(DEFAULT_MESSAGES).sort()).toEqual(
-      ['close', 'dismiss', 'error', 'loading', 'noResults', 'optional', 'required'].sort(),
+      [
+        'cancel',
+        'close',
+        'confirm',
+        'dismiss',
+        'error',
+        'loading',
+        'noResults',
+        'notifications',
+        'ok',
+        'optional',
+        'required',
+      ].sort(),
     )
   })
 })

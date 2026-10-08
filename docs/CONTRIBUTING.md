@@ -1120,6 +1120,60 @@ cannot be opened by click. Base UI's `value` is an array of item values with no 
 (`accordion/root/AccordionRoot.js:56-61`), so ours is `Value[]`. Tabs differs: its
 `onValueChange` can receive `null` (`tabs/root/TabsRoot.js:220`), and ours is typed to say so.
 
+## Notification traps: the toast provider, `toast.promise`, `AlertDialog` focus and physical motion
+
+Paths are relative to `node_modules/@base-ui/react/`. The verified results are in spec
+§4.6.2; these are the four that bite a hand assembly.
+
+**`ToastProvider` subscribes in a passive effect, so a page's own `useEffect` toast is
+dropped.** The subscription to a `createToastManager()` is a `useEffect`
+(`toast/provider/ToastProvider.js:39-59`). React runs passive effects child-first, so
+`useEffect(() => toast(…), [])` in a route component fires before the provider above it has
+subscribed, and the manager, a bare `Set` of listeners
+(`toast/createToastManager.js:12-15`), delivers to nobody. Ours does not use
+`createToastManager`. `Relay` in `notifications/NotificationProvider.tsx` subscribes our own
+channel in a layout effect and calls `useToastManager()`'s `add`, `close` and `promise`
+(`toast/useToastManager.js:17-23`). A hand assembly that calls `toast()` from a mount effect
+needs the same. The test that discriminates is the page rendered *before* the provider in
+`NotificationProvider.test.tsx`; a child of the provider does not discriminate, because the
+relay is an earlier sibling of the children.
+
+**`toast.promise` errors keep the default priority and timeout, and string options become
+descriptions.** On rejection the store sets `type: 'error'` and `timeout:
+errorOptions.timeout` (`toast/store.js:252-258`) and never `priority`, so the toast stays
+`role="dialog"` (`toast/root/ToastRoot.js:420`) and falls back to the provider's 5000
+(`toast/store.js:184-187`): an error that vanishes. A string option becomes `{ description }`
+(`toast/utils/resolvePromiseOptions.js:8-11`), so there is no title. `toast.promise` here maps
+every branch through `notifications/severity.ts`: the error branch is forced to severity
+`error` (high priority, `timeout: 0`) and strings become titles. A raw `promise()` from Base
+UI needs both done by hand.
+
+**`AlertDialog`'s default initial focus is the first tabbable, which is Cancel.** An unset
+`initialFocus` resolves to `true` (`dialog/popup/DialogPopup.js:59`,
+`utils/popups/popupStoreUtils.js:45-47`), and `FloatingFocusManager` focuses the first
+tabbable element for `true` (`floating-ui-react/components/FloatingFocusManager.js:381-389`).
+With a Cancel-then-Confirm footer, that is Cancel in every tone. `DialogHost.tsx` always passes
+`initialFocus` (Cancel for `tone: 'danger'`, Confirm otherwise). Focus return needs no code
+(`FloatingFocusManager.js:124`, `:365`, `:477-479`). Under `StrictMode` a mount-time
+`confirm()` raises two requests, because React replays the effect, and both are shown in turn.
+
+**Toast motions are physical.** `toast.slide-in` and `toast.slide-out` are a physical
+`translateX(100%)` (`packages/motion/src/motions.ts:119-131`), and Base UI's swipe default is
+`['down', 'right']` (`toast/root/ToastRoot.js:50`). Only a `*-end` placement in a
+left-to-right page slides, because only there is the toast docked to the edge it travels from.
+`*-start`, `*-center` and every right-to-left page fall back to `enter.fade-rise` and
+`exit.fade` in `Toast.css.ts`, and `swipeDirectionsFor` in `ToastParts.tsx` sets the swipe
+directions per placement. A hand assembly that applies `toast.slide-in` unconditionally flies
+a `*-start` or right-to-left toast in from the opposite edge. Pinned by the `RightToLeft` and
+`Motion` stories in `Toast.stories.tsx`.
+
+Two smaller ones for tests. `ToastClose` is `aria-hidden` until the stack is expanded or
+focused (`toast/close/ToastClose.js:49`), and an unfocused high-priority Root is
+`aria-hidden` (`toast/root/ToastRoot.js:425`), so query by label or attribute, not role. And a
+`<Button />` render cannot catch a dropped `nativeButton` derivation, since `Button` derives
+`true`, which is Base UI's default; the anchor-render test in `ToastParts.test.tsx` is the one
+that fails.
+
 ## Known caveats
 
 ### Windows drive-letter casing breaks vanilla-extract silently

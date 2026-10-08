@@ -15,6 +15,10 @@ export const DEFAULT_MESSAGES = Object.freeze({
   optional: 'optional',
   noResults: 'No results',
   dismiss: 'Dismiss',
+  notifications: 'Notifications',
+  confirm: 'Confirm',
+  cancel: 'Cancel',
+  ok: 'OK',
 })
 
 export type MessageKey = keyof typeof DEFAULT_MESSAGES

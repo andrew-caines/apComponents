@@ -768,6 +768,322 @@ after navigation.
 `ApProvider` gains the fourth provider with **no public API change**, as its own doc
 comment promised.
 
+> **Superseded in part by §4.6.1 (2026-10-06).** Overflow is not queued, there is no
+> assertive toast region, `confirm()`/`alert()` are built on Base UI's `AlertDialog` (with
+> `Dialog`'s styling), and `ApProvider` gains one optional, additive prop. The paragraphs
+> above are kept as written.
+
+#### 4.6.1 Scope and API — settled 2026-10-06, before the plan
+
+Every Base UI claim was checked against the installed `@base-ui/react` 1.7.0. Paths are
+relative to `node_modules/@base-ui/react/`. Each citation points at the line that causes
+the claim.
+
+**Base UI facts this plan relies on.**
+
+- **The toast manager is a pure emitter.** `createToastManager` holds a `Set` of listeners
+  (`toast/createToastManager.js:12`). `add()` (`:25`) only emits to them (`:14`). It touches no DOM, so it
+  is safe at module scope and on the server. With no subscriber the call goes nowhere and is not
+  buffered.
+- **The provider subscribes in an effect** (`toast/provider/ToastProvider.js:39-59`), so a call made before
+  mount or hydration is dropped. Its defaults are `timeout = 5000` and `limit = 3` (`:24-25`).
+- **Overflow is rendered, not queued.** The store marks a toast `limited` when `activeIndex >= limit`
+  (`toast/store.js:49`), and the newest toasts stay visible. A limited Root stays in the DOM, `inert`
+  (`toast/root/ToastRoot.js:431`), with `data-limited`. Our CSS must hide it. It reappears as newer toasts
+  close.
+- **`timeout: 0` never auto-dismisses.** A timer is scheduled only when `duration > 0` and the type is not
+  `'loading'` (`toast/store.js:149`). Timers pause on hover, on focus, and while the window is blurred
+  (`:66`).
+- **Priority, not `type`, sets the semantics.** A Root's role is `alertdialog` for `priority: 'high'`, and
+  `dialog` otherwise (`toast/root/ToastRoot.js:420`). The viewport is a `region` with `aria-live="polite"`
+  for every priority (`toast/viewport/ToastViewport.js:185-186`). While the viewport is not focused, it adds
+  a visually hidden `role="alert"` copy of each high-priority toast (`:47`, `:223`). There is **no assertive
+  live region**. `type` becomes `data-type` only.
+- **The viewport label is hard-coded English:** `'aria-label': 'Notifications'`
+  (`toast/viewport/ToastViewport.js:189`). It is overridable by prop, so ours comes from a message key.
+- **F6 focuses the viewport** (`toast/viewport/ToastViewport.js:61`). Escape on a focused toast closes it
+  (`toast/root/ToastRoot.js:381`).
+- **Swipe defaults to `['down', 'right']`** (`toast/root/ToastRoot.js:50`). It is a prop, so placement can
+  set it.
+- **The toast portal is client-only.** `FloatingPortalLite` returns `null` until its node exists
+  (`utils/FloatingPortalLite.js:36-37`), so a portalled viewport is absent from server HTML.
+- **`AlertDialog` is `Dialog` in alert mode.** `useRenderDialogRoot` sets `role = 'alertdialog'`
+  and `disablePointerDismissal` for that mode (`dialog/root/useRenderDialogRoot.js:32-35`), so an outside
+  click cannot dismiss it.
+
+**One emitter per kind, one provider.**
+
+- `toast()` goes straight to a module-level `createToastManager()`. Base UI's queue, timers, pause,
+  `promise()` and id upsert are reused, not rewritten.
+- `banner()`, `confirm()`/`alert()` and `announce()` go through one small typed emitter of ours. It has the
+  same subscribe/emit shape and no DOM access.
+- `NotificationProvider` subscribes to both on mount. It renders four things: the toast viewport (portalled,
+  so client-only), the dialog host, two live regions, and the context that `BannerRegion` reads.
+- **Every surface is a module-level function** importable from `@ap/react`, callable anywhere on the client.
+- **A call made with no provider mounted is dropped,** with a development-only `console.warn` naming the
+  function. `confirm()` resolves `false` and `alert()` resolves at once, so nothing hangs.
+
+**`toast(options) → id`.**
+
+- `toast({ title, description?, severity?, action?: { label, onClick }, id?, timeout? })`, with
+  `toast.info/success/warning/error(titleOrOptions)`, `toast.promise(promise, { loading, success, error })`,
+  and `toast.close(id?)`. No id closes all.
+- **`severity`:** `'info'` (the default), `'success'`, `'warning'` or `'error'`.
+  - `error` maps to `priority: 'high'` and `timeout: 0`. An error toast's `timeout` cannot be overridden,
+    because ADR-0012's "errors never auto-dismiss" is absolute.
+  - The rest map to `priority: 'low'` with a 5000 ms timeout that a call can override.
+  - Severity also becomes `type`, so it is styled through `data-type`. Each level has its own decorative
+    icon, so severity is never colour alone.
+- **`id` dedupes.** Base UI updates an existing toast in place.
+- **Overflow:** Base UI's behaviour is kept, with three visible and the newest shown. An error can be hidden
+  behind newer toasts until they time out. This is accepted.
+- **Parts:** `Toast.Viewport`, `Root`, `Title`, `Description`, `Action`, `Close`. `Close` and `Action` use the
+  `nativeButton` derivation and are tested with our own `Button` as `render`. `Close` is labelled by the
+  existing `dismiss` message.
+
+**`placement`.**
+
+- One of `top-start | top-center | top-end | bottom-start | bottom-center | bottom-end`. The default is
+  `bottom-end`.
+- It is set on `NotificationProvider`, and `ApProvider` passes it through a new optional prop,
+  `notifications={{ placement }}`. This is additive, so existing `ApProvider` code is unchanged.
+- Placement is a recipe variant using logical insets only, so it mirrors in RTL.
+- Swipe dismissal follows placement: toward the nearest inline edge, or toward the block edge for `*-center`.
+- Toasts stack as a simple vertical list with a gap, newest nearest the edge. There is no collapsed deck.
+
+**`banner(options) → { close }`.**
+
+- `banner({ title, description?, severity?, action?, id?, dismissible? })`. `dismissible` defaults to `true`.
+- Banners never auto-dismiss. A banner with the same `id` replaces the existing one. New banners are
+  appended to the stack.
+- They render in `<BannerRegion />`, which the app places in its layout. It is not a portal, so banners sit
+  in normal page flow.
+- Banners are our own markup, so ADR-0012's roles apply literally: `role="status"` for info, success and
+  warning, and `role="alert"` for error.
+- If no `BannerRegion` is mounted, `banner()` warns in development and falls back to a toast of the same
+  severity.
+
+**`confirm(options) → Promise<boolean>`, `alert(options) → Promise<void>`.**
+
+- `confirm({ title, description?, confirmLabel?, cancelLabel?, tone? })`, where `tone` is `'default'` or
+  `'danger'`. `alert({ title, description?, okLabel? })`.
+- Both are built on Base UI's `AlertDialog`, which has `role="alertdialog"` and no outside-click dismissal.
+  They are styled with `Dialog`'s recipe classes.
+- Escape resolves `false`. With `tone: 'danger'`, the confirm button uses `Button`'s danger variant and
+  initial focus goes to Cancel. Otherwise initial focus goes to Confirm.
+- Focus returns to the previously focused element on close (Base UI's default; the plan cites the line).
+- Calls queue first-in-first-out, and one dialog is open at a time.
+- Labels default to the new `confirm`, `cancel` and `ok` messages.
+
+**`announce(message, { politeness? })`.**
+
+- `politeness` is `'polite'` (the default) or `'assertive'`. The JSDoc reserves `'assertive'` for errors,
+  per ADR-0012.
+- The provider renders two visually hidden live regions, one per politeness. They are present and empty in
+  server HTML and on the first client render, and text is written only in effects.
+- Repeating the same text is still announced, because the region is cleared and the text set on the next
+  frame. A region clears itself 5 s after its last write. 5g's `useAnnounce` will wrap this function.
+
+**SSR.** Server HTML contains the two empty live regions and the empty `BannerRegion` wrapper, and no toast
+or dialog markup (gate 7's Toast row).
+
+**New message keys:**
+
+- `notifications`: the toast viewport label.
+- `confirm`, `cancel` and `ok`: the dialog buttons.
+
+The existing `dismiss` labels the toast close button. There are no severity strings: the icon is decorative,
+and the title carries the meaning.
+
+**Styling.**
+
+- Tier 3 tokens cover the toast and banner surface, the border, and one accent per severity, from existing
+  `vars.color` roles. `test:contrast` gates them.
+- Under `forced-colors` the toast and banner keep a visible border, after the 5e lesson. An e2e check runs
+  under `forcedColors`.
+- Enter and exit motion use `@ap/motion` tokens. The plan reads which state attribute Base UI animates before
+  writing a selector, after the 5e `[data-closed]` lesson.
+
+**Shared.**
+
+- Every assertion names the perturbation that makes it fail, `play` functions included.
+- CSS behaviour is asserted in stories, because jsdom has no vanilla-extract CSS (5e).
+- Real keyboard proofs (F6, Escape, Tab) are made in the fixture e2e.
+
+#### 4.6.2 Verified during the plan
+
+Paths are relative to `node_modules/@base-ui/react/`, Base UI 1.7.0. Where the cause is not a
+source line, the entry says "observed" and names the test or story that pins it. §4.6.1 is
+left as written; this section records what contradicts it, what the plan added to it, and the
+Review Focus results. ADR-0008 records the contrast decisions at the end (commit 095e419), so
+they are linked, not repeated.
+
+**Contradicts §4.6.1.**
+
+- **`toast()` does not go to a module-level `createToastManager()`.** This supersedes the
+  first bullet under "One emitter per kind". `ToastProvider` subscribes to a manager in a
+  passive `useEffect` (`toast/provider/ToastProvider.js:39-59`), and only when it was given
+  one (`:40-42`). React runs passive effects child-first, so a page's own
+  `useEffect(() => toast(…), [])` fires before the provider above it has subscribed, and the
+  manager (a `Set` of listeners, `toast/createToastManager.js:12-15`) delivers to nobody.
+  §4.6.1 accepted that as correct, and it is wrong for the commonest use, a route that toasts
+  on arrival. Ours is one channel (`notifications/channel.ts`) for every kind, relayed into
+  Base UI's own store by `Relay` in `notifications/NotificationProvider.tsx`. `Relay`
+  subscribes in a layout effect (which runs before every passive effect) and calls the
+  `add`, `close` and `promise` of `useToastManager()` (`toast/useToastManager.js:17-23`,
+  which are the store's own methods). The queue, timers, pause, upsert and promise handling
+  are still Base UI's. The plan's facts table cited `ToastProvider.js:108-128` for the
+  subscription. That is wrong: the file is 82 lines long, and the subscription is at `:39-59`.
+- **The layout effect alone is not what delivers a mount-effect toast.** `Relay` renders as an
+  earlier sibling of the provider's children, so a toast raised by a *child's* `useEffect`
+  also arrives after the relay has subscribed, whichever effect type the relay uses. The
+  discriminator is the test that renders the page *before* the provider in tree order,
+  `NotificationProvider.test.tsx` "shows a toast raised by a mount effect that runs BEFORE the
+  provider (fails if the relay subscribes in useEffect)". The child-of-provider test beside it
+  cannot tell the two effect types apart, and neither can the fixture e2e "a toast raised from
+  a page mount effect is shown after hydration" (`fixtures/ssr-app/e2e/notifications.spec.ts`),
+  which is a real-browser regression pin. The deviation from `createToastManager` still
+  stands, because Base UI's provider is an ancestor and subscribes after its children's
+  passive effects.
+- **A toast action closes its toast after `onClick`; the fallback toast is persistent.** Base UI's
+  `ToastAction` merges `toast.actionProps` into the button and never closes the toast
+  (`toast/action/ToastAction.js:46-48`), so `Relay` wraps `onClick` to call the caller's handler,
+  then `close(id)`. A banner that falls back to a toast gets the same wrap and `timeout: 0`,
+  because banners never auto-dismiss. Two development warnings catch duplicate mounts: a second
+  live channel subscriber (two NotificationProviders in sibling trees deliver every notification
+  twice, `notifications/channel.ts`) and a second `BannerRegion` (every banner renders and is
+  announced in each, `notifications/banners.ts`). StrictMode's replay triggers neither.
+- **Banner icons are shared with toasts.** `notifications/severity.ts` exports `SEVERITY_ICON`,
+  which `ToastList.tsx` and `BannerRegion.tsx` both read, so the two surfaces cannot drift.
+- **A `banner()` raised before `BannerRegion` registers falls back to a toast.** The region
+  registers in a layout effect (`components/Banner/BannerRegion.tsx`), so a banner raised from
+  a *passive* mount effect is shown in the region, pinned by `BannerRegion.test.tsx` "shows a
+  banner raised by a sibling mount effect without falling back". One raised from an earlier
+  sibling's *layout* effect, before the region registers, takes the documented fallback to a
+  toast, with its development warning (by construction in `Relay`; the fallback itself is
+  pinned by "falls back to a toast, warning once, with no region").
+- **Story names.** The plan's `Promise` story is `PromiseRejects`, because `Promise` shadows
+  the global. There is no `ReducedMotion` story: no reduced-motion story has a precedent in
+  this repo, and the motion tokens carry `reduced: 'opacity'`
+  (`packages/motion/src/motions.ts:119-131`).
+
+**Base UI facts the plan added.**
+
+- **`toast.promise` errors keep the default priority and timeout.** On rejection the store
+  updates the toast with `type: 'error'` and `timeout: errorOptions.timeout`
+  (`toast/store.js:252-258`) and never sets `priority`, so the toast stays polite (the role
+  follows priority, `toast/root/ToastRoot.js:420`). An unset `timeout` is `undefined`, and the
+  store falls back to the provider's 5000 (`toast/store.js:184-187`). A raw rejected-promise
+  toast would therefore auto-dismiss after five seconds and break ADR-0012's "errors never
+  auto-dismiss". `toPromiseOptions` (`notifications/severity.ts`) forces the error branch
+  through severity `error`, whatever the caller gave. Pinned by `severity.test.ts` "forces the
+  error branch for an object, ignoring its severity and timeout" and the `PromiseRejects` story.
+- **A string promise option becomes `{ description }`.** `resolvePromiseOptions` wraps a string,
+  and a function's string result, as a description
+  (`toast/utils/resolvePromiseOptions.js:8-11`, `:15-17`), so the toast would show no title.
+  `toPromiseOptions` maps strings to `{ title }` itself. Pinned by `severity.test.ts` "maps a
+  string to { title }, not a description".
+- **Adding with an existing `id` updates in place and resets the timer**
+  (`toast/store.js:124-137`). Adding with the id of a toast that is still ending removes it
+  first (`:127-128`). So `id` dedupes, as §4.6.1 says. Pinned by `NotificationProvider.test.tsx`
+  "updates in place when the id repeats".
+- **Removal waits for `getAnimations()`.** The Root removes the toast when its animations
+  finish (`toast/root/ToastRoot.js:106-114`, through `internals/useOpenChangeComplete.js:23-29`
+  and `internals/useAnimationsFinished.js:45`). The ending state is `data-ending-style`, from
+  `transitionStatus: 'ending'` (`toast/store.js:223-227`). Unlike 5e's collapsible nothing
+  defers it, so exit motion keys on `[data-ending-style]`. Pinned by the `Motion` story.
+- **`AlertDialog` is `Dialog` with three settings forced.** `AlertDialogRoot` is
+  `useRenderDialogRoot('alert-dialog', …)` (`alert-dialog/root/AlertDialogRoot.js:16`), which
+  sets `modal`, `disablePointerDismissal` and `role = 'alertdialog'`
+  (`dialog/root/useRenderDialogRoot.js:32-35`). Its other parts are the Dialog parts
+  (`alert-dialog/index.parts.js:6-40`), so our `DialogPopup`, `DialogTitle` and the rest work
+  under it unchanged. Pinned by `DialogHost.test.tsx` "does not dismiss on an outside click".
+- **The default initial focus is the first tabbable.** `DialogPopup` resolves an unset
+  `initialFocus` to `createDefaultInitialFocus` (`dialog/popup/DialogPopup.js:59`), which
+  returns `true` for a pointer or keyboard open (`utils/popups/popupStoreUtils.js:45-47`), and
+  `FloatingFocusManager` turns `true` into the first tabbable element
+  (`floating-ui-react/components/FloatingFocusManager.js:381-389`). Our footer is Cancel, then
+  Confirm, so the default would focus Cancel in the default tone too. `DialogHost.tsx` passes
+  `initialFocus` explicitly in every case: Cancel for `tone: 'danger'`, Confirm otherwise, OK
+  for `alert`. Pinned by `DialogHost.test.tsx` "focuses Confirm by default (fails if
+  initialFocus is omitted: Cancel is the first tabbable)" and "focuses Cancel when tone is
+  danger".
+- **Focus returns to the opener with no code.** `returnFocus` defaults to `true`
+  (`FloatingFocusManager.js:124`), the previously focused element is recorded at `:365` and
+  `:428`, and read at `:477-479`. Pinned by `DialogHost.test.tsx` "returns focus to the button
+  that triggered confirm()" and the fixture e2e "a danger confirm focuses Cancel, Tab reaches
+  Confirm, Enter resolves true and focus returns".
+
+**`aria-hidden` traps for tests.** `ToastClose` is `aria-hidden` until the stack is expanded or
+focused (`toast/close/ToastClose.js:49`), so a role query misses it. An unfocused high-priority
+Root is `aria-hidden` (`toast/root/ToastRoot.js:425`), and the viewport renders a visually
+hidden `role="alert"` copy of its `title` and `description`
+(`toast/viewport/ToastViewport.js:220-231`). Tests find the close button by label
+(`ToastParts.test.tsx` "names the close button from the dismiss message and removes the toast
+on click"), and a high-priority Root by its attributes or `hidden: true` (the `PromiseRejects`
+story; `NotificationProvider.test.tsx`).
+
+**The `nativeButton` derivation needs an anchor test.** `ToastAction` and `ToastClose` derive
+`nativeButton` from their `render`. A `<Button />` render cannot catch a dropped derivation,
+because `Button` derives `true`, which is also Base UI's default. Only an `<a>` render pins it:
+`ToastParts.test.tsx` "are non-native when the render is an anchor: role="button", no type, no
+console.error (fails if the nativeButton derivation is dropped)".
+
+**Motion is physical, and so is the swipe default.** `toast.slide-in` and `toast.slide-out`
+animate a physical `translateX(100%)` (`packages/motion/src/motions.ts:119-131`), and §4.1.5
+forbids adding motions. So only `*-end` in a left-to-right page, where the toast comes from
+the edge it is docked to, uses them. `*-start`, `*-center` and every right-to-left page use
+`enter.fade-rise` and `exit.fade` (`components/Toast/Toast.css.ts`). Exit is keyed on
+`[data-ending-style]`. Swipe defaults to `['down', 'right']` (`toast/root/ToastRoot.js:50`),
+so `swipeDirectionsFor` (`components/Toast/ToastParts.tsx`) sets it per placement and
+direction. `ToastList` reads the page direction once, from the first Root's parent (the
+viewport), because only the DOM knows it, and starts left-to-right so server and first client
+render agree. Pinned by the `RightToLeft` story (the right-to-left toast sits at the physical
+left edge and does not use `toast.slide-in`, a drag left sets `data-swipe-direction="left"`,
+and with the page flipped to left-to-right `bottom-end` slides while `bottom-start` fades) and
+the `Motion` story.
+
+**Swipe.** A drag begins on `pointerdown` with `setPointerCapture` (`ToastRoot.js:227-271`), the
+first `pointermove` re-bases the drag origin (`:280-288`), and the release dismisses when the
+displacement passes `SWIPE_THRESHOLD = 40` (`:33`, `:210-217`). Observed in the `Swipe` story:
+an 80px real pointer drag (`userEvent.setup()`, one instance, because pressed-button state does
+not survive across `userEvent.pointer` calls) closes the toast, and a released 20px drag leaves
+it open. While swiping, `--toast-swipe-movement-x/y` carry the offset (`:406-416`), so the entry
+animation is held at `animation-duration: 0s`. Setting `animation: none` instead would restart
+the entrance on release, and the story's `animationstart` counter fails it.
+
+**Review Focus results.**
+
+1. **A `toast()` from a page's own mount effect.** Confirmed, with the correction above: it is
+   shown, because the relay subscribes in a layout effect. Pinned by the page-before-provider
+   test in `NotificationProvider.test.tsx` and, as a regression pin, the fixture e2e.
+2. **`toast.promise` that rejects.** Confirmed: the error toast is an `alertdialog`, persistent
+   and titled. Pinned by `NotificationProvider.test.tsx` "makes a rejected toast.promise a
+   titled, persistent alertdialog" and the `PromiseRejects` story.
+3. **Two providers in one tree.** Confirmed: a nested `NotificationProvider` renders only its
+   children, with a development warning (`NotificationProvider.tsx`, the `NotificationContext`
+   check). Pinned by `NotificationProvider.test.tsx` "renders one toast, one pair of live
+   regions and one warning when nested".
+4. **`confirm()` twice, and unmounting with dialogs pending.** Confirmed: one dialog shows at a
+   time, first-in-first-out, and every pending promise resolves `false` on a real unmount.
+   Pinned by `DialogHost.test.tsx` "shows one dialog for two same-tick calls, then the second
+   after the first closes" and "resolves every pending call false when the provider unmounts",
+   and the `Queued` story. **StrictMode adds a case.** The unmount cleanup is deferred with
+   `queueMicrotask` and cancelled by StrictMode's effect replay (`DialogHost.tsx`), so a
+   mount-time `confirm()` is not resolved `false` in development, and only a real unmount
+   resolves it. Pinned by `DialogHost.test.tsx` "keeps a mount-time confirm() alive under
+   StrictMode". Under StrictMode a child's mount effect that calls `confirm()` raises two
+   requests, because React replays the effect, and both are shown in turn.
+5. **A `*-start` placement, or a right-to-left page.** Confirmed: see "Motion is physical"
+   above. Pinned by the `RightToLeft` and `Motion` stories.
+
+**Contrast (user decision, 2026-10-08).** Banner and toast pairings are in the contrast gate.
+The severity container borders and the toast accent stripe are deliberately not asserted: they
+are non-essential boundaries, and the severity is carried by the title, the role and the icon.
+ADR-0008 records the principle (commit 095e419). Solving the brand focus ring against the
+status subtle fills (commit 1847928) moved the light-mode ring from `#5a87e9` to `#5a86e9`, so
+its ratio on the danger-subtle fill rose from 2.9983 to 3.03. Dark mode is unchanged.
+
 ## 5. Hooks and formatters (plan 5g)
 
 ### 5.1 New export subpaths
