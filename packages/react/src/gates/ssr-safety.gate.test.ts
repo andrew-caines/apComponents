@@ -94,6 +94,16 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   const WINDOW_RULE = /\bwindow\./.source
   const MATCH_MEDIA_RULE = /\bmatchMedia\b/.source
 
+  // useStorage.ts (Task 8, ADR-0005) is the one sanctioned place that names the
+  // browser storage objects, for the same reason: it is the SSR-safe wrapper.
+  // Only the module-level `getArea` helper may name them (as an identifier or a
+  // string literal), the file never names the global window object, and the
+  // two hook bodies name nothing. Every other rule still applies to this file;
+  // the window rule is filtered out only because the raw text scan cannot be
+  // scoped, so the AST describe below asserts that no identifier named window
+  // appears anywhere in the file.
+  const USE_STORAGE_PATH = join(SRC, 'hooks', 'useStorage.ts')
+
   for (const file of files) {
     it(`${file.split('src')[1]} is clean`, () => {
       const text = readFileSync(file, 'utf8')
@@ -108,6 +118,9 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       }
       if (file === USE_MEDIA_QUERY_PATH) {
         rules = rules.filter((r) => r.pattern.source !== WINDOW_RULE && r.pattern.source !== MATCH_MEDIA_RULE)
+      }
+      if (file === USE_STORAGE_PATH) {
+        rules = rules.filter((r) => r.pattern.source !== STORAGE_RULE && r.pattern.source !== WINDOW_RULE)
       }
       const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} — ${r.why}`)
       expect(hits, `${file}:\n  ${hits.join('\n  ')}`).toEqual([])
@@ -180,6 +193,84 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       }
       visit(hook)
       expect(hits, `useMediaQuery names browser globals: ${hits.join(', ')}`).toEqual([])
+    })
+  })
+
+  describe('the file exempted from the storage and window rules (Task 8, ADR-0005)', () => {
+    it('still exists, so the exemption is not stale config for a moved file', () => {
+      expect(existsSync(USE_STORAGE_PATH)).toBe(true)
+    })
+
+    const sourceFile = () =>
+      ts.createSourceFile(
+        USE_STORAGE_PATH,
+        readFileSync(USE_STORAGE_PATH, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS,
+      )
+
+    const requireFunction = (sf: ts.SourceFile, name: string) => {
+      let found: ts.FunctionDeclaration | undefined
+      ts.forEachChild(sf, (node) => {
+        if (ts.isFunctionDeclaration(node) && node.name?.text === name) found = node
+      })
+      if (!found) {
+        throw new Error(
+          `ssr-safety gate: could not find a function declaration named '${name}' in ` +
+            `${USE_STORAGE_PATH}. The AST check has no anchor and cannot silently pass.`,
+        )
+      }
+      return found
+    }
+
+    const STORAGE_NAMES = new Set(['localStorage', 'sessionStorage'])
+    const isNamed = (node: ts.Node, names: Set<string>) =>
+      (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) && names.has(node.text)
+    const inside = (node: ts.Node, outer: ts.Node) => node.pos >= outer.pos && node.end <= outer.end
+
+    it('names the storage objects only inside getArea or a type alias declaration', () => {
+      const sf = sourceFile()
+      const getArea = requireFunction(sf, 'getArea')
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (ts.isTypeAliasDeclaration(node)) return
+        if (isNamed(node, STORAGE_NAMES) && !inside(node, getArea)) {
+          const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf))
+          hits.push(`'${(node as ts.Identifier).text}' at line ${line + 1}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+      expect(hits, `storage names outside getArea: ${hits.join(', ')}`).toEqual([])
+    })
+
+    it('has no identifier or string literal named window anywhere in the file', () => {
+      const sf = sourceFile()
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (isNamed(node, new Set(['window']))) {
+          const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf))
+          hits.push(`'window' at line ${line + 1}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+      expect(hits, `window named at: ${hits.join(', ')}`).toEqual([])
+    })
+
+    it('neither useLocalStorage nor useSessionStorage names a storage identifier or literal', () => {
+      const sf = sourceFile()
+      for (const name of ['useLocalStorage', 'useSessionStorage']) {
+        const hook = requireFunction(sf, name)
+        const hits: string[] = []
+        const visit = (node: ts.Node) => {
+          if (isNamed(node, STORAGE_NAMES)) hits.push((node as ts.Identifier).text)
+          ts.forEachChild(node, visit)
+        }
+        visit(hook)
+        expect(hits, `${name} names storage objects: ${hits.join(', ')}`).toEqual([])
+      }
     })
   })
 
