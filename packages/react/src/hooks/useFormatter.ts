@@ -1,0 +1,128 @@
+'use client'
+
+import { useMemo, useSyncExternalStore } from 'react'
+import {
+  collator,
+  formatAddress,
+  formatBytes,
+  formatCompact,
+  formatCurrency,
+  formatDate,
+  formatDateRange,
+  formatDateTime,
+  formatDuration,
+  formatList,
+  formatName,
+  formatNumber,
+  formatOrdinal,
+  formatPercent,
+  formatPercentChange,
+  formatRelative,
+  formatTime,
+  pluralize,
+  truncate,
+} from '../format/index.js'
+import type {
+  DateFormatOptions,
+  DateInput,
+  DurationOptions,
+  NumberFormatOptions,
+  PersonName,
+  PluralForms,
+  PostalAddress,
+  RelativeOptions,
+} from '../format/index.js'
+import { useLocale } from '../providers/LocaleProvider.js'
+
+/** `formatX` bound to the provider: the locale (and zone, currency) is already filled in. */
+type Bound<F> = F extends (value: infer V, options: infer O) => string
+  ? (value: V, options?: Partial<O>) => string
+  : never
+
+export interface Formatter {
+  locale: string
+  /** The zone dates render in right now: the provider's, else UTC until hydrated, then the browser's. */
+  timeZone: string
+  formatDate: Bound<typeof formatDate>
+  formatTime: Bound<typeof formatTime>
+  formatDateTime: Bound<typeof formatDateTime>
+  formatDateRange: (start: DateInput, end: DateInput, options?: Partial<DateFormatOptions>) => string
+  formatRelative: (value: DateInput, options: Omit<RelativeOptions, 'locale'> & { locale?: string }) => string
+  formatDuration: Bound<typeof formatDuration>
+  formatNumber: Bound<typeof formatNumber>
+  formatCurrency: (value: number, options?: Partial<NumberFormatOptions> & { currency?: string }) => string
+  formatPercent: Bound<typeof formatPercent>
+  formatPercentChange: (previous: number, current: number, options?: Partial<NumberFormatOptions>) => string
+  formatCompact: Bound<typeof formatCompact>
+  formatOrdinal: Bound<typeof formatOrdinal>
+  formatBytes: Bound<typeof formatBytes>
+  formatName: Bound<typeof formatName>
+  formatList: Bound<typeof formatList>
+  formatAddress: Bound<typeof formatAddress>
+  pluralize: (count: number, forms: PluralForms, options?: { type?: Intl.PluralRuleType }) => string
+  truncate: (text: string, options: { length: number; ellipsis?: string }) => string
+  collator: (options?: Intl.CollatorOptions) => (a: string, b: string) => number
+  /** For `<time dateTime={isoFor(value)}>`; '' for an invalid input. */
+  isoFor: (value: DateInput) => string
+}
+
+const noopSubscribe = () => () => {}
+
+/**
+ * Formatters bound to the nearest `LocaleProvider`.
+ *
+ * Dates follow ADR-0012's two-pass rule. With no provider `timeZone` the
+ * server and the hydration pass render in UTC, then the browser's zone takes
+ * over, so the markup matches and the reader still ends on local time. A mount
+ * that has no server pass (a client-side navigation) is local from its first
+ * render. Wrap any date output in `<time dateTime={isoFor(value)}>` so the
+ * instant stays machine-readable while the visible text changes zone.
+ *
+ * Per-call options win over the bound defaults, including `locale`, `timeZone`
+ * and `currency`.
+ */
+export function useFormatter(): Formatter {
+  const { locale, timeZone: provided, currency } = useLocale()
+  // False only while hydrating (React uses the server snapshot), true for every
+  // later client render, including a client-only mount. Not `useHydrated`,
+  // whose effect-driven flip would flash UTC on every client-side navigation.
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  )
+  const timeZone = provided ?? (hydrated ? new Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')
+
+  return useMemo<Formatter>(() => {
+    const L = { locale }
+    const Z = { locale, timeZone }
+    return {
+      locale,
+      timeZone,
+      formatDate: (v, o) => formatDate(v, { ...Z, ...o }),
+      formatTime: (v, o) => formatTime(v, { ...Z, ...o }),
+      formatDateTime: (v, o) => formatDateTime(v, { ...Z, ...o }),
+      formatDateRange: (a, b, o) => formatDateRange(a, b, { ...Z, ...o }),
+      formatRelative: (v, o) => formatRelative(v, { ...L, ...o }),
+      formatDuration: (v, o) => formatDuration(v, { ...L, ...o } as DurationOptions),
+      formatNumber: (v, o) => formatNumber(v, { ...L, ...o }),
+      formatCurrency: (v, o) => formatCurrency(v, { ...L, currency, ...o }),
+      formatPercent: (v, o) => formatPercent(v, { ...L, ...o }),
+      formatPercentChange: (p, c, o) => formatPercentChange(p, c, { ...L, ...o }),
+      formatCompact: (v, o) => formatCompact(v, { ...L, ...o }),
+      formatOrdinal: (v, o) => formatOrdinal(v, { ...L, ...o }),
+      formatBytes: (v, o) => formatBytes(v, { ...L, ...o }),
+      formatName: (v, o) => formatName(v as PersonName | null | undefined, { ...L, ...o }),
+      formatList: (v, o) => formatList(v, { ...L, ...o }),
+      formatAddress: (v, o) => formatAddress(v as PostalAddress | null | undefined, { ...L, ...o }),
+      pluralize: (n, forms, o) => pluralize(n, forms, { ...L, ...o }),
+      truncate: (t, o) => truncate(t, { ...L, ...o }),
+      collator: (o) => collator(locale, o),
+      isoFor: (v) => {
+        const ms = v instanceof Date ? v.getTime() : new Date(v).getTime()
+        return Number.isFinite(ms) ? new Date(ms).toISOString() : ''
+      },
+    }
+  }, [locale, currency, timeZone])
+}
+
