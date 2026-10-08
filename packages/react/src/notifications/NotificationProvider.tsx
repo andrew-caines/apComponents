@@ -5,6 +5,7 @@ import { Toast as BaseToast } from '@base-ui/react/toast'
 import { ToastList } from '../components/Toast/ToastList.js'
 import { ToastViewport, type ToastPlacement } from '../components/Toast/ToastParts.js'
 import { useIsomorphicLayoutEffect } from '../hooks/index.js'
+import { BannerContext, useBannerState, type BannerEntry } from './banners.js'
 import { subscribe } from './channel.js'
 import { DialogHost, useDialogQueue } from './DialogHost.js'
 import { LiveRegions, useAnnouncer, type Announcer } from './LiveRegions.js'
@@ -29,9 +30,15 @@ const NotificationContext = createContext(false)
 function Relay({
   announce,
   enqueue,
+  showBanner,
+  closeBanner,
+  hasRegion,
 }: {
   announce: Announcer['announce']
   enqueue: (request: DialogRequest) => void
+  showBanner: (entry: BannerEntry) => void
+  closeBanner: (id: string) => void
+  hasRegion: () => boolean
 }) {
   const { add, close, promise } = BaseToast.useToastManager()
 
@@ -54,13 +61,39 @@ function Relay({
           case 'dialog':
             enqueue(event.request)
             break
-          // Task 5 wires these in: the banner context.
-          case 'banner':
+          case 'banner': {
+            // The region count is a ref set in a layout effect, so this is
+            // right even for a banner raised by a page's mount effect.
+            if (hasRegion()) {
+              showBanner(event.options)
+              break
+            }
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(
+                'banner() was called with no BannerRegion mounted, so it is shown as a toast. ' +
+                  'Render <BannerRegion /> where banners belong.',
+              )
+            }
+            const { title, description, severity, action, id } = event.options
+            add(
+              toBaseToast({
+                title,
+                id,
+                ...(description !== undefined ? { description } : {}),
+                ...(severity !== undefined ? { severity } : {}),
+                ...(action !== undefined ? { action } : {}),
+              }),
+            )
+            break
+          }
           case 'banner-close':
+            closeBanner(event.id)
+            // A banner that fell back to a toast shares its id.
+            close(event.id)
             break
         }
       }),
-    [add, close, promise, announce, enqueue],
+    [add, close, promise, announce, enqueue, showBanner, closeBanner, hasRegion],
   )
 
   return null
@@ -77,6 +110,7 @@ export function NotificationProvider({ placement = 'bottom-end', children }: Not
   const warned = useRef(false)
   const { polite, assertive, announce } = useAnnouncer()
   const { head, enqueue, shift } = useDialogQueue()
+  const banners = useBannerState()
 
   useEffect(() => {
     if (!nested || warned.current) return
@@ -94,8 +128,14 @@ export function NotificationProvider({ placement = 'bottom-end', children }: Not
   return (
     <NotificationContext.Provider value>
       <BaseToast.Provider>
-        <Relay announce={announce} enqueue={enqueue} />
-        {children}
+        <Relay
+          announce={announce}
+          enqueue={enqueue}
+          showBanner={banners.show}
+          closeBanner={banners.close}
+          hasRegion={banners.hasRegion}
+        />
+        <BannerContext.Provider value={banners.value}>{children}</BannerContext.Provider>
         <BaseToast.Portal>
           <ToastViewport placement={placement}>
             <ToastList placement={placement} />

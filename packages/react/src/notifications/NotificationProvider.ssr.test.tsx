@@ -4,6 +4,7 @@ import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { ApProvider } from '../providers/ApProvider.js'
 import { LocaleProvider } from '../providers/LocaleProvider.js'
+import { BannerRegion } from '../components/Banner/BannerRegion.js'
 import { NotificationProvider } from './NotificationProvider.js'
 
 describe('NotificationProvider SSR', () => {
@@ -33,5 +34,18 @@ describe('NotificationProvider SSR', () => {
     expect(html).toContain('ok')
     expect(html.match(/aria-live=/g)).toHaveLength(2)
     expect(html).not.toContain('role="region"')
+  })
+
+  it('renders a BannerRegion as its empty wrapper with no status role (fails if the region renders nothing or a banner on the server)', () => {
+    const html = renderToString(
+      <LocaleProvider>
+        <NotificationProvider>
+          <BannerRegion className="slot" />
+        </NotificationProvider>
+      </LocaleProvider>,
+    )
+    expect(html).toMatch(/<div class="[^"]*slot[^"]*"><\/div>/)
+    expect(html).not.toContain('role="status"')
+    expect(html).not.toContain('role="alert"')
   })
 })

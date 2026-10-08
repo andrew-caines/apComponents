@@ -116,6 +116,8 @@ export type {
   ToastPromiseOption,
   ToastPromiseOptions,
 } from './notifications/index.js'
+export { BannerRegion, BANNER_TOKENS } from './components/Banner/index.js'
+export type { BannerRegionProps } from './components/Banner/index.js'
 export { Toast, TOAST_TOKENS } from './components/Toast/index.js'
 export type {
   ToastActionProps,

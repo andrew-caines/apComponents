@@ -1,7 +1,16 @@
 'use client'
 
 import type { ToastManagerAddOptions, ToastManagerPromiseOptions } from '@base-ui/react/toast'
-import type { ToastOptions, ToastPromiseOptions } from './types.js'
+import type { IconName } from '../icons/paths.js'
+import type { NotificationSeverity, ToastOptions, ToastPromiseOptions } from './types.js'
+
+/** The glyph for each severity, shared by toasts and banners. */
+export const SEVERITY_ICON: Record<NotificationSeverity, IconName> = {
+  info: 'info',
+  success: 'check-circle',
+  warning: 'alert-triangle',
+  error: 'alert-circle',
+}
 
 const DEFAULT_TIMEOUT = 5000
 

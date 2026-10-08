@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { Toast as BaseToast } from '@base-ui/react/toast'
 import { Icon } from '../../icons/Icon.js'
-import type { IconName } from '../../icons/paths.js'
+import { SEVERITY_ICON } from '../../notifications/severity.js'
 import type { NotificationSeverity } from '../../notifications/types.js'
 import { Spinner } from '../Spinner/Spinner.js'
 import { toastIconRecipe } from './Toast.css.js'
@@ -16,13 +16,6 @@ import {
   ToastTitle,
   type ToastPlacement,
 } from './ToastParts.js'
-
-const SEVERITY_ICON: Record<NotificationSeverity, IconName> = {
-  info: 'info',
-  success: 'check-circle',
-  warning: 'alert-triangle',
-  error: 'alert-circle',
-}
 
 function isSeverity(type: string | undefined): type is NotificationSeverity {
   return type !== undefined && Object.prototype.hasOwnProperty.call(SEVERITY_ICON, type)
