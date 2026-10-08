@@ -38,7 +38,7 @@ describe('useFormatter inside a provider', () => {
 
   it('binds the provider currency', () => {
     render(wrap(<Capture />))
-    expect(f().formatCurrency(1234.5)).toBe('1.234,50 €')
+    expect(f().formatCurrency(1234.5)).toBe('1.234,50\u00a0\u20ac')
   })
 
   it('honours the provider zone', () => {
@@ -51,7 +51,7 @@ describe('useFormatter inside a provider', () => {
   it('lets a per-call option win', () => {
     render(wrap(<Capture />))
     expect(f().formatDate(V, { timeZone: 'UTC' })).toBe('05.03.2026')
-    expect(f().formatCurrency(5, { currency: 'USD' })).toBe('5,00 $')
+    expect(f().formatCurrency(5, { currency: 'USD' })).toBe('5,00\u00a0$')
   })
 
   it('formatRelative takes the provider locale by default', () => {
