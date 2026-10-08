@@ -23,9 +23,11 @@ export function useClickOutside(
   const enabled = options?.enabled ?? true
   const onOutside = useStableCallback(handler)
   useEffect(() => {
-    const node = ref.current
-    if (!enabled || !node) return undefined
-    const doc = ownerDocument(node)
+    if (!enabled) return undefined
+    // Attach even while the target is absent: the listener reads the ref at
+    // event time, so a conditionally rendered target works. A null node uses
+    // the global docu-ment (via ownerDocument).
+    const doc = ownerDocument(ref.current)
     const listener = (event: Event) => {
       const current = ref.current
       if (!current || event.composedPath().includes(current)) return

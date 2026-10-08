@@ -13,7 +13,9 @@ export interface UseIntersectionObserverOptions {
  * `undefined` until the observer first reports and wherever
  * `IntersectionObserver` does not exist. The observer is rebuilt when
  * `root`, `rootMargin` or the threshold values change; a new array literal
- * with equal values does not rebuild it.
+ * with equal values does not rebuild it. The ref must be attached when the
+ * hook's effect runs; a node that mounts later is observed only after a
+ * dependency changes.
  */
 export function useIntersectionObserver(
   ref: RefObject<Element | null>,

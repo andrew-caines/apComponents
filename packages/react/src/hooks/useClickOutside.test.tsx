@@ -57,14 +57,42 @@ describe('useClickOutside', () => {
   })
 
   it('removes the listener on unmount', () => {
-    const handler = vi.fn()
-    const { getByTestId, unmount } = render(<Probe handler={handler} />)
-    const outside = getByTestId('outside')
+    const add = vi.spyOn(Document.prototype, 'addEventListener')
+    const remove = vi.spyOn(Document.prototype, 'removeEventListener')
+    const { unmount } = render(<Probe handler={vi.fn()} />)
+    const added = add.mock.calls.find(([type]) => type === 'pointerdown')?.[1]
+    expect(added).toBeTypeOf('function')
+    expect(remove.mock.calls.filter(([type]) => type === 'pointerdown')).toHaveLength(0)
     unmount()
-    document.body.append(outside)
-    fireEvent.pointerDown(outside)
+    const removed = remove.mock.calls.filter(([type]) => type === 'pointerdown')
+    expect(removed).toHaveLength(1)
+    expect(removed[0]![1]).toBe(added)
+  })
+
+  it('attaches before a conditionally rendered target mounts (fails if the effect returns early on a null ref)', () => {
+    const handler = vi.fn()
+    function Cond({ open }: { open: boolean }) {
+      const ref = useRef<HTMLDivElement>(null)
+      useClickOutside(ref, handler)
+      return (
+        <div>
+          {open ? (
+            <div ref={ref}>
+              <button type="button">in</button>
+            </div>
+          ) : null}
+          <button type="button">out</button>
+        </div>
+      )
+    }
+    const { getByText, rerender } = render(<Cond open={false} />)
+    fireEvent.pointerDown(getByText('out'))
+    expect(handler, 'no target yet: must not fire').not.toHaveBeenCalled()
+    rerender(<Cond open />)
+    fireEvent.pointerDown(getByText('in'))
     expect(handler).not.toHaveBeenCalled()
-    outside.remove()
+    fireEvent.pointerDown(getByText('out'))
+    expect(handler).toHaveBeenCalledTimes(1)
   })
 
   it('uses a changed handler without re-subscribing', () => {

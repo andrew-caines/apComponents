@@ -7,6 +7,8 @@ import { useStableCallback } from '@base-ui/utils/useStableCallback'
  * Attaches `handler` for `type` on `target` (an EventTarget or a ref to one).
  * A `null` or `undefined` target attaches nothing. A new handler does not
  * re-subscribe; a new target, type, `capture`, `passive` or `once` does.
+ * A ref target must be attached when the hook's effect runs; a node that
+ * mounts later is listened to only after a dependency changes.
  */
 export function useEventListener<K extends string>(
   target: EventTarget | RefObject<EventTarget | null> | null | undefined,

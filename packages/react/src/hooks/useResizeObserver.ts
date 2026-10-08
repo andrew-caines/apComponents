@@ -5,7 +5,9 @@ import { useEffect, useState, type RefObject } from 'react'
 /**
  * Tracks the content box of `ref`'s element. Returns `undefined` until the
  * observer first reports, and always where `ResizeObserver` does not exist
- * (the server, older browsers).
+ * (the server, older browsers). The ref must be attached when the hook's
+ * effect runs; a node that mounts later is observed only after a dependency
+ * changes.
  */
 export function useResizeObserver(
   ref: RefObject<Element | null>,
