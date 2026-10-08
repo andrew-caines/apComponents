@@ -19,12 +19,12 @@ function runtimeSources(dir: string): string[] {
 }
 
 const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
-  { pattern: /\bwindow\./, why: 'no window during render — use useHydrated/useMediaQuery' },
+  { pattern: /\bwindow\./, why: 'no window during render \u2014 use useHydrated/useMediaQuery' },
   { pattern: /\bdocument\./, why: 'no document during render' },
   { pattern: /\bglobalThis\.(window|document)\b/, why: 'no browser globals via globalThis' },
   { pattern: /\blocalStorage\b|\bsessionStorage\b/, why: 'storage reads belong in an effect' },
   { pattern: /\bmatchMedia\b/, why: 'use the SSR-safe useMediaQuery wrapper' },
-  { pattern: /\buseLayoutEffect\b/, why: 'use useIsomorphicLayoutEffect — plain useLayoutEffect warns on the server' },
+  { pattern: /\buseLayoutEffect\b/, why: 'use useIsomorphicLayoutEffect \u2014 plain useLayoutEffect warns on the server' },
   { pattern: /\bDate\.now\(\)/, why: 'non-deterministic render causes hydration mismatch' },
   { pattern: /\bMath\.random\(\)/, why: 'non-deterministic render causes hydration mismatch' },
   {
@@ -34,6 +34,22 @@ const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
   { pattern: /from ['"]node:/, why: 'no Node built-ins in runtime source' },
 ]
 
+// A direct call to a read helper in a hook body runs during render, which is
+// exactly the hydration mismatch ADR-0005 forbids. A call inside an arrow or
+// function expression (a callback such as getSnapshot) is fine.
+function directCallsDuringRender(hook: ts.Node, names: Set<string>): string[] {
+  const hits: string[] = []
+  const visit = (node: ts.Node) => {
+    if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) return
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && names.has(node.expression.text)) {
+      hits.push(node.expression.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  ts.forEachChild(hook, visit)
+  return hits
+}
+
 describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   const files = runtimeSources(SRC)
 
@@ -42,13 +58,13 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   })
 
   // useIsomorphicLayoutEffect.ts is the one sanctioned place that names plain
-  // `useLayoutEffect` — it exists to build the SSR-safe wrapper every other
+  // `useLayoutEffect` \u2014 it exists to build the SSR-safe wrapper every other
   // module must use instead. The reference is evaluated once at module load
   // (guarded by `typeof document`), never during render.
   //
   // The exemption covers REFERENCING the hook, never CALLING it. Exempting the
   // whole rule for this file would make it the one place an unguarded
-  // `useLayoutEffect(() => {})` could be added with the gate still green —
+  // `useLayoutEffect(() => {})` could be added with the gate still green \u2014
   // proven by doing exactly that and watching the suite stay green. So the
   // blanket exemption is paired with the narrower assertions below, and every
   // other rule still applies to this file.
@@ -60,19 +76,19 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   // `localStorage` at all:
   //
   // - ThemeProvider reads/writes storage and reflects the scheme onto
-  //   `<html>` — but only from inside effects and the `setScheme` callback,
+  //   `<html>` \u2014 but only from inside effects and the `setScheme` callback,
   //   never at module scope or synchronously during render. That is exactly
   //   what ADR-0005's rule permits ("Browser-only state resolves after
   //   hydration, never during render").
-  // - ThemeScript never touches these globals at all *in this module* — the
+  // - ThemeScript never touches these globals at all *in this module* \u2014 the
   //   text "document." and "localStorage" are characters inside the payload
   //   string of the inline anti-flash <script>, evaluated only by the
   //   browser parsing the emitted tag, never by this module or by Node
   //   during SSR.
   //
   // Exempting the whole rule for either file would let an actual
-  // module-scope or render-path read slip in with the gate still green —
-  // proven by adding one and watching the suite stay green — so the blanket
+  // module-scope or render-path read slip in with the gate still green \u2014
+  // proven by adding one and watching the suite stay green \u2014 so the blanket
   // exemption is paired with the narrower assertions below, and every other
   // rule (including the react-router and Date.now/Math.random checks) still
   // applies to both files.
@@ -122,7 +138,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       if (file === USE_STORAGE_PATH) {
         rules = rules.filter((r) => r.pattern.source !== STORAGE_RULE && r.pattern.source !== WINDOW_RULE)
       }
-      const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} — ${r.why}`)
+      const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} \u2014 ${r.why}`)
       expect(hits, `${file}:\n  ${hits.join('\n  ')}`).toEqual([])
     })
   }
@@ -193,6 +209,12 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       }
       visit(hook)
       expect(hits, `useMediaQuery names browser globals: ${hits.join(', ')}`).toEqual([])
+    })
+
+    it('the useMediaQuery body never calls readMediaQuery during render', () => {
+      const hook = topLevelFunction(sourceFile(), 'useMediaQuery')
+      if (!hook) throw new Error(`ssr-safety gate: no useMediaQuery function in ${USE_MEDIA_QUERY_PATH}.`)
+      expect(directCallsDuringRender(hook, new Set(['readMediaQuery']))).toEqual([])
     })
   })
 
@@ -272,6 +294,14 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
         expect(hits, `${name} names storage objects: ${hits.join(', ')}`).toEqual([])
       }
     })
+
+    it('no hook body calls readRaw or getArea during render', () => {
+      const sf = sourceFile()
+      for (const name of ['useStorageValue', 'useLocalStorage', 'useSessionStorage']) {
+        const hook = requireFunction(sf, name)
+        expect(directCallsDuringRender(hook, new Set(['readRaw', 'getArea'])), name).toEqual([])
+      }
+    })
   })
 
   describe('the file exempted from the useLayoutEffect rule', () => {
@@ -294,14 +324,14 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
     })
 
     it('names useLayoutEffect exactly twice: the import and the guarded reference', () => {
-      // Call-shape regexes are unwinnable here — `useLayoutEffect?.(...)`,
+      // Call-shape regexes are unwinnable here \u2014 `useLayoutEffect?.(...)`,
       // an aliased import invoked under its alias, and
       // `const fn = useLayoutEffect; fn(...)` all reference the hook without
       // ever matching `/\buseLayoutEffect\s*\(/`. Rather than chase every
       // syntactic evasion with more regexes, count occurrences of the token
       // itself in the code (comments stripped, so documentation prose that
       // names the hook doesn't skew the count). In this file's code it may
-      // legitimately appear exactly twice — once in the import, once in the
+      // legitimately appear exactly twice \u2014 once in the import, once in the
       // guarded ternary above. A third occurrence, in any syntactic form, is
       // a finding: it means the hook is being named somewhere beyond
       // building the wrapper, which is the one thing the exemption does not
@@ -313,7 +343,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       expect(
         matches.length,
         `expected useLayoutEffect to appear exactly 2 times in useIsomorphicLayoutEffect.ts's ` +
-          `code (the import and the guarded ternary), found ${matches.length} — two is the ` +
+          `code (the import and the guarded ternary), found ${matches.length} \u2014 two is the ` +
           'sanctioned count because a third occurrence, whatever its syntax ' +
           '(optional chaining, an alias, assignment to a variable), means the hook is ' +
           'being invoked outside the guard the exemption exists to cover',
@@ -336,20 +366,20 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
     const stripComments = (code: string) =>
       code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
-    // The two text-scan assertions this replaced — "the render path (its JSX
+    // The two text-scan assertions this replaced \u2014 "the render path (its JSX
     // return) never names document/localStorage" and "every localStorage
-    // occurrence sits inside a try/catch" — both went green against live
+    // occurrence sits inside a try/catch" \u2014 both went green against live
     // bypasses: a `try { localStorage.getItem(x) } catch {}` planted directly
     // in the component's render body (any try/catch satisfies the second
     // rule, regardless of WHERE it runs), and `const d = document; void d`
     // (the render-path rule only matched `document.` with a trailing dot).
     // Every refinement of those regexes just traded one blind spot for
-    // another — optional chaining, aliasing, a missing dot.
+    // another \u2014 optional chaining, aliasing, a missing dot.
     //
     // An AST check has no such blind spot: it asks the TypeScript parser,
     // which already resolved the real grammar, "does any identifier named
     // document/localStorage/sessionStorage/window appear anywhere inside the
-    // ThemeProvider function's span" — including its render body, its JSX,
+    // ThemeProvider function's span" \u2014 including its render body, its JSX,
     // and every nested arrow function (effects, callbacks), since those are
     // real descendants of the function node no matter how they are written.
     // Comments and string contents are parser trivia, not identifiers, so
@@ -378,7 +408,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
         throw new Error(
           `ssr-safety gate: could not find a function declaration named 'ThemeProvider' in ` +
             `${THEME_PROVIDER_PATH}. The AST check has no anchor to search and cannot silently ` +
-            'pass — update this gate if the component was renamed or restructured.',
+            'pass \u2014 update this gate if the component was renamed or restructured.',
         )
       }
 
@@ -387,7 +417,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       const visit = (node: ts.Node) => {
         // Identifiers cover every ordinary form: a bare reference, a property
         // access, an alias, an optional call. String literals cover the one
-        // form they miss — `globalThis['localStorage']`, where the property
+        // form they miss \u2014 `globalThis['localStorage']`, where the property
         // name is a string, not an identifier. There is no legitimate reason
         // for the text 'localStorage' to appear as a literal inside this
         // component, so treating both node kinds the same closes the bracket-
@@ -407,13 +437,13 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
     })
 
     // F4: the check above only looks for browser-global identifiers directly
-    // inside ThemeProvider's own span — it never re-enters applyScheme,
+    // inside ThemeProvider's own span \u2014 it never re-enters applyScheme,
     // readStoredScheme, or persistScheme, because the file-wide exemption
     // above (DOCUMENT_RULE/STORAGE_RULE) intentionally lets THOSE top-level
     // helper functions name document/localStorage. That exemption has a
     // blind spot: calling one of those helpers FROM ThemeProvider's render
     // body is a render-path browser-global read in every way that matters,
-    // but it is invisible to both checks — the browser-global scan never
+    // but it is invisible to both checks \u2014 the browser-global scan never
     // sees "document" or "localStorage" (only "readStoredScheme"), and
     // nothing else asks where a call to a helper sits. `npm test` still
     // catches it via the SSR test (renderToString would throw), but
@@ -421,8 +451,8 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
     //
     // This closes it structurally: every call to one of the three helpers
     // found anywhere in ThemeProvider's span must sit inside an arrow/
-    // function expression passed directly to useEffect or useCallback — the
-    // two hooks ADR-0005 sanctions for browser-only work — never directly in
+    // function expression passed directly to useEffect or useCallback \u2014 the
+    // two hooks ADR-0005 sanctions for browser-only work \u2014 never directly in
     // the render body.
     it('calls the module-scope helpers (applyScheme/readStoredScheme/persistScheme) only from inside useEffect/useCallback, never from the render body', () => {
       const code = providerText()
@@ -444,7 +474,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
         throw new Error(
           `ssr-safety gate: could not find a function declaration named 'ThemeProvider' in ` +
             `${THEME_PROVIDER_PATH}. The AST check has no anchor to search and cannot silently ` +
-            'pass — update this gate if the component was renamed or restructured.',
+            'pass \u2014 update this gate if the component was renamed or restructured.',
         )
       }
       const rootFn = providerFn
@@ -454,7 +484,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
 
       // Walk up from a call site. True if the nearest enclosing arrow
       // function / function expression is itself an argument of a
-      // useEffect(...) or useCallback(...) call — i.e. the call happens
+      // useEffect(...) or useCallback(...) call \u2014 i.e. the call happens
       // inside an effect or a memoised callback, not synchronously during
       // render.
       const isInsideGuardedCallback = (node: ts.Node): boolean => {
@@ -502,7 +532,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       const matches = [...code.matchAll(/\bdocument\./g)]
       expect(
         matches.length,
-        'expected exactly one `document.` reference — a second means the global is ' +
+        'expected exactly one `document.` reference \u2014 a second means the global is ' +
           'being touched somewhere the exemption was not scoped to review',
       ).toBe(1)
       const idx = matches[0]!.index
@@ -517,7 +547,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       const match = code.match(/const source =\s*([\s\S]*?)\n\n\s*return/)
       expect(match, 'expected to find the `source` template literal assignment').not.toBeNull()
       const payload = match![1]!
-      // Confirm the payload actually contains what we expect to find there —
+      // Confirm the payload actually contains what we expect to find there \u2014
       // otherwise this test would pass vacuously against an empty capture.
       expect(payload).toMatch(/\blocalStorage\b/)
       expect(payload).toMatch(/\bdocument\./)
@@ -528,7 +558,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
 
   it('declares no react-router* dependency in packages/react/package.json (ADR-0001/0011)', () => {
     // The import-scan above only proves nothing in source *imports*
-    // react-router. It says nothing about the *dependency* — a consumer who
+    // react-router. It says nothing about the *dependency* \u2014 a consumer who
     // never chose react-router should never have it pulled in by installing
     // @ap/react at all. Check both dependency fields directly.
     const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8')) as {

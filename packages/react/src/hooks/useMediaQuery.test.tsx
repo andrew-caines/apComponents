@@ -105,20 +105,27 @@ describe('useMediaQuery', () => {
     const html = renderToString(<Probe query={q} ssrDefault={false} />)
     expect(html).toContain('false')
     seen = []
+    const onRecoverableError = vi.fn()
     const container = document.createElement('div')
     document.body.appendChild(container)
     container.innerHTML = html
-    act(() => {
-      hydrateRoot(container, <Probe query={q} ssrDefault={false} />)
-    })
-    expect(
-      seen[0],
-      'the first hydration render must return ssrDefault (false); returning the live snapshot there is the mismatch',
-    ).toBe(false)
-    expect(seen.at(-1)).toBe(true)
-    expect(container.textContent).toBe('true')
-    const mismatch = errors.mock.calls.filter((c) => /hydrat|mismatch/i.test(c.map(String).join(' ')))
-    expect(mismatch).toEqual([])
-    container.remove()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    try {
+      act(() => {
+        root = hydrateRoot(container, <Probe query={q} ssrDefault={false} />, { onRecoverableError })
+      })
+      expect(
+        seen[0],
+        'the first hydration render must return ssrDefault (false); returning the live snapshot there is the mismatch',
+      ).toBe(false)
+      expect(seen.at(-1)).toBe(true)
+      expect(container.textContent).toBe('true')
+      const mismatch = errors.mock.calls.filter((c) => /hydrat|mismatch/i.test(c.map(String).join(' ')))
+      expect(mismatch).toEqual([])
+      expect(onRecoverableError, 'no recoverable hydration error').not.toHaveBeenCalled()
+    } finally {
+      act(() => root?.unmount())
+      container.remove()
+    }
   })
 })
