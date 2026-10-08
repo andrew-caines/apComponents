@@ -118,6 +118,9 @@ describe('formatCompact', () => {
 })
 
 describe('formatOrdinal', () => {
+  it('negative zero reads as zero', () => {
+    expect(formatOrdinal(-0, { locale: 'en-US' })).toBe('0th')
+  })
   it('suffixes English numbers', () => {
     const values = [1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111, 112]
     expect(values.map((n) => formatOrdinal(n, { locale: 'en-US' })).join(' ')).toBe(
@@ -146,6 +149,10 @@ describe('formatOrdinal', () => {
 })
 
 describe('formatBytes', () => {
+  it('a negative value that rounds to zero has no minus sign', () => {
+    expect(formatBytes(-0.04, { locale: 'en-US' })).toBe('0 bytes')
+    expect(formatBytes(-0, { locale: 'en-US' })).toBe('0 bytes')
+  })
   it.each([
     [0, 'en-US', '0 bytes'],
     [1, 'en-US', '1 byte'],

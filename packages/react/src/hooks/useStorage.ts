@@ -79,7 +79,15 @@ function subscribeStorage(kind: StorageKind, key: string, onChange: () => void):
   const target = ownerWindow(null)
   const onStorage = (event: StorageEvent) => {
     if (event.storageArea !== getArea(kind)) return
-    if (event.key === key || event.key === null) onChange()
+    if (event.key !== key && event.key !== null) return
+    // Another tab changed the real storage: a memory entry left by our own
+    // failed write is stale now. A null key means the area was cleared.
+    if (event.key === null) {
+      for (const held of [...memory.keys()]) if (held.startsWith(`${kind}:`)) memory.delete(held)
+    } else {
+      memory.delete(id)
+    }
+    onChange()
   }
   target.addEventListener('storage', onStorage)
 
@@ -99,7 +107,7 @@ export function resetStorageStateForTests(): void {
 
 const NONE: unique symbol = Symbol('none')
 
-// Returns NONE for an empty key or a parse failure, so callers apply the
+// Returns NONE for a missing value (null raw) or a parse failure, so callers apply the
 // default by reference and the parse never depends on it.
 function parseRaw<T>(kind: StorageKind, key: string, raw: string | null): T | typeof NONE {
   if (raw === null) return NONE
@@ -140,7 +148,9 @@ function useStorageValue<T>(kind: StorageKind, key: string, defaultValue: T): [T
               })(),
             )
           : next
-      writeRaw(kind, key, JSON.stringify(resolved))
+      // JSON has no undefined, so setting it means "nothing stored": same as remove.
+      if (resolved === undefined) removeRaw(kind, key)
+      else writeRaw(kind, key, JSON.stringify(resolved))
     },
     [kind, key],
   )

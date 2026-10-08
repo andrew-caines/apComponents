@@ -1,7 +1,26 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formatPhone } from './phone.js'
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('formatPhone', () => {
+  it('trims and upper-cases defaultCountry', () => {
+    const expected = formatPhone('020 7946 0958', { defaultCountry: 'GB', format: 'international' })
+    expect(expected, 'the GB parse must succeed or the comparison is vacuous').toBe('+44 20 7946 0958')
+    expect(formatPhone('020 7946 0958', { defaultCountry: ' gb ', format: 'international' })).toBe(expected)
+  })
+
+  it('empty, null and undefined return an empty string without a warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(formatPhone('')).toBe('')
+    expect(formatPhone('  ')).toBe('')
+    expect(formatPhone(null)).toBe('')
+    expect(formatPhone(undefined)).toBe('')
+    expect(warn).not.toHaveBeenCalled()
+  })
+
   it('formats a number that carries its own country as international by default', () => {
     expect(formatPhone('+442079460958')).toBe('+44 20 7946 0958')
   })

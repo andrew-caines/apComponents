@@ -213,6 +213,30 @@ describe('useLocalStorage', () => {
     expect(container.textContent, 'a stale memory entry would still say 5').toBe('9')
   })
 
+  it('a cross-tab storage event supersedes a memory fallback left by a failed write', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(quota)
+    const { container } = render(<Num />)
+    act(() => api!.set(5))
+    expect(container.textContent).toBe('5')
+    spy.mockRestore()
+    localStorage.setItem('n', '9')
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'n', storageArea: localStorage }))
+    })
+    expect(container.textContent, 'the memory entry from the failed write must not mask the other tab').toBe('9')
+  })
+
+  it('setValue(undefined) behaves as remove: default returned, key absent, no warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    localStorage.setItem('n', '7')
+    const { container } = render(<Num />)
+    expect(container.textContent).toBe('7')
+    act(() => (api!.set as (v: unknown) => void)(undefined))
+    expect(container.textContent).toBe('0')
+    expect(localStorage.getItem('n')).toBeNull()
+    expect(warn).not.toHaveBeenCalled()
+  })
+
   it('unavailable storage (property access throws): memory only, with notify', () => {
     vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
       throw new DOMException('denied', 'SecurityError')

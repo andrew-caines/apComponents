@@ -70,7 +70,8 @@ export function formatOrdinal(value: number | null | undefined, options: LocaleO
   return guard('formatOrdinal', value, bad, () => {
     const { locale } = options
     const language = new Intl.Locale(locale).language
-    const text = new Intl.NumberFormat(locale).format(value!)
+    // `+ 0` turns -0 into 0, which Intl would print as '-0'.
+    const text = new Intl.NumberFormat(locale).format(value! + 0)
     if (language === 'en') {
       return text + EN[new Intl.PluralRules(locale, { type: 'ordinal' }).select(value!)]!
     }
@@ -103,11 +104,13 @@ export function formatBytes(
       scaled /= 1000
       index++
     }
+    // A negative value that rounds to zero prints '-0'; show plain 0.
+    const signed = Math.round(scaled * factor) === 0 ? 0 : sign * scaled
     return new Intl.NumberFormat(options.locale, {
       style: 'unit',
       unit: BYTE_UNITS[index]!,
       unitDisplay: index === 0 ? 'long' : 'short',
       maximumFractionDigits: digits,
-    }).format(sign * scaled)
+    }).format(signed)
   })
 }

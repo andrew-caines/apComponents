@@ -27,7 +27,9 @@ const STYLE = {
 export function formatPhone(value: string | null | undefined, options: PhoneOptions = {}): string {
   const { format = 'international', defaultCountry } = options
   const text = typeof value === 'string' ? value.trim() : ''
-  return guard('formatPhone', value, value === null || value === undefined || text === '', () => {
+  // Empty is a supported input with a defined result, so it is not warned about.
+  if (value === null || value === undefined || value === '' || (typeof value === 'string' && text === '')) return ''
+  return guard('formatPhone', value, typeof value !== 'string', () => {
     const parse = (country?: string) => {
       try {
         return parsePhoneNumberFromString(text, country as CountryCode | undefined)
@@ -36,7 +38,8 @@ export function formatPhone(value: string | null | undefined, options: PhoneOpti
       }
     }
     // An unknown default country must not hide a number that carries its own.
-    const parsed = (defaultCountry ? parse(defaultCountry) : undefined) ?? parse()
+    const country = defaultCountry?.trim().toUpperCase()
+    const parsed = (country ? parse(country) : undefined) ?? parse()
     return parsed ? parsed.format(STYLE[format]) : text
   })
 }
