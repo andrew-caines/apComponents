@@ -28,9 +28,20 @@ export const BannerContext = createContext<BannerContextValue>({
 export function useBannerState() {
   const [banners, setBanners] = useState<BannerEntry[]>([])
   const regions = useRef(0)
+  const warnedRegions = useRef(false)
 
   const registerRegion = useCallback(() => {
     regions.current += 1
+    if (regions.current > 1 && !warnedRegions.current) {
+      warnedRegions.current = true
+      // A bare `process.env.NODE_ENV` check: see the comment on the dev warning in Select.tsx.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(
+          'More than one BannerRegion is mounted, so every banner renders (and is announced) in each region. ' +
+            'Render a single <BannerRegion />.',
+        )
+      }
+    }
     let active = true
     return () => {
       if (!active) return
