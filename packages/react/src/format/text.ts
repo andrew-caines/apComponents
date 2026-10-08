@@ -18,7 +18,9 @@ function firstGrapheme(text: string, locale: string): string {
 
 /**
  * Order comes from the record, never the locale. Name particles ("van der")
- * are not interpreted: a limitation by design.
+ * are not interpreted: a limitation by design. When displayName is present,
+ * both the display form and the initials come from it (first and last words),
+ * so initials always match the name shown.
  */
 export function formatName(
   name: PersonName | null | undefined,

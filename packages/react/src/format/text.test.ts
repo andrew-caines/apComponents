@@ -50,6 +50,8 @@ describe('formatName', () => {
       [{ given: 'istanbul', family: 'x' }, 'tr-TR', '\u0130X'],
       [{ displayName: 'Grace Brewster Hopper' }, 'en-US', 'GH'],
       [{ given: 'Ada' }, 'en-US', 'A'],
+      // displayName wins for initials too, so they match the name shown.
+      [{ given: 'Ada', family: 'Lovelace', displayName: 'Countess of Lovelace' }, 'en-US', 'CL'],
       [{ given: 'Ada', family: 'Lovelace', order: 'family-first' as const }, 'en-US', 'LA'],
       // A grapheme, not a code unit: the combining accent stays with its base letter.
       [{ given: 'e\u0301mile', family: 'zola' }, 'en-US', 'E\u0301Z'],
