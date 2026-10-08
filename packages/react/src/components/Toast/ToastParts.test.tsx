@@ -103,15 +103,15 @@ describe('ToastViewport', () => {
   it('is a region named by the notifications message', async () => {
     render(harness({ title: 'x' }))
     fireEvent.click(screen.getByText('add'))
-    const region = await screen.findByRole('region')
-    expect(region.getAttribute('aria-label')).toBe(DEFAULT_MESSAGES.notifications)
+    const region = await screen.findByRole('region', { name: DEFAULT_MESSAGES.notifications })
+    expect(region).not.toBeNull()
   })
 
   it('takes its label from the locale messages (fails if the label is hardcoded)', async () => {
     render(harness({ title: 'x' }, 'bottom-end', { notifications: 'Avisos' }))
     fireEvent.click(screen.getByText('add'))
-    const region = await screen.findByRole('region')
-    expect(region.getAttribute('aria-label')).toBe('Avisos')
+    const region = await screen.findByRole('region', { name: 'Avisos' })
+    expect(region).not.toBeNull()
   })
 
   it('lets a caller override the label (fails if rest is spread before aria-label)', async () => {

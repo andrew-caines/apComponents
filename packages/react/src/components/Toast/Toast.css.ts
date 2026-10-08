@@ -183,6 +183,7 @@ export const toastIconRecipe = recipe({
   base: {
     '@layer': {
       [componentsLayer]: {
+        boxSizing: 'border-box',
         gridArea: 'icon',
         display: 'flex',
         alignItems: 'center',
@@ -206,6 +207,7 @@ export const toastIconRecipe = recipe({
 export const toastTitleClass = style({
   '@layer': {
     [componentsLayer]: {
+      boxSizing: 'border-box',
       gridArea: 'title',
       margin: 0,
       minInlineSize: 0,
@@ -218,6 +220,7 @@ export const toastTitleClass = style({
 export const toastDescriptionClass = style({
   '@layer': {
     [componentsLayer]: {
+      boxSizing: 'border-box',
       gridArea: 'description',
       margin: 0,
       minInlineSize: 0,
@@ -229,6 +232,7 @@ export const toastDescriptionClass = style({
 export const toastActionClass = style({
   '@layer': {
     [componentsLayer]: {
+      boxSizing: 'border-box',
       gridArea: 'action',
       justifySelf: 'start',
       marginBlockStart: vars.space['2'],
@@ -256,6 +260,7 @@ export const toastActionClass = style({
 export const toastCloseClass = style({
   '@layer': {
     [componentsLayer]: {
+      boxSizing: 'border-box',
       gridArea: 'close',
       display: 'flex',
       alignItems: 'center',
