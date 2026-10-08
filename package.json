@@ -21,7 +21,7 @@
     "test:contract": "vitest run packages/react/src/gates/contract-drift.gate.test.ts",
     "test:freshness": "vitest run packages/react/src/gates/theme-freshness.gate.test.ts",
     "test:fonts": "vitest run packages/react/src/gates/fonts.gate.test.ts",
-    "test:guards": "vitest run packages/react/src/gates/use-client.gate.test.ts packages/react/src/gates/ssr-safety.gate.test.ts packages/react/src/gates/style-rules.gate.test.ts packages/react/src/gates/base-ui-imports.gate.test.ts packages/react/src/gates/no-hardcoded-strings.gate.test.ts packages/react/src/gates/examples-freshness.gate.test.ts",
+    "test:guards": "vitest run packages/react/src/gates/use-client.gate.test.ts packages/react/src/gates/ssr-safety.gate.test.ts packages/react/src/gates/style-rules.gate.test.ts packages/react/src/gates/base-ui-imports.gate.test.ts packages/react/src/gates/no-hardcoded-strings.gate.test.ts packages/react/src/gates/examples-freshness.gate.test.ts packages/react/src/gates/format-determinism.gate.test.ts packages/react/src/gates/package-shape.gate.test.ts",
     "test:gates": "npm run test:tokens && npm run test:contrast && npm run test:gamut && npm run test:sweep && npm run test:contract && npm run test:freshness && npm run test:fonts && npm run test:guards && npm run test:motion",
     "fixture:install": "npm --prefix fixtures/ssr-app install && npm --prefix fixtures/consumer install",
     "showcase:install": "npm --prefix showcase install",

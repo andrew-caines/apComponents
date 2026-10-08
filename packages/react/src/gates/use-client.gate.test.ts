@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, join, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { sourceFiles } from './sourceFiles.js'
 
@@ -14,6 +14,12 @@ const EXCLUDE_DIRS = ['gates']
 // browser-only APIs from effects/callbacks and must be a client module,
 // exactly like every component.
 const THEME_SCRIPT_PATH = join(SRC, 'providers', 'ThemeScript.tsx')
+
+// src/format holds pure functions with no React import, used in loaders and
+// Node, where a 'use client' directive would turn them into client
+// references that a server cannot call. format-determinism.gate.test.ts
+// asserts the "no React" half of that claim.
+const FORMAT_DIR = join(SRC, 'format')
 
 // F5: .ts modules are in scope too, not just .tsx — hooks/useHydrated.ts and
 // hooks/useIsomorphicLayoutEffect.ts are stateful/browser-touching client
@@ -118,7 +124,12 @@ describe('gate: every shipped .ts/.tsx module is a client module (ADR-0005)', ()
   const allFiles = sourceFiles(SRC, { extensions: ['.tsx', '.ts'], excludeDirs: EXCLUDE_DIRS })
   const tsExemptionPaths = new Set(TS_EXEMPTIONS.map((e) => e.path))
   const files = allFiles.filter(
-    (f) => f !== THEME_SCRIPT_PATH && !isBarrel(f) && !isCssTs(f) && !tsExemptionPaths.has(f),
+    (f) =>
+      f !== THEME_SCRIPT_PATH &&
+      !f.startsWith(FORMAT_DIR + sep) &&
+      !isBarrel(f) &&
+      !isCssTs(f) &&
+      !tsExemptionPaths.has(f),
   )
 
   it('finds modules to check', () => {
@@ -145,6 +156,11 @@ describe('gate: every shipped .ts/.tsx module is a client module (ADR-0005)', ()
       expect(first).toBe("'use client'")
     })
   }
+
+  it('src/format still exists and the walk reached files in it, so its exemption is not stale config', () => {
+    expect(existsSync(FORMAT_DIR)).toBe(true)
+    expect(allFiles.some((f) => f.startsWith(FORMAT_DIR + sep))).toBe(true)
+  })
 
   it('ThemeScript.tsx still exists, so its exemption is not stale config for a moved/renamed file', () => {
     expect(existsSync(THEME_SCRIPT_PATH)).toBe(true)
