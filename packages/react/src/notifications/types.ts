@@ -2,6 +2,7 @@
 
 export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error'
 
+/** A toast action closes its toast after `onClick` runs; a banner action does not close its banner. */
 export interface NotificationAction {
   label: string
   onClick: () => void

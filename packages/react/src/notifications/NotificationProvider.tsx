@@ -22,6 +22,29 @@ export interface NotificationProviderProps {
 const NotificationContext = createContext(false)
 
 /**
+ * Base UI's ToastAction runs `actionProps.onClick` and never closes the toast
+ * (toast/action/ToastAction.js:46-48). Ours closes it after the caller's handler.
+ */
+function closingOnAction(
+  base: ReturnType<typeof toBaseToast>,
+  id: string,
+  close: (id: string) => void,
+): ReturnType<typeof toBaseToast> {
+  const { actionProps } = base
+  if (!actionProps) return base
+  return {
+    ...base,
+    actionProps: {
+      ...actionProps,
+      onClick: (event) => {
+        actionProps.onClick?.(event)
+        close(id)
+      },
+    },
+  }
+}
+
+/**
  * Relays the module-level channel into Base UI's toast store. It subscribes in a
  * layout effect, which React runs before every passive effect, so a toast
  * raised from a page's own mount `useEffect` is not dropped (Base UI's own
@@ -47,7 +70,7 @@ function Relay({
       subscribe((event) => {
         switch (event.kind) {
           case 'toast':
-            add(toBaseToast(event.options))
+            add(closingOnAction(toBaseToast(event.options), event.options.id, close))
             break
           case 'toast-close':
             close(event.id)
@@ -75,14 +98,23 @@ function Relay({
               )
             }
             const { title, description, severity, action, id } = event.options
+            // A banner never auto-dismisses (spec 4.6.1), so its fallback toast
+            // is persistent too. The action closes it, like any toast action.
             add(
-              toBaseToast({
-                title,
+              closingOnAction(
+                {
+                  ...toBaseToast({
+                    title,
+                    id,
+                    ...(description !== undefined ? { description } : {}),
+                    ...(severity !== undefined ? { severity } : {}),
+                    ...(action !== undefined ? { action } : {}),
+                  }),
+                  timeout: 0,
+                },
                 id,
-                ...(description !== undefined ? { description } : {}),
-                ...(severity !== undefined ? { severity } : {}),
-                ...(action !== undefined ? { action } : {}),
-              }),
+                close,
+              ),
             )
             break
           }
