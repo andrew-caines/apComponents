@@ -872,3 +872,101 @@ The comment lists US, IN and SG with their citations as "cited, equal to the gen
 | 14 | Every CI job is green | Task 11's sweep, then the PR | — |
 
 **Final proof artifact:** a green CI run of all six jobs on the Phase 5g pull request, plus Task 11's local sweep output, including the Node 22.22.0 unit run.
+
+## What actually happened
+
+Ten build tasks, one whole-branch review with a single fix wave, then the CI sweep: 27 commits in all, counting the spec section, the plan and this retrospective. It was opened as PR #8.
+
+- **Reviews:** Tasks 2, 4, 5, 6 and 9 passed their first review. Tasks 1, 3, 7, 8 and 10 each needed one fix round, and none needed a second. No task stopped as BLOCKED.
+- **Local sweep:** all six `ci.yml` jobs passed on the final tree.
+  - unit 2350, also on Node 22.22.0
+  - gates 1412
+  - consumer 12
+  - SSR 7, SPA 1, hydration 31
+  - stories 126 plus the build
+  - showcase 12
+- **Execution** was subagent-driven, with a fresh implementer per task and a task review after each.
+
+The user settled four scope questions before the spec:
+
+- one plan and one PR;
+- `useFormatter()` is added;
+- `maskTaxId` covers the US plus every country whose rule research could cite;
+- `useFieldContext` is dropped.
+
+The user also supplied both Canada sources. The controller made eleven rulings (R1–R11). The ledger is gitignored, so the rulings that matter for 5h are recorded here.
+
+### The final review found what the task reviews could not see
+
+The task reviews each saw one task. The whole-branch review found four Important bugs, fixed in one wave (R7):
+
+- **Masks leaked non-ASCII digits.**
+  - The maskable sets were ASCII-only, so a Japanese My Number typed in full-width digits, or a number in Arabic-Indic digits, passed through unmasked.
+  - Task 4's reviewer logged this as a minor "for the final review to triage". It was a PII leak.
+  - Masks now treat every Unicode decimal digit (`\p{Nd}`) as a digit.
+- **An explicit `undefined` per-call option clobbered the bound default** in `useFormatter`.
+  - `{ ...bound, ...options }` copies `timeZone: undefined` over the provider's zone.
+  - On the hydration pass that is a server/client mismatch.
+  - Undefined keys are now dropped before the merge.
+- **`formatAddress` threw on a `null` country,** and blanked the whole address for an alpha-3 code such as `'USA'`, because `Intl.DisplayNames` throws on it. Both are now caught: the country line is omitted and the rest renders.
+- **`collator` had no guard,** so a malformed locale threw at render. It now falls back to `'en'` with a warn-once (R8). It falls back to `'en'` rather than the host locale, so the result is deterministic.
+
+**For 5h: a minor that a task reviewer writes as "final review should triage" is a question for the controller, not a deferral. Answer it when it is logged.**
+
+### Date-only ISO strings (R7, open)
+
+- `'1990-05-12'` parses as UTC midnight, so with any zone west of UTC it formats as May 11.
+- For birthdays and hire dates that is wrong. Defaulting date-only input to UTC is a behaviour decision for the product, not for a fix wave.
+- For now the JSDoc tells callers to pass `timeZone: 'UTC'`, and a test pins the current output so a later change is deliberate.
+
+### Answered during execution
+
+- **`timeStyle` with `timeZoneName` throws** a `TypeError`, which the guard swallowed into `''` (R3). `timeZoneName` now counts as a component option, so it switches off the default styles.
+- **`useClickOutside` never attached for a target that mounted later.**
+  - It now attaches whenever it is enabled, and reads `ref.current` at event time (R5).
+  - The observer hooks keep effect-time attachment and document that their element must already be mounted.
+- **Inline defaults churned the storage hooks' value identity.** The parsed value is now memoised on the raw string.
+- **React 19 reports hydration mismatches through `onRecoverableError`, not `console.error`.**
+  - The plan's hydration tests watched only the console, so they could not fail.
+  - Every hydration test now passes `onRecoverableError` and asserts it is never called.
+- **The storage AST check covers string literals as well as identifiers** (R2), so `window['localStorage']` cannot slip past it.
+- **`formatPhone` retries without `defaultCountry`** when parsing throws (R1). `libphonenumber-js` 1.13.13 does not actually throw for an unknown country, so the retry is defensive.
+- **Initials follow `displayName`** when one is present (R4). This matches spec §5.3's precedence, so initials match the name shown beside them.
+- **Cheap minors taken in the fix wave** (R9):
+  - cross-tab events are no longer shadowed after a failed write;
+  - `defaultCountry` is trimmed and upper-cased;
+  - `-0` is normalised;
+  - `formatPhone('')` returns `''` with no warning;
+  - `setValue(undefined)` behaves as `remove()`;
+  - the SSR gate asserts that hook bodies don't call the storage read helpers directly.
+
+### Process notes
+
+- **The Write tool turns `\uXXXX` escapes into raw characters.**
+  - Invisible characters (U+200E, U+2212, U+00A0) reached both CONTRIBUTING and this plan (R6).
+  - The implementer's re-escape helper then overcorrected: it turned 27 em-dashes in gate comments into literal `—` text. The 20 in comments were restored (R10).
+  - Check new files for raw invisible characters, and diff any mechanical rewrite before committing it.
+- **The plan did not refresh the fixture and showcase lockfiles** after `@ap/react` gained a dependency and a peer, so `check:lockfiles` failed in the sweep. The controller committed the regenerated lockfiles (R11).
+  - **For 5h: any task that changes a `package.json` must refresh every lockfile that installs the workspace.**
+- **ICU-dependent outputs were checked on both Node 22.22.0 (ICU 77.1) and Node 24 (ICU 78.3).** One expectation was wrong in the spec (`−3%`); spec §5.6 records the correction.
+- As in 5d–5f, the final review and fix wave ran before the CI sweep, so the sweep ran once. One cold-optimizer Banner story flake passed on re-run.
+
+### What is still open
+
+- **Follow-up:** decide whether date-only ISO strings should format in UTC by default.
+- **Known caveats:**
+  - The observer hooks need their element mounted when the hook attaches.
+  - `useClickOutside` binds to the document resolved at effect time; a ref that moves into an iframe is not followed.
+  - `useControllableState` cannot hold a function-typed value. This is undocumented.
+  - Name particles are not handled. This is documented.
+  - Uncited countries use the generic last-four mask.
+- **Deferred minors the reviewers triaged as can-wait:**
+  - Untested address templates: AU, NZ, IE, IN, SG, NL and CA, plus JP's single-line form.
+  - `maskPhone` counts extension digits.
+  - The storage `clear()` branch (null key) is untested.
+  - The hydration-pass `timeZone: undefined` case is not exercised on a UTC host.
+  - `useIntersectionObserver` does not reset a stale entry when its observer is rebuilt.
+  - No test covers unmounting `useCopyToClipboard` during a reset.
+  - The SSR gate's AST check misses a helper called through an alias.
+  - Typing in `useEventListener` is loose, and the `defined()` casts are still there.
+  - The `timeZoneName`-alone test asserts only a non-empty string.
