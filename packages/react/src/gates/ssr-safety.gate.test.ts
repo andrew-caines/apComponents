@@ -19,12 +19,12 @@ function runtimeSources(dir: string): string[] {
 }
 
 const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
-  { pattern: /\bwindow\./, why: 'no window during render — use useHydrated/useMediaQuery' },
+  { pattern: /\bwindow\./, why: 'no window during render \u2014 use useHydrated/useMediaQuery' },
   { pattern: /\bdocument\./, why: 'no document during render' },
   { pattern: /\bglobalThis\.(window|document)\b/, why: 'no browser globals via globalThis' },
   { pattern: /\blocalStorage\b|\bsessionStorage\b/, why: 'storage reads belong in an effect' },
   { pattern: /\bmatchMedia\b/, why: 'use the SSR-safe useMediaQuery wrapper' },
-  { pattern: /\buseLayoutEffect\b/, why: 'use useIsomorphicLayoutEffect — plain useLayoutEffect warns on the server' },
+  { pattern: /\buseLayoutEffect\b/, why: 'use useIsomorphicLayoutEffect \u2014 plain useLayoutEffect warns on the server' },
   { pattern: /\bDate\.now\(\)/, why: 'non-deterministic render causes hydration mismatch' },
   { pattern: /\bMath\.random\(\)/, why: 'non-deterministic render causes hydration mismatch' },
   {
@@ -33,6 +33,22 @@ const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
   },
   { pattern: /from ['"]node:/, why: 'no Node built-ins in runtime source' },
 ]
+
+// A direct call to a read helper in a hook body runs during render, which is
+// exactly the hydration mismatch ADR-0005 forbids. A call inside an arrow or
+// function expression (a callback such as getSnapshot) is fine.
+function directCallsDuringRender(hook: ts.Node, names: Set<string>): string[] {
+  const hits: string[] = []
+  const visit = (node: ts.Node) => {
+    if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) return
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && names.has(node.expression.text)) {
+      hits.push(node.expression.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  ts.forEachChild(hook, visit)
+  return hits
+}
 
 describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   const files = runtimeSources(SRC)
@@ -81,6 +97,29 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   const DOCUMENT_RULE = /\bdocument\./.source
   const STORAGE_RULE = /\blocalStorage\b|\bsessionStorage\b/.source
 
+  // useMediaQuery.ts is the one sanctioned place that names `matchMedia` (and
+  // the `window` it hangs off): it is the SSR-safe wrapper the rule above tells
+  // everyone else to use. The browser is only reached from two module-scope
+  // helper functions that useSyncExternalStore calls on the client (subscribe
+  // and getSnapshot), never from the hook body, and the server snapshot is the
+  // caller-supplied default. A blanket exemption would let an inline read slip
+  // into the hook body with the text gate still green, so the AST describe
+  // below pins where those identifiers may appear. Every other rule still
+  // applies to this file.
+  const USE_MEDIA_QUERY_PATH = join(SRC, 'hooks', 'useMediaQuery.ts')
+  const WINDOW_RULE = /\bwindow\./.source
+  const MATCH_MEDIA_RULE = /\bmatchMedia\b/.source
+
+  // useStorage.ts (Task 8, ADR-0005) is the one sanctioned place that names the
+  // browser storage objects, for the same reason: it is the SSR-safe wrapper.
+  // Only the module-level `getArea` helper may name them (as an identifier or a
+  // string literal), the file never names the global window object, and the
+  // two hook bodies name nothing. Every other rule still applies to this file;
+  // the window rule is filtered out only because the raw text scan cannot be
+  // scoped, so the AST describe below asserts that no identifier named window
+  // appears anywhere in the file.
+  const USE_STORAGE_PATH = join(SRC, 'hooks', 'useStorage.ts')
+
   for (const file of files) {
     it(`${file.split('src')[1]} is clean`, () => {
       const text = readFileSync(file, 'utf8')
@@ -93,10 +132,177 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
           (r) => r.pattern.source !== DOCUMENT_RULE && r.pattern.source !== STORAGE_RULE,
         )
       }
-      const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} — ${r.why}`)
+      if (file === USE_MEDIA_QUERY_PATH) {
+        rules = rules.filter((r) => r.pattern.source !== WINDOW_RULE && r.pattern.source !== MATCH_MEDIA_RULE)
+      }
+      if (file === USE_STORAGE_PATH) {
+        rules = rules.filter((r) => r.pattern.source !== STORAGE_RULE && r.pattern.source !== WINDOW_RULE)
+      }
+      const hits = rules.filter((r) => r.pattern.test(text)).map((r) => `${r.pattern} \u2014 ${r.why}`)
       expect(hits, `${file}:\n  ${hits.join('\n  ')}`).toEqual([])
     })
   }
+
+  describe('the file exempted from the matchMedia and window rules (Task 6, ADR-0005)', () => {
+    it('still exists, so the exemption is not stale config for a moved file', () => {
+      expect(existsSync(USE_MEDIA_QUERY_PATH)).toBe(true)
+    })
+
+    const sourceFile = () =>
+      ts.createSourceFile(
+        USE_MEDIA_QUERY_PATH,
+        readFileSync(USE_MEDIA_QUERY_PATH, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS,
+      )
+
+    const topLevelFunction = (sf: ts.SourceFile, name: string) => {
+      let found: ts.FunctionDeclaration | undefined
+      ts.forEachChild(sf, (node) => {
+        if (ts.isFunctionDeclaration(node) && node.name?.text === name) found = node
+      })
+      return found
+    }
+
+    const BROWSER_NAMES = new Set(['matchMedia', 'window'])
+    const namesBrowser = (node: ts.Node) =>
+      (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) && BROWSER_NAMES.has(node.text)
+
+    it('names matchMedia and window only inside subscribeMediaQuery and readMediaQuery', () => {
+      const sf = sourceFile()
+      const allowed = ['subscribeMediaQuery', 'readMediaQuery'].map((n) => {
+        const fn = topLevelFunction(sf, n)
+        if (!fn) {
+          throw new Error(
+            `ssr-safety gate: could not find a function declaration named '${n}' in ` +
+              `${USE_MEDIA_QUERY_PATH}. The AST check has no anchor and cannot silently pass.`,
+          )
+        }
+        return fn
+      })
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (namesBrowser(node) && !allowed.some((fn) => node.pos >= fn.pos && node.end <= fn.end)) {
+          const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf))
+          hits.push(`'${(node as ts.Identifier).text}' at line ${line + 1}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+      expect(hits, `browser globals outside the two helpers: ${hits.join(', ')}`).toEqual([])
+    })
+
+    it('the useMediaQuery function body names neither identifier', () => {
+      const sf = sourceFile()
+      const hook = topLevelFunction(sf, 'useMediaQuery')
+      if (!hook) {
+        throw new Error(
+          `ssr-safety gate: could not find a function declaration named 'useMediaQuery' in ` +
+            `${USE_MEDIA_QUERY_PATH}. The AST check has no anchor and cannot silently pass.`,
+        )
+      }
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (namesBrowser(node)) hits.push((node as ts.Identifier).text)
+        ts.forEachChild(node, visit)
+      }
+      visit(hook)
+      expect(hits, `useMediaQuery names browser globals: ${hits.join(', ')}`).toEqual([])
+    })
+
+    it('the useMediaQuery body never calls readMediaQuery during render', () => {
+      const hook = topLevelFunction(sourceFile(), 'useMediaQuery')
+      if (!hook) throw new Error(`ssr-safety gate: no useMediaQuery function in ${USE_MEDIA_QUERY_PATH}.`)
+      expect(directCallsDuringRender(hook, new Set(['readMediaQuery']))).toEqual([])
+    })
+  })
+
+  describe('the file exempted from the storage and window rules (Task 8, ADR-0005)', () => {
+    it('still exists, so the exemption is not stale config for a moved file', () => {
+      expect(existsSync(USE_STORAGE_PATH)).toBe(true)
+    })
+
+    const sourceFile = () =>
+      ts.createSourceFile(
+        USE_STORAGE_PATH,
+        readFileSync(USE_STORAGE_PATH, 'utf8'),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS,
+      )
+
+    const requireFunction = (sf: ts.SourceFile, name: string) => {
+      let found: ts.FunctionDeclaration | undefined
+      ts.forEachChild(sf, (node) => {
+        if (ts.isFunctionDeclaration(node) && node.name?.text === name) found = node
+      })
+      if (!found) {
+        throw new Error(
+          `ssr-safety gate: could not find a function declaration named '${name}' in ` +
+            `${USE_STORAGE_PATH}. The AST check has no anchor and cannot silently pass.`,
+        )
+      }
+      return found
+    }
+
+    const STORAGE_NAMES = new Set(['localStorage', 'sessionStorage'])
+    const isNamed = (node: ts.Node, names: Set<string>) =>
+      (ts.isIdentifier(node) || ts.isStringLiteralLike(node)) && names.has(node.text)
+    const inside = (node: ts.Node, outer: ts.Node) => node.pos >= outer.pos && node.end <= outer.end
+
+    it('names the storage objects only inside getArea or a type alias declaration', () => {
+      const sf = sourceFile()
+      const getArea = requireFunction(sf, 'getArea')
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (ts.isTypeAliasDeclaration(node)) return
+        if (isNamed(node, STORAGE_NAMES) && !inside(node, getArea)) {
+          const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf))
+          hits.push(`'${(node as ts.Identifier).text}' at line ${line + 1}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+      expect(hits, `storage names outside getArea: ${hits.join(', ')}`).toEqual([])
+    })
+
+    it('has no identifier or string literal named window anywhere in the file', () => {
+      const sf = sourceFile()
+      const hits: string[] = []
+      const visit = (node: ts.Node) => {
+        if (isNamed(node, new Set(['window']))) {
+          const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf))
+          hits.push(`'window' at line ${line + 1}`)
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+      expect(hits, `window named at: ${hits.join(', ')}`).toEqual([])
+    })
+
+    it('neither useLocalStorage nor useSessionStorage names a storage identifier or literal', () => {
+      const sf = sourceFile()
+      for (const name of ['useLocalStorage', 'useSessionStorage']) {
+        const hook = requireFunction(sf, name)
+        const hits: string[] = []
+        const visit = (node: ts.Node) => {
+          if (isNamed(node, STORAGE_NAMES)) hits.push((node as ts.Identifier).text)
+          ts.forEachChild(node, visit)
+        }
+        visit(hook)
+        expect(hits, `${name} names storage objects: ${hits.join(', ')}`).toEqual([])
+      }
+    })
+
+    it('no hook body calls readRaw or getArea during render', () => {
+      const sf = sourceFile()
+      for (const name of ['useStorageValue', 'useLocalStorage', 'useSessionStorage']) {
+        const hook = requireFunction(sf, name)
+        expect(directCallsDuringRender(hook, new Set(['readRaw', 'getArea'])), name).toEqual([])
+      }
+    })
+  })
 
   describe('the file exempted from the useLayoutEffect rule', () => {
     const text = () => readFileSync(ISOMORPHIC_LAYOUT_EFFECT_PATH, 'utf8')
@@ -137,7 +343,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       expect(
         matches.length,
         `expected useLayoutEffect to appear exactly 2 times in useIsomorphicLayoutEffect.ts's ` +
-          `code (the import and the guarded ternary), found ${matches.length} — two is the ` +
+          `code (the import and the guarded ternary), found ${matches.length} \u2014 two is the ` +
           'sanctioned count because a third occurrence, whatever its syntax ' +
           '(optional chaining, an alias, assignment to a variable), means the hook is ' +
           'being invoked outside the guard the exemption exists to cover',
@@ -202,7 +408,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
         throw new Error(
           `ssr-safety gate: could not find a function declaration named 'ThemeProvider' in ` +
             `${THEME_PROVIDER_PATH}. The AST check has no anchor to search and cannot silently ` +
-            'pass — update this gate if the component was renamed or restructured.',
+            'pass \u2014 update this gate if the component was renamed or restructured.',
         )
       }
 
@@ -268,7 +474,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
         throw new Error(
           `ssr-safety gate: could not find a function declaration named 'ThemeProvider' in ` +
             `${THEME_PROVIDER_PATH}. The AST check has no anchor to search and cannot silently ` +
-            'pass — update this gate if the component was renamed or restructured.',
+            'pass \u2014 update this gate if the component was renamed or restructured.',
         )
       }
       const rootFn = providerFn
@@ -326,7 +532,7 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       const matches = [...code.matchAll(/\bdocument\./g)]
       expect(
         matches.length,
-        'expected exactly one `document.` reference — a second means the global is ' +
+        'expected exactly one `document.` reference \u2014 a second means the global is ' +
           'being touched somewhere the exemption was not scoped to review',
       ).toBe(1)
       const idx = matches[0]!.index

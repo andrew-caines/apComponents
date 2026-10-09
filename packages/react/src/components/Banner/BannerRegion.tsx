@@ -3,7 +3,7 @@
 import { useContext } from 'react'
 import { BannerContext } from '../../notifications/banners.js'
 import { SEVERITY_ICON } from '../../notifications/severity.js'
-import { useIsomorphicLayoutEffect } from '../../hooks/index.js'
+import { useIsomorphicLayoutEffect } from '../../hooks/useIsomorphicLayoutEffect.js'
 import { Icon } from '../../icons/Icon.js'
 import { useMessages } from '../../providers/LocaleProvider.js'
 import { Button } from '../Button/Button.js'

@@ -129,3 +129,14 @@ Icons are decorative by default (`aria-hidden`), and require a `label` when they
 - **Auto-detected locale.** Best zero-config SPA experience, and the thing that breaks under SSR.
 - **Peer-depending on Lucide or Phosphor.** A larger, better icon set for free. Rejected: with git submodules, every peer dependency is one more thing each product keeps in sync by hand. `IconProvider` gets the benefit without the coupling.
 - **Separate providers for toast, dialog and announcements.** Rejected — shared queueing, focus and priority behaviour is the reason a single provider exists.
+
+## Amendment — 2026-10-08 (Phase 5g)
+
+The decision above stands. Phase 5g changed these points; the detail is in spec §5.5 and §5.6.
+
+- **`useFieldContext` is dropped.** Our `Field` has no context of its own, and Base UI exports its field context only under `internals`. A custom control joins a field through `Field.Control render={…}`, so a hook over an unexported API would have no caller.
+- **`useFormatter()` is added to `./hooks`.** It is the one place `LocaleProvider` meets the formatters, so the two-pass date rule (UTC on the server and the first client pass, the browser zone after hydration) is implemented there once. It leaves out `formatPhone`, so `./hooks` never reaches `libphonenumber-js`.
+- **Two deviations from "no hand-rolled formatting", as spec §5.2 describes.** `formatDuration` composes `Intl.NumberFormat` and `Intl.ListFormat` and never feature-detects `Intl.DurationFormat`, because CI's Node 22 lacks it and detection would give different text on the server and in the browser. `formatOrdinal` carries a suffix table, because plural rules give a category and never a suffix.
+- **Bad input returns `''` and warns in development.** An invalid date, locale or time zone makes `Intl` throw `RangeError`; a formatter that throws takes a route down for one bad table cell, and a silent `''` hides the bug, so it warns once per function.
+- **`maskTaxId` rules are cited, and a country is added only with a source.** US (law, 26 CFR 301.6109-4), Canada (official guidance by analogy), India (regulation plus guidance) and Singapore (guidance) carry citations, listed in spec §5.5.2. Other countries use the last-four fallback until someone finds a source for a rule.
+- **`libphonenumber-js` is an optional peer behind `./format/phone`.** Its metadata is large, and most products never format a phone number, so only a product that imports that subpath pays for it. A gate walks the import graphs of `./format` and `./hooks` to prove neither reaches it.

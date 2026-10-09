@@ -1164,6 +1164,204 @@ DOM during render.
 Per §4.1.6, most of these have no in-repo caller. Their tests are their only consumer, and
 that is stated in the plan so nobody mistakes coverage for usage.
 
+### 5.5 Scope and API — settled 2026-10-08, before the plan
+
+5g is **one plan and one PR**. The formatters and the hooks share no runtime code, but they
+share the subpath plumbing, the gate changes and the ADR amendment, and splitting them
+would review those twice.
+
+#### 5.5.1 Surface and dependencies
+
+- `packages/react/package.json` gains `./hooks` → `src/hooks/index.ts`, `./format` →
+  `src/format/index.ts` and `./format/phone` → `src/format/phone.ts`.
+- The main `.` entry keeps exactly what it exports today (`useHydrated`,
+  `useIsomorphicLayoutEffect`, `useTheme`, `useColorScheme`), so nothing breaks. Every new
+  hook and formatter is exported **only** from its subpath; the main entry does not grow,
+  which is what gate 10's per-entry budgets assume. `./hooks` re-exports `useTheme`,
+  `useColorScheme` and `useHydrated` so the catalogue is complete from one import.
+- `@base-ui/utils` becomes an explicit dependency pinned to the version Base UI 1.7.0
+  installs (`0.3.2`). `libphonenumber-js` becomes an optional peer and a dev dependency;
+  only `format/phone.ts` imports it, from `libphonenumber-js/min`.
+- **Two departures from the ADR-0012 catalogue**, both recorded as an amendment to it:
+  - **`useFieldContext` is dropped.** Our `Field` has no context of its own, and Base UI
+    exports its field context only under `internals`. A custom control joins a field
+    through `Field.Control render={…}`, which already wires ids, labelling and validity.
+    A hook over an unexported API, with no caller, buys nothing.
+  - **`useFormatter()` is added** to `./hooks`. It is the one place `LocaleProvider` meets
+    the formatters, and the one place the ADR's two-pass date rule is implemented (5.5.3).
+    It does not include `formatPhone`, so `./hooks` never reaches `libphonenumber-js`.
+
+#### 5.5.2 Formatters — `./format`
+
+**Shape.** Every formatter is `fn(value, options)`. `options.locale` is **required**; date and
+time functions also require `options.timeZone`, because an implicit host zone is exactly the
+SSR bug ADR-0012 describes. Beyond those, options pass through to the native `Intl` options —
+there is no parallel option vocabulary to learn. Nothing reads `Date.now()` or a zero-argument
+`new Date()`; `formatRelative` takes an explicit `now`.
+
+**Bad input never throws.** An invalid date, `NaN`, `null` or `undefined` returns `''`, so a
+bad value in one table cell renders empty rather than taking the route down. In development
+the formatter warns once per function with the offending value, so the empty string is not a
+silent bug.
+
+| Group | Functions and settled behaviour |
+|---|---|
+| Date/time | `formatDate`, `formatTime`, `formatDateTime`, `formatDateRange` wrap `Intl.DateTimeFormat`. `formatRelative(value, { now, locale })` auto-selects the unit (seconds → minutes → hours → days → weeks → months → years). `formatDuration({ hours, minutes, … }, { locale, style })` composes `Intl.NumberFormat` unit style with `Intl.ListFormat` (§5.2) |
+| Number | `formatNumber`, `formatCurrency` (`currency` required), `formatPercent`, `formatCompact` (`notation: 'compact'`). `formatPercentChange` always signs (`+12.5%`, `-3%`) and returns `''` for a zero base. `formatOrdinal` uses the §5.2 suffix table. `formatBytes` is SI with localised units (§5.3) |
+| Text | `formatName(record, { locale, form: 'display' \| 'initials' })` over `{ given, family, displayName?, order? }` (§5.3; particles are a documented limitation). `formatList`. `pluralize(count, forms, { locale })` selects from caller-supplied forms through `Intl.PluralRules`. `truncate(text, { locale, length })` counts grapheme clusters through `Intl.Segmenter`, so it never splits an emoji or a combining sequence |
+| Address | `formatAddress(address, { locale, form: 'multiline' \| 'single' })` — the twelve-country template table plus a generic fallback (§5.3). The country line comes from `Intl.DisplayNames` and is **omitted when the address country is the reader's own region** (the locale's region subtag) |
+| Sorting | `collator(locale, options?)` returns a comparator ready for `.sort()` |
+| Masking | Deterministic, separator-preserving, no locale (plain string work, no `Intl`). `maskEmail` keeps the local part's first character and the whole domain. `maskPhone` and `maskCardNumber` keep the last four digits. `maskTaxId(value, country)` uses the table below |
+| Phone (`./format/phone`) | `formatPhone(value, { format: 'national' \| 'international' \| 'E.164', defaultCountry? })`. Unparseable input returns the trimmed input unchanged — a number shown as typed beats a blank |
+
+**`maskTaxId` country table.** Spec §5.3 requires each country's convention to be cited. The
+twelve address countries were researched on 2026-10-08; only these carry a country rule:
+
+| Country | Identifier | Rule | Source and strength |
+|---|---|---|---|
+| US | SSN, ITIN, ATIN, EIN | Mask the first five of nine digits, show the last four, keep the format: `***-**-1234`, EIN `**-***1234` | **Law.** 26 CFR 301.6109-4(a), truncated taxpayer identifying numbers: the number "in which the first five digits of the nine-digit number are replaced with Xs or asterisks" (<https://www.law.cornell.edu/cfr/text/26/301.6109-4>) |
+| CA | SIN | Show the last three digits only, keep separators: `***-***-789` | **Official guidance by analogy, not a display regulation.** ESDC, *SIN fraud and data breaches* (page dated 2026-05-13) accepts "your full SIN or last 3 digits of your SIN" on police reports and credit documents (<https://www.canada.ca/en/employment-social-development/services/sin/fraud-data-breaches.html>). ESDC's *SIN Code of Practice* (<https://www.canada.ca/en/employment-social-development/services/sin/reports/code-of-practice.html>) was checked and covers storage and disposal only — no display rule |
+| IN | Aadhaar | Mask the first eight digits, show the last four: `**** **** 1234` | **Regulation + guidance.** Aadhaar (Sharing of Information) Regulations 2016, reg. 6(1): the number "shall not be published, displayed or posted publicly", and 6(3) permits databases only where numbers are "redacted or blacked out" (<https://www.uidai.gov.in/images/The_Aadhaar_Sharing_of_information_regulation_2016.pdf>). The last-four format is UIDAI's "Masked Aadhaar" FAQ, read via search results only (the page returned 404 when fetched). The regulation gives no digit count |
+| SG | NRIC, FIN | Last three digits plus the check letter: `*****567A` — which is the generic last-four rule on a nine-character NRIC, so no special case is coded; the row exists to cite that the fallback is compliant | **Guidance.** PDPC *Advisory Guidelines on the PDPA for NRIC and Other National Identification Numbers* (31 Aug 2018) para 5.2, and the PDPC Technical Guide ("masked NRIC number (only showing last three digits + last alphabet)"). A December 2024 notice says the guidelines will be updated |
+
+**Uncited — generic last-four fallback:** GB (NINO, UTR), IE (PPSN), AU (TFN; the Privacy (TFN)
+Rule 2015 covers handling, no display rule found), NZ (IRD number), DE (Steuer-ID), FR (NIR —
+CNIL addresses use, not partial display), NL (BSN — enforcement is about not processing it),
+JP (My Number — Art. 19 restricts provision; arguably it should not be displayed at all), and
+India's PAN. The fallback shows the last four characters and masks every other alphanumeric,
+keeping separators. A country is added to the table only with a source.
+
+The mask character is always `*`. Note what the table does and does not change: US, IN and
+SG all coincide with the generic last-four rule, so their rows are citations that the
+fallback is compliant; **CA is the only country whose output differs** (last three, so the
+middle group of a 3-3-3 SIN is never partly shown).
+
+#### 5.5.3 Hooks — `./hooks`
+
+| Group | Hooks and settled behaviour |
+|---|---|
+| SSR | `useIsomorphicLayoutEffect`, `useHydrated` (exist). `useMediaQuery(query, ssrDefault)` on `useSyncExternalStore`; `ssrDefault` is **required** |
+| State | `useControllableState({ value, defaultValue, onChange })` → `[value, setValue]`, on `useControlled` + `useStableCallback` from `@base-ui/utils`; `onChange` fires only on an actual change. `useDisclosure({ open?, defaultOpen?, onOpenChange? })` → `{ open, setOpen, onOpen, onClose, onToggle }`. `useToggle(initial)` → `[value, toggle, set]`. `usePrevious` wraps `usePreviousValue`. `useDebouncedValue(value, ms)` on `useTimeout` |
+| DOM | Every hook takes a ref or a target and attaches only in an effect. `useClickOutside(ref, handler)` listens for `pointerdown` on the ref's `ownerDocument` and tests `composedPath()`, so it works across shadow roots. `useResizeObserver(ref)` → `{ width, height } \| undefined`. `useIntersectionObserver(ref, options)` → latest entry or `undefined`. `useEventListener(target, type, handler, options)` calls the latest handler and re-subscribes only when target, type or options change. `useCopyToClipboard({ resetMs = 2000 })` → `[copied, copy]`; `copy` resolves `false` rather than throwing when the clipboard is unavailable or denied |
+| Theme | `useTheme`, `useColorScheme` (re-exported). `useReducedMotion()` is `useMediaQuery('(prefers-reduced-motion: reduce)', false)`, for JS-driven motion only |
+| A11y | `useAnnounce()` returns 5f's `announce`, stable across renders; it must be used inside `NotificationProvider`, like every surface. `useFocusReturn(active)` records the focused element when `active` turns true and restores it when `active` turns false or on unmount, if that element is still connected |
+| Storage | `useLocalStorage(key, default)`, `useSessionStorage(key, default)` → `[value, setValue, remove]`. JSON-serialised; a parse failure returns the default and warns in development. `useSyncExternalStore` with `default` as the server snapshot, subscribed to the `storage` event and a same-tab emitter. A write that fails (quota, blocked storage) degrades to in-memory for the session and does not throw |
+| Locale | `useFormatter()` returns the `./format` functions bound to `LocaleProvider`'s `locale`, `currency` and `timeZone`; per-call options still override. With `timeZone` unset, date functions format in **UTC** on the server and on the first client pass, then in `Intl.DateTimeFormat().resolvedOptions().timeZone` after hydration — ADR-0012's two-pass rule. `isoFor(value)` supplies the `<time dateTime>` attribute |
+
+Per §4.1.6, most of these have no in-repo caller; their tests are their only consumer.
+
+#### 5.5.4 Gates and tests
+
+- **SSR-safety gate:** named exemptions for `hooks/useMediaQuery.ts` (`matchMedia`) and
+  `hooks/useStorage.ts` (`localStorage`, `sessionStorage`). Each is paired with a narrower
+  assertion in the `useIsomorphicLayoutEffect` pattern — the banned name appears only inside
+  the subscribe and snapshot functions — and each exemption is asserted to still exist. DOM
+  hooks reach the document through `ownerDocument` or a caller-supplied target and need no
+  exemption.
+- **`use-client` gate:** a named exemption for `src/format/**` (pure functions, no React
+  import), itself asserted.
+- **New gate — formatters are deterministic** (§7 row 14): under `src/format`, no
+  `Date.now()`, no zero-argument `new Date()`, no `react` import.
+- **New gate — phone isolation:** `libphonenumber-js` is imported only by `format/phone.ts`,
+  and is unreachable from `format/index.ts` and `hooks/index.ts` by walking their import
+  graphs, not by scanning one file.
+- **Package shape:** the three subpaths exist and resolve; `libphonenumber-js` is an optional
+  peer; `@base-ui/utils` is pinned to Base UI's own version.
+- **Formatter tests** run at fixed locales (en-US, en-GB, de-DE, fr-FR, ja-JP and one RTL
+  locale) with explicit time zones, each with a named perturbation. CI's Node 22.22.0 is the
+  reference runtime; any assertion that depends on ICU data version is identified and pinned
+  to output stable across Node 22 and 24.
+- **Hook tests** in jsdom, plus `.ssr.test.tsx` renders for every hook with a server default
+  (media query, reduced motion, storage, `useFormatter`'s dates). `useFormatter` gets an
+  SSR-then-hydrate test proving no hydration warning and the post-hydration swap.
+- **No stories** — these are not components. **No showcase route** in this phase.
+
+### 5.6 Verified during the plan
+
+Checked on 2026-10-08 on Node 22.22.0 (ICU 77.1) and Node 24.19.0 (ICU 78.3), and against
+the code as built. §5.5 is left as written, except that §5.5.2's `formatPercentChange`
+example read `−3%` and now reads `-3%`: ICU emits a hyphen-minus there, not U+2212. Paths
+are relative to `packages/react/src/` unless they start with `node_modules/`.
+
+**Facts the plan relied on.**
+
+1. Every `Intl` output pinned in the format tests, except `formatPhone`'s (which depend on
+   `libphonenumber-js` metadata), is byte-identical on Node 22.22.0 and Node 24.19.0, so the
+   tables are asserted exactly.
+2. One divergence: `de-DE` `unitDisplay: 'narrow'` hours are `"2 Std."` on ICU 77.1 and
+   `"2h"` on ICU 78.3. No test asserts a narrow duration or unit in `de-DE`, and
+   `formatDuration`'s default style is `'short'`.
+3. `Intl.DurationFormat` is `undefined` on Node 22.22.0 and a function on Node 24.19.0. This
+   is why §5.2 composes and never feature-detects; a test asserts the composed path is used
+   even where the native API exists.
+4. An invalid locale (`'xx_YY'`), an invalid time zone (`'Mars/Base'`) and an invalid `Date`
+   all make `Intl` throw `RangeError`. "Bad input never throws" (§5.5.2) therefore means every
+   formatter catches (the shared `guard` in `format/`).
+5. `new Intl.NumberFormat('en-US', { style: 'unit', unit: 'kilobyte', maximumFractionDigits: 1 }).format(999.95)`
+   is `"1,000 kB"`. `formatBytes` steps up a unit after rounding, so `999_950` bytes is `"1 MB"`.
+6. The `en-US` short form of the `byte` unit is singular (`"512 byte"`); the long form is
+   plural-correct. `formatBytes` formats `byte` with `unitDisplay: 'long'` and every larger
+   unit with `'short'`.
+7. `@base-ui/utils` 0.3.2 exports `./useControlled`, `./useStableCallback`,
+   `./usePreviousValue`, `./useTimeout`, `./useValueAsRef` and `./owner`
+   (`node_modules/@base-ui/utils/package.json`). `useControlled` returns
+   `[value, setValueIfUncontrolled]` and never calls a change handler
+   (`useControlled.mjs:4-42`), so `useControllableState` calls `onChange` itself.
+   `usePreviousValue` returns the previous distinct value, `null` before the first change
+   (`usePreviousValue.mjs:9-20`), so `usePrevious` returns `T | null`. `useStableCallback`
+   throws if called during render (`useStableCallback.d.ts`).
+8. `ownerDocument(null)` returns the global document (`node_modules/@base-ui/utils/owner.mjs:2-4`),
+   so `useFocusReturn` and `useClickOutside` never name the global and need no SSR-safety
+   exemption.
+9. `NotificationContext` was private to `notifications/NotificationProvider.tsx`, which also
+   imports the Toast parts and their CSS. `useAnnounce` importing it would have pulled Toast's
+   CSS into every `./hooks` consumer (gate 10, §6.1), so the context moved to
+   `notifications/context.ts`. The phone-isolation gate asserts `./hooks` does not reach
+   `NotificationProvider.tsx`.
+10. `useHydrated` flips in a passive effect (`hooks/useHydrated.ts:14-18`), so it is `false`
+    on the first render of every mount, client-only mounts included. `useFormatter` would
+    flash UTC on every client-side navigation if it used it, so it uses
+    `useSyncExternalStore(noop, () => true, () => false)`, which is `false` only while
+    hydrating (`hooks/useFormatter.ts`).
+11. `new Date('2026-03-05')` (date-only ISO) is UTC midnight and
+    `new Date('2026-03-05T14:30:00Z')` parses exactly, so formatters accept
+    `Date | number | string` and parse strings with `new Date(string)`.
+12. `new Intl.Locale('en').maximize().region` is `'US'`, `'he'` gives `'IL'` and `'ja'` gives
+    `'JP'`, so `formatAddress` derives the reader's region from the maximised locale.
+
+**Found while building.**
+
+- **`timeZoneName` is a component option.** `formatDate`, `formatTime` and the other date
+  formatters apply their style defaults only when the caller named no component option, and
+  `timeZoneName` is on that list (`COMPONENT_KEYS` in `format/date.ts`). Intl throws
+  `TypeError` for `timeStyle` beside `timeZoneName`, so passing `timeZoneName` has to disable
+  the default style. `hour12` and `hourCycle` combine with a style and are not on the list.
+- **`formatName` and `displayName`.** When `displayName` is present, both the display form
+  and the initials come from it (§5.3, "displayName wins"; `format/text.ts`).
+- **`formatPhone` and an unknown default country.** `libphonenumber-js` 1.13.13 does not
+  throw for `defaultCountry: 'XX'`. A `+`-prefixed number parses regardless of it, and a
+  national number returns `undefined`, so `formatPhone` returns the trimmed input
+  (`format/phone.ts`). The code also catches a throw and retries without a country, in case a
+  later version does throw.
+- **`useClickOutside` and a conditional target.** It attaches whenever `enabled`, on the
+  owner document of the ref (the global one while the ref is empty), and reads the ref at
+  event time, so a target rendered conditionally works without toggling `enabled`
+  (`hooks/useClickOutside.ts`). `useEventListener` (ref form), `useResizeObserver` and
+  `useIntersectionObserver` instead need the ref attached when their effect runs; each says
+  so in its doc comment.
+- **`useFocusReturn` records in a layout effect**, so a child's passive-effect focus move is
+  not recorded as the element to return to. `autoFocus` is not supported: it runs at commit,
+  before any layout effect, and the doc comment states that contract (`hooks/useFocusReturn.ts`).
+- **Storage hooks.** The parse is memoised on the raw string only, so the value's identity is
+  stable even when the caller passes an inline literal default. A failed write keeps the
+  value in memory for the session (`hooks/useStorage.ts`).
+- **Hydration errors in React 19.** Recoverable hydration errors reach `hydrateRoot`'s
+  `onRecoverableError`, and not reliably `console.error`, so the hydration tests assert both
+  (`hooks/useFormatter.test.tsx`).
+- **The phone-isolation gate fails on any relative import it cannot resolve**, so a resolver
+  bug cannot make it pass because the walk silently stopped early (the `unresolved` check in
+  the gate under `gates/`).
+
 ## 6. Gates
 
 Phase 5 must leave all ten of ADR-0014's gates running.
