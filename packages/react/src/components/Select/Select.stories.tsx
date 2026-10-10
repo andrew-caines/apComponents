@@ -85,6 +85,13 @@ export const Default: Story = {
       const listbox = await within(document.body).findByRole('listbox')
       const canada = within(listbox).getByRole('option', { name: 'Canada' })
       await waitFor(() => expect(canada).toHaveAttribute('data-highlighted'))
+      // Base UI highlights on open synchronously but hands DOM focus to the
+      // item one animation frame later (`enqueueFocus` via rAF in
+      // `@base-ui/react/floating-ui-react/hooks/useListNavigation.mjs`). An
+      // ArrowDown that reaches the still-focused trigger in that frame hits
+      // its "reset the index if no item is focused" branch and jumps back to
+      // the first item, so every follow-up ArrowDown waits for item focus.
+      await waitFor(() => expect(canada).toHaveFocus())
     })
 
     await step('further arrows move the highlight', async () => {
@@ -120,7 +127,9 @@ export const Default: Story = {
       // Escape ever wrongly committed the highlighted item.
       await userEvent.keyboard('{ArrowDown}')
       const listbox = await within(document.body).findByRole('listbox')
+      const france = within(listbox).getByRole('option', { name: 'France' })
       const germany = within(listbox).getByRole('option', { name: 'Germany' })
+      await waitFor(() => expect(france).toHaveFocus())
       await userEvent.keyboard('{ArrowDown}')
       await waitFor(() => expect(germany).toHaveAttribute('data-highlighted'))
       await userEvent.keyboard('{Escape}')
