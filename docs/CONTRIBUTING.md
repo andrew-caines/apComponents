@@ -22,7 +22,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run test:motion` | `@ap/motion`'s own suite: unit tests plus its equivalence, reduced-motion, freshness and isolation gates |
 | `npm run gen:motion-css` | Regenerates `packages/motion/src/motion.css` from `motions.ts` |
 | `npm run test:ssr` | Builds and serves the RR8 fixture, asserts SSR markup and streaming |
-| `npm run test:hydration` | Playwright: zero hydration warnings, tokens resolve, no third-party requests, and the pre-hydration submit proof — `/form` submits and its action runs with every client bundle blocked |
+| `npm run test:hydration` | Playwright: zero hydration errors (an empty `onRecoverableError` log first, with no console warnings as the second net; `/streamed` waits for its Suspense boundary to hydrate), tokens resolve, no third-party requests, and the pre-hydration submit proof — `/form` submits and its action runs with every client bundle blocked |
 | `npm run test:consumer` | Builds the `file:`-protocol consumer fixture |
 | `npm run test:spa` | Gate 7 only: the same fixture built with `ssr: false` boots, and component CSS is still wired through the build |
 | `npm run test:stories` / `npm run test:a11y` | Gate 4/5: every story and its `play` function in headless Chromium, with axe running inside the same run. The two commands are aliases of each other |

@@ -230,7 +230,8 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(messageMatch![1]).toBe('streamed message')
 
     // Scoped by tag: name/value/checked appear on other attributes elsewhere
-    // (see the form test), so an unscoped substring could never fail.
+    // (see the form test), so an unscoped substring could never fail. `\s`, not
+    // `\b`, before `checked=`: `\b` also matches inside `aria-checked=`.
     const lateInputs = late.match(/<input[^>]*>/g) ?? []
     const subscribeTag = lateInputs.find((t) => /\bname="streamed-subscribe"/.test(t))
     const alertsTag = lateInputs.find((t) => /\bname="streamed-alerts"/.test(t))
@@ -241,13 +242,13 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
       (t) => /\bname="streamed-contact"/.test(t) && /\bvalue="email"/.test(t),
     )
     expect(subscribeTag, 'no streamed-subscribe input after the fallback').toBeDefined()
-    expect(subscribeTag).toMatch(/\bchecked=/)
+    expect(subscribeTag).toMatch(/\schecked=/)
     expect(alertsTag, 'no streamed-alerts input after the fallback').toBeDefined()
-    expect(alertsTag).toMatch(/\bchecked=/)
+    expect(alertsTag).toMatch(/\schecked=/)
     expect(smsTag, 'no streamed-contact sms input after the fallback').toBeDefined()
-    expect(smsTag).toMatch(/\bchecked=/)
+    expect(smsTag).toMatch(/\schecked=/)
     expect(emailTag, 'no streamed-contact email input after the fallback').toBeDefined()
-    expect(emailTag).not.toMatch(/\bchecked=/)
+    expect(emailTag).not.toMatch(/\schecked=/)
 
     // Select: same lookup as the form test, on the streamed chunk.
     const countryLabelId = /<div[^>]*\sid="([^"]+)"[^>]*>Streamed country<\/div>/.exec(late)?.[1]
@@ -385,17 +386,17 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     )
 
     expect(subscribeTag, 'no input named "subscribe" in server HTML').toBeDefined()
-    expect(subscribeTag).toMatch(/\bchecked=/)
+    expect(subscribeTag).toMatch(/\schecked=/)
     const subscribeValue = /\bvalue="([^"]*)"/.exec(subscribeTag!)?.[1]!
     expect(subscribeValue).toBe('yes')
 
     expect(notificationsTag, 'no input named "notifications" in server HTML').toBeDefined()
-    expect(notificationsTag).toMatch(/\bchecked=/)
+    expect(notificationsTag).toMatch(/\schecked=/)
     const notificationsValue = /\bvalue="([^"]*)"/.exec(notificationsTag!)?.[1]!
     expect(notificationsValue).toBe('on')
 
     expect(contactEmailTag, 'no input named "contact" with value="email" in server HTML').toBeDefined()
-    expect(contactEmailTag).toMatch(/\bchecked=/)
+    expect(contactEmailTag).toMatch(/\schecked=/)
     const contactValue = /\bvalue="([^"]*)"/.exec(contactEmailTag!)?.[1]!
     expect(contactValue).toBe('email')
 

@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
 import { Await } from 'react-router'
 import {
   Accordion,
@@ -21,6 +21,19 @@ const COUNTRIES = [
   { value: 'fr', label: 'France' },
   { value: 'de', label: 'Germany' },
 ]
+
+// A positive signal that the Suspense boundary itself has hydrated, for
+// `e2e/hydration.spec.ts`. An effect runs only once its boundary has
+// hydrated, and the root's `data-ap-hydrated` can be set before then. The
+// attribute is written to the DOM after hydration, so the server and client
+// markup still match.
+function StreamedHydrated() {
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    ref.current?.setAttribute('data-streamed-hydrated', 'true')
+  }, [])
+  return <span ref={ref} id="streamed-hydrated" hidden />
+}
 
 export async function loader() {
   // Deliberately deferred: this content flushes after the shell.
@@ -49,6 +62,7 @@ export default function Streamed({ loaderData }: { loaderData: { slow: Promise<s
             {(value: string) => (
               <Surface tone="surface" pad="md" id="streamed-surface">
                 {value}
+                <StreamedHydrated />
                 {/*
                   Gate 6 wants every component exercised behind a streaming
                   boundary, not just one. Content flushed AFTER the shell is the

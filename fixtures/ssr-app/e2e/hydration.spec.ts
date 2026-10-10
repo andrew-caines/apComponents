@@ -53,13 +53,28 @@ async function waitForHydration(page: Page): Promise<void> {
   })
 }
 
+/**
+ * The root marker above can fire before a streamed Suspense boundary has
+ * hydrated: React hydrates each boundary separately, once its chunk arrives.
+ * `app/routes/streamed.tsx` renders a `StreamedHydrated` effect inside the
+ * boundary, so this waits for the boundary itself. Without it, a mismatch
+ * inside the streamed content could be reported after the assertion ran.
+ */
+async function waitForStreamedHydration(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => document.querySelector('#streamed-hydrated')?.getAttribute('data-streamed-hydrated') === 'true',
+    undefined,
+    { timeout: 10_000 },
+  )
+}
+
 test('home route hydrates with no React warnings or page errors', async ({ page }) => {
   const messages = collect(page)
   await page.goto('/')
   await expect(page.locator('#surface-raised')).toBeVisible()
   await waitForHydration(page)
-  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
   await page.waitForTimeout(200) // settle window for errors that fire just after hydration
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
 
   const hydration = messages.filter((m) => HYDRATION_MARKERS.some((k) => m.includes(k)))
   expect(hydration, `hydration problems:\n${hydration.join('\n')}`).toEqual([])
@@ -71,8 +86,9 @@ test('streamed route hydrates cleanly after late Suspense content', async ({ pag
   await page.goto('/streamed')
   await expect(page.locator('#streamed-surface')).toBeVisible()
   await waitForHydration(page)
-  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
+  await waitForStreamedHydration(page)
   await page.waitForTimeout(200)
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
 
   expect(messages, `unexpected console output:\n${messages.join('\n')}`).toEqual([])
 })
@@ -80,6 +96,7 @@ test('streamed route hydrates cleanly after late Suspense content', async ({ pag
 test('token custom properties resolve to real computed values in the browser', async ({ page }) => {
   await page.goto('/')
   await waitForHydration(page)
+  await page.waitForTimeout(200)
   expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
   const bg = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--ap-color-bg-canvas').trim(),
@@ -108,8 +125,8 @@ test('Inter loads from our own origin, never a third party (ADR-0015)', async ({
   })
   await page.goto('/')
   await waitForHydration(page)
-  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
   await page.waitForTimeout(200)
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
   expect(external, `third-party requests: ${external.join(', ')}`).toEqual([])
   // The negative assertion above passes identically if fonts.css failed to
   // bundle, --ap-font-body stopped naming 'Inter', or the relative font url()
