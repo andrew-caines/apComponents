@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { AP_PACKAGES, apComponents } from './index.js'
+import { AP_CSS_TARGET, AP_PACKAGES, apComponents } from './index.js'
 
 const PKG_ROOT = join(import.meta.dirname, '..')
 const PACKAGES = join(PKG_ROOT, '..')
@@ -45,14 +45,17 @@ function consumablePackages(): string[] {
     .sort()
 }
 
+function findPlugin(name: string): any {
+  const plugin = apComponents()
+    .flat()
+    .find((p: any) => p && typeof p === 'object' && p.name === name) as any
+  expect(plugin, `preset must contribute ${name}`).toBeDefined()
+  return plugin
+}
+
 /** Pull the config object the preset contributes via its `config` hook. */
-function presetConfig(): Record<string, any> {
-  const plugins = apComponents().flat()
-  const cfgPlugin = plugins.find(
-    (p: any) => p && typeof p === 'object' && p.name === 'ap-components:config',
-  ) as any
-  expect(cfgPlugin, 'preset must contribute a config plugin').toBeDefined()
-  return cfgPlugin.config()
+function presetConfig(user: Record<string, any> = {}): Record<string, any> {
+  return findPlugin('ap-components:config').config(user)
 }
 
 describe('apComponents()', () => {
@@ -77,5 +80,33 @@ describe('apComponents()', () => {
     // @ap/motion's `.` export is raw TypeScript. Externalised, an SSR build
     // hands it to Node, which cannot parse it.
     expect([...AP_PACKAGES].sort()).toEqual(consumablePackages())
+  })
+})
+
+describe('CSS browser floor', () => {
+  it('sets build.cssTarget to AP_CSS_TARGET when the consumer has not', () => {
+    expect(presetConfig({})['build'].cssTarget).toEqual([...AP_CSS_TARGET])
+  })
+
+  it('leaves a consumer cssTarget alone', () => {
+    expect(presetConfig({ build: { cssTarget: 'chrome100' } })['build']?.cssTarget).toBeUndefined()
+  })
+
+  it('warns once when emitted CSS still has :dir() lowered', () => {
+    const check = findPlugin('ap-components:rtl-check')
+    const lowered = '.a:is(:lang(ae),:lang(ar)){left:0}'
+    const run = (bundle: Record<string, any>): string[] => {
+      const warnings: string[] = []
+      check.generateBundle.call({ warn: (m: string) => warnings.push(m) }, {}, bundle)
+      return warnings
+    }
+    const warnings = run({
+      'a.css': { type: 'asset', fileName: 'a.css', source: lowered },
+      'b.css': { type: 'asset', fileName: 'b.css', source: lowered },
+    })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain(':dir()')
+    expect(warnings[0]).toContain('AP_CSS_TARGET')
+    expect(run({ 'a.css': { type: 'asset', fileName: 'a.css', source: '.a:dir(rtl){left:0}' } })).toEqual([])
   })
 })

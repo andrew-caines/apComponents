@@ -19,6 +19,7 @@ const config: StorybookConfig = {
   async viteFinal(config) {
     const { mergeConfig } = await import('vite')
     const { vanillaExtractPlugin } = await import('@vanilla-extract/vite-plugin')
+    const { AP_CSS_TARGET } = await import('@ap/vite')
     const reactPkgRoot = join(repoRoot, 'packages', 'react')
     return mergeConfig(config, {
       // A GitHub Pages project site is served from /<repo>/, not the domain
@@ -29,6 +30,11 @@ const config: StorybookConfig = {
       // every screenshot while the deployed site worked, or the reverse.
       base: process.env.STORYBOOK_BASE_PATH ?? '/',
       plugins: [vanillaExtractPlugin()],
+      // Storybook uses vanilla-extract directly, not `@ap/vite`, so it must set
+      // the same CSS floor. Vite's lightningcss minify defaults to chrome111 and
+      // lowers `:dir()` to `:lang()`; without this the production Storybook
+      // loses its RTL rules and the RTL stories fail.
+      build: { cssTarget: [...AP_CSS_TARGET] },
       // Stories live outside this workspace, in packages/react/src.
       server: { fs: { allow: [repoRoot] } },
       resolve: {

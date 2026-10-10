@@ -237,6 +237,23 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(css).toMatch(/@layer ap\.components\s*\{[\s\S]*?--ap-surface-bg-canvas/)
   })
 
+  it('serves RTL rules as :dir(rtl), not lowered to :lang()', async () => {
+    // Vite minifies client CSS with lightningcss against build.cssTarget. Left
+    // at its chrome111 default, that rewrites :dir(rtl) into
+    // :is(:lang(ae),:lang(ar),...), so RTL would follow the page language
+    // rather than direction. @ap/vite sets the floor; this proves it held.
+    const cssParts: string[] = []
+    for (const route of ['/disclosure', '/notifications']) {
+      const html = await (await fetchAsBrowser(`${base}${route}`)).text()
+      const hrefs = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)].map((m) => m[1]!)
+      expect(hrefs.length, `${route} should link stylesheets`).toBeGreaterThan(0)
+      for (const href of hrefs) cssParts.push(await (await fetchAsBrowser(`${base}${href}`)).text())
+    }
+    const css = cssParts.join('\n')
+    expect(css).toMatch(/:dir\(rtl\)/)
+    expect(css).not.toContain(':lang(ae)')
+  })
+
   it('serves the form route with a real form and a labelled control in the markup', async () => {
     const res = await fetchAsBrowser(`${base}/form`)
     expect(res.status).toBe(200)

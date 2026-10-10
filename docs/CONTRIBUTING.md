@@ -1192,6 +1192,27 @@ focused (`toast/close/ToastClose.js:49`), and an unfocused high-priority Root is
 `true`, which is Base UI's default; the anchor-render test in `ToastParts.test.tsx` is the one
 that fails.
 
+## The CSS browser floor (Chrome 120)
+
+Our right-to-left rules are written with `:dir(rtl)` (the `Tabs` indicator, the `Toast`
+swipe and stack), and `:dir()` needs Chrome 120. Vite minifies client CSS with lightningcss
+against `build.cssTarget`, whose default floor is Chrome 111. Below Chrome 120 the minifier
+cannot keep `:dir()`, so it rewrites `:dir(rtl)` into `:is(:lang(ae),:lang(ar),...,:lang(yi))`.
+The build succeeds and nothing errors, but RTL then follows the page's `lang` instead of its
+direction, which is wrong for any page that sets `dir="rtl"` without an RTL language code.
+
+`@ap/vite` sets `build.cssTarget` to `AP_CSS_TARGET` (`chrome120`, `edge120`, `firefox114`,
+`safari16.4`, `ios16.4`) when the consumer has not set one. A consumer's own `cssTarget` is
+respected, never overwritten. If it is low enough that `:dir()` still gets lowered, the build
+prints one warning from `ap-components:rtl-check`, which scans the final minified CSS. Fix it
+by raising the target to `AP_CSS_TARGET` or newer. Storybook does not use `@ap/vite`, so
+`storybook/.storybook/main.ts` sets the same floor, and gate 6 (`npm run test:ssr`) asserts
+the built fixture still serves `:dir(rtl)`.
+
+The phase 5e and 5f plans noted that `:dir()` sits above the roughly 2022 floor in ADR-0016 and
+ADR-0017, and left it there as a caveat. It is now a stated requirement: for CSS, apComponents
+supports Chrome 120, Edge 120, Firefox 114, Safari 16.4 and iOS 16.4 or newer.
+
 ## Known caveats
 
 ### Windows drive-letter casing breaks vanilla-extract silently
