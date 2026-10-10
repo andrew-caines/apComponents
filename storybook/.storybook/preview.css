@@ -1,0 +1,9 @@
+/*
+ * theme.css themes components, not the page, so without this a dark-scheme
+ * story renders dark components on a white page. Gate 9's dark baselines and
+ * gate 5's axe contrast checks both need the real canvas behind the story.
+ */
+body {
+  background: var(--ap-color-bg-canvas);
+  color: var(--ap-color-text-primary);
+}

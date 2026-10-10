@@ -203,11 +203,10 @@ export const TwoOpen: Story = {
 
     await userEvent.hover(second)
     await body().findByText('Second tip', undefined, { timeout: 3000 })
-    // Let any close of the first tooltip finish before counting.
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    const open = body().queryAllByRole('tooltip')
-    await expect(open).toHaveLength(1)
-    await expect(open[0]).toHaveTextContent('Second tip')
+    // Poll rather than sleep: the first tooltip's close is animated, and a fixed
+    // wait failed once on CI (PR #7) when the runner was slow.
+    await waitFor(() => expect(body().queryAllByRole('tooltip')).toHaveLength(1), { timeout: 3000 })
+    await expect(body().getByRole('tooltip')).toHaveTextContent('Second tip')
   },
 }
 

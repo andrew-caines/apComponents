@@ -3,6 +3,7 @@ import { ApProvider } from '@ap/react'
 import '@ap/react/fonts.css'
 import '@ap/react/theme.css'
 import '@ap/react/motion.css'
+import './preview.css'
 
 const preview: Preview = {
   // Every story renders inside the provider stack. This is not decoration:
