@@ -9,6 +9,7 @@ import { build } from 'vite'
 import type { Plugin, Rollup } from 'vite'
 import { apComponents } from '@ap/vite'
 import type { Measured } from './budget.js'
+import { valueExports } from './exports.js'
 
 export const ROOT = fileURLToPath(new URL('../../', import.meta.url))
 const REACT = join(ROOT, 'packages/react')
@@ -59,27 +60,16 @@ export function checkExports(dirs: string[]): void {
   if (!config) throw new Error(`could not read ${configPath}`)
   const indexPath = join(REACT, 'src/index.ts')
   const program = ts.createProgram([indexPath], { ...config.options, noEmit: true })
-  const checker = program.getTypeChecker()
-  const source = program.getSourceFile(indexPath)
-  const moduleSymbol = source && checker.getSymbolAtLocation(source)
-  if (!moduleSymbol) throw new Error(`could not load ${indexPath}`)
-  const values = new Set(
-    checker
-      .getExportsOfModule(moduleSymbol)
-      .filter((s) => {
-        const target = s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s
-        return (target.flags & ts.SymbolFlags.Value) !== 0
-      })
-      .map((s) => s.name),
-  )
+  const values = valueExports(program, indexPath)
   const missing = dirs.filter((dir) => !values.has(exportFor(dir)))
   if (missing.length) {
     throw new Error(
       missing
         .map(
           (dir) =>
-            `components/${dir}: '${exportFor(dir)}' is not a value export of packages/react/src/index.ts. ` +
-            `Map the directory to its export in COMPONENT_EXPORTS (scripts/size/measure.ts).`,
+            `components/${dir}: '${exportFor(dir)}' is not a value export of packages/react/src/index.ts ` +
+            `(missing, or exported type-only). If the directory's export has another name, map it in ` +
+            `COMPONENT_EXPORTS (scripts/size/measure.ts).`,
         )
         .join('\n'),
     )
