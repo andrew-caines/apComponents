@@ -3,10 +3,23 @@ import { describe, expect, it } from 'vitest'
 import { summarise } from '../storybook/visual/summary.js'
 import type { Report } from '../storybook/visual/summary.js'
 
-// Messages shaped like Playwright 1.62's JSON reporter output for each outcome.
-const MISSING = "Error: A snapshot doesn't exist at /w/storybook/visual/__screenshots__/light/a.png, writing actual."
-const DIFF = 'Error: expect(page).toHaveScreenshot(expected) failed\n\n  12 pixels (ratio 0.01 of all image pixels) are different.'
-const PLAY = 'Error: the story threw before its screenshot\n\nexpect(received).toEqual(expected) // deep equality'
+// Messages shaped like Playwright 1.62's JSON reporter output, taken from a Linux run.
+// Every one ends in a code frame of stories.spec.ts, and the frame quotes both the
+// play-error assertion and the toHaveScreenshot call, so only each message's first
+// line tells them apart.
+const FRAME = [
+  '',
+  "  58 |     expect(errors, 'the story threw before its screenshot').toEqual([])",
+  '  59 |     await page.evaluate(() => document.fonts.ready)',
+  '> 60 |     await expect(page).toHaveScreenshot(`${story.id}.png`, {',
+].join('\n')
+const MISSING = `Error: A snapshot doesn't exist at /w/storybook/visual/__screenshots__/light/a.png, writing actual.\n${FRAME}`
+// The real diff message is coloured, and the escapes stay in the JSON. Each phrase the
+// classifier matches sits inside one coloured run, so no stripping is needed. ESC is
+// built from its code so the source stays ASCII.
+const ESC = String.fromCharCode(27)
+const DIFF = `Error: ${ESC}[2mexpect(${ESC}[22m${ESC}[31mpage${ESC}[39m${ESC}[2m).${ESC}[22mtoHaveScreenshot${ESC}[2m(${ESC}[22m${ESC}[32mexpected${ESC}[39m${ESC}[2m)${ESC}[22m failed\n\n  3531 pixels (ratio 0.01 of all image pixels) are different.\n${FRAME}`
+const PLAY = `Error: the story threw before its screenshot\n\nexpect(received).toEqual(expected) // deep equality\n${FRAME}`
 const TIMEOUT = 'TimeoutError: page.waitForFunction: Timeout 15000ms exceeded.'
 
 type Outcome = 'pass' | 'skip' | { fail: string }

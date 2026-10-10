@@ -20,7 +20,12 @@ interface Spec {
     projectName: string
     status: string
     annotations: Array<{ type: string; description?: string }>
-    results: Array<{ status?: string; errors: Array<{ message: string }> }>
+    results: Array<{
+      status?: string
+      errors: Array<{ message: string }>
+      // Playwright 1.62 copies the skip annotation here as well as onto the test.
+      annotations?: Array<{ type: string; description?: string }>
+    }>
   }>
 }
 
@@ -36,13 +41,13 @@ export interface Summary {
   text: string
 }
 
-// Playwright colours some messages; the JSON keeps the escapes.
-const ANSI = /\u001b\[[0-9;]*m/g
-
 // An em dash, built from its code point so no raw non-ASCII sits in the source.
 const DASH = String.fromCharCode(0x2014)
 
-// Order matters: a missing baseline's message also names toHaveScreenshot.
+// Each message ends in a code frame of stories.spec.ts that quotes both the play-error
+// assertion and the toHaveScreenshot call, so only its first line can be trusted. Order
+// still matters: a missing baseline's first line also names toHaveScreenshot, and a play
+// error's names its screenshot.
 type Kind = 'missing' | 'playError' | 'diff' | 'other'
 function classify(message: string): Kind {
   if (message.includes("A snapshot doesn't exist")) return 'missing'
@@ -66,12 +71,12 @@ export function summarise(report: Report, headRef = '<branch>'): Summary {
     for (const t of spec.tests) {
       const id = `${t.projectName}/${spec.title}`
       if (t.status === 'skipped') {
-        const last = t.results.at(-1) as { annotations?: Spec['tests'][number]['annotations'] } | undefined
-        const skip = [...t.annotations, ...(last?.annotations ?? [])].find((a) => a.type === 'skip')
+        const skip = [...t.annotations, ...(t.results.at(-1)?.annotations ?? [])].find((a) => a.type === 'skip')
         skipped.push({ id, reason: skip?.description ?? '(no reason given)' })
       } else if (t.status === 'unexpected') {
-        const message = (t.results.at(-1)?.errors ?? []).map((e) => e.message).join('\n').replace(ANSI, '')
-        failures[classify(message)].push(id)
+        const errors = t.results.at(-1)?.errors ?? []
+        const firstLines = errors.map((e) => e.message.split('\n')[0]).join('\n')
+        failures[classify(firstLines)].push(id)
       } else {
         // 'expected', or 'flaky' (passed on a retry).
         passed++
