@@ -204,7 +204,8 @@ docker run --rm -v "$PWD":/src:ro -v "$PWD/storybook/test-results":/out \
 ```
 
 The shots land in `storybook/test-results/__screenshots__/`. The image tag must match the
-installed `@playwright/test` version.
+installed `@playwright/test` version. In Git Bash on Windows, prefix the command with
+`MSYS_NO_PATHCONV=1` so the container paths reach Docker unconverted.
 
 ### Gate 10 — bundle budget
 
