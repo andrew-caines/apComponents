@@ -35,7 +35,7 @@ can reject one plan while approving its neighbour.
 | **5e** | `Tabs`, `Accordion` | Panel motion driven by `@ap/motion` through the aliased panel-height variable; manual tab activation; no indicator flash pre-hydration |
 | **5f** | `Toast`, then `NotificationProvider` over it and `Dialog` | `toast()` enqueues from outside React; errors never auto-dismiss; `confirm()` resolves from a real Dialog; `announce()` writes to a live region rendered on both passes |
 | **5g** | `@ap/react/hooks`, `@ap/react/format`, `@ap/react/format/phone` | Full ADR-0012 catalogue, each with tests at fixed locales; the phone subpath is provably absent from the main format entry |
-| **5h** | Gates 9 and 10; fixture and showcase pages for every new component; the all-ten sweep | Gate 10 reports per-entry budgets including a single-named-import check; gate 9 reports story screenshots against Linux baselines; gates 1–8 green |
+| **5h** ✅ PR #9 | Gates 9 and 10; fixture and showcase pages for every new component; the all-ten sweep | Gate 10 reports per-entry budgets including a single-named-import check; gate 9 reports story screenshots against Linux baselines; gates 1–8 green |
 
 Ordering within 5b–5f is by how much new ground each breaks. The form controls reuse
 `Field`, which already exists. `Select` adds the first positioned popup. `Tooltip` and

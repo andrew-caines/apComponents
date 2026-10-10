@@ -996,3 +996,87 @@ The five inputs most likely to bite that no task's own tests would naturally exe
 | 11 | Every CI job is green; gates 9 and 10 report | the PR's CI run | — |
 
 **Final proof artifact:** the PR's CI run, together with its `contrast-report`, `size-report` and gate 9 job summary. It must show gates 1–8 green, gate 10's table, and gate 9 clean against the committed baselines. Add Step 3.5's diff run, showing gate 9 catching a real change.
+
+---
+
+## What actually happened
+
+The run had nine build tasks, then one whole-branch review with a single fix wave, then the PR sequence. It was opened as PR #9. The branch holds 28 commits after `bf0b849`, counting the bot's baselines commit, the empty CI commit, the throwaway diff, its revert and this retrospective.
+
+- **Reviews:**
+  - Tasks 1–6 and 9 passed their first review.
+  - Task 7 needed one fix round. The edit ran twice, which left a duplicated `<LocaleProvider>` and a `//` comment rendered as JSX text.
+  - Task 8 needed one fix round. `export type { Button }` of a value passed the export check; the fix walks the alias chain and rejects type-only re-exports.
+  - No task stopped as BLOCKED.
+- **Final review:** four Important findings, fixed in one wave and re-reviewed as ADDRESSED.
+  - I1: the baselines trigger.
+  - I2: a re-run cannot see the bot commit.
+  - I3: the summary could pass vacuously and could block the advisory gate.
+  - I4: the streamed hydration check ran before the boundary hydrated.
+- **Local sweep at `05809bd`:**
+  - typecheck
+  - unit 2419, also on Node 22.22.0
+  - vite + scripts 43
+  - gates 3, 110, 2, 5, 4, 4, 7, 1133 and 148
+  - SSR 8, SPA 1, hydration 31
+  - stories typecheck and build
+  - showcase 12
+  - `size` exit 0
+  - consumer 12
+  - `check:lockfiles`, and `gen:*` freshness clean
+- **Execution** was subagent-driven, with a fresh implementer per task and a task review after each.
+
+### Two production-only bugs
+
+- **RTL was lost in production.**
+  - Vite 8 minifies CSS with lightningcss at `build.cssTarget`. It defaults to baseline-widely-available, which is Chrome 111, and at that target `:dir(rtl)` is lowered to `:is(:lang(ae),:lang(ar),…)`.
+  - Development builds never lower, so every earlier gate passed.
+  - `@ap/vite` now sets `build.cssTarget` to `AP_CSS_TARGET` (Chrome/Edge 120, Firefox 114, Safari 16.4), unless the consumer set `build.cssTarget` or `build.target`.
+  - `ap-components:rtl-check` warns when the lowered shape appears, once per build environment.
+  - Gate 6 asserts that `:dir(rtl)` is present and `:lang(ae)` is absent in the fixture's production CSS.
+  - ADR-0016 and ADR-0017 are amended.
+- **Select `Default` failed against `storybook-static`** (Task 6, ruling B).
+  - Base UI moves focus to the highlighted item on the next animation frame after opening. A second ArrowDown within about 16 ms resets the highlight.
+  - Real input at human speed is unaffected, so this was a play artifact. The play now waits on `toHaveFocus` before each follow-up ArrowDown, with no sleeps.
+  - The sub-frame reset is recorded as a known Base UI edge, not a product bug.
+
+### Gate 9 in practice
+
+- **Opt-out route (Task 9, Step 3):** `index.json` carries no story parameters, so `parameters.visual.skip` could not be read. Opt-outs live in a typed `SKIP` map in `stories.spec.ts`, checked by a sanity test. Its one entry is `components-select--native-label-warning`, which asserts a development-only warning that production strips.
+- **Getting baselines before merge:** `workflow_dispatch` only runs once the workflow is on the default branch. `visual-baselines.yml` therefore also triggers on the `pull_request` label `update-visual-baselines`.
+  - The bot's commit, pushed with `GITHUB_TOKEN`, starts no CI. A re-run reuses the old SHA.
+  - So the sequence is: add the label, `git pull`, then push an empty commit.
+- **PR #9 results:**
+
+| Commit | Gate 9 | Other jobs |
+|---|---|---|
+| `05809bd` (first push) | no baselines | 7/7 green |
+| `6a156f5` (bot, run 38088384713) | 250 PNGs committed, label removed | — |
+| `d6eed80` (empty commit) | 254 passed, 0 diffs, 0 play errors, 2 skipped | 7/7 green |
+| `24d0e85` (throwaway: brand seed `#2e5fd9` → `#d92e8a`) | **150 diffs**, 104 passed, 0 play errors; 2.9 MB `visual-diffs` artifact | gate 1 determinism snapshot red (expected); contrast and freshness green |
+| `65793e4` (revert) | 254 passed, 0 diffs, 2 skipped | 7/7 green |
+
+  The 104 stories that did not change draw no brand-ramp colour, which is consistent with a brand-only change.
+
+### Follow-ups
+
+- **F2** is closed by `d25edbb` with no code change. RadioGroup's `invalid` JSDoc already said what F2 asked for.
+
+### Still open
+
+- **Carried from 5g and earlier:**
+  - the date-only ISO default;
+  - the focus ring vs `bg-raised`;
+  - underline vs hairline;
+  - Switch `[data-invalid]`;
+  - the Tooltip/Popover width caps.
+- **Parked from 5h:**
+  - Move `visual-baselines.yml` concurrency under the job.
+  - The fork-PR comment names the wrong failing step.
+  - `summary.ts` throws on a malformed report.
+  - Orphan baselines are not reported.
+  - Stale budget entries are not reported.
+  - `scripts/` is not typechecked.
+  - `export type *` is not detected as type-only.
+  - Cosmetic test minors from Tasks 1–4, 6 and 8.
+- **Not started:** a GitHub Pages deploy for Storybook. `STORYBOOK_BASE_PATH` is ready; spec §3.5 deferred the workflow to Phase 6.
