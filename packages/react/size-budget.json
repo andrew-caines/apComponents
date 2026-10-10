@@ -1,0 +1,86 @@
+{
+  "format": {
+    "js": 3300,
+    "css": 0
+  },
+  "format/phone": {
+    "js": 600,
+    "css": 0
+  },
+  "hooks": {
+    "js": 6900,
+    "css": 0
+  },
+  "import:Accordion": {
+    "js": 11700,
+    "css": 700
+  },
+  "import:Banner": {
+    "js": 7000,
+    "css": 900
+  },
+  "import:Button": {
+    "js": 5100,
+    "css": 600
+  },
+  "import:Checkbox": {
+    "js": 10500,
+    "css": 600
+  },
+  "import:Dialog": {
+    "js": 24600,
+    "css": 900
+  },
+  "import:Field": {
+    "js": 11200,
+    "css": 300
+  },
+  "import:Input": {
+    "js": 7500,
+    "css": 800
+  },
+  "import:Popover": {
+    "js": 38200,
+    "css": 600
+  },
+  "import:RadioGroup": {
+    "js": 15600,
+    "css": 700
+  },
+  "import:Select": {
+    "js": 45200,
+    "css": 900
+  },
+  "import:Spinner": {
+    "js": 1400,
+    "css": 200
+  },
+  "import:Surface": {
+    "js": 1000,
+    "css": 300
+  },
+  "import:Switch": {
+    "js": 7500,
+    "css": 700
+  },
+  "import:Tabs": {
+    "js": 14100,
+    "css": 900
+  },
+  "import:Textarea": {
+    "js": 11700,
+    "css": 700
+  },
+  "import:Toast": {
+    "js": 12000,
+    "css": 1100
+  },
+  "import:Tooltip": {
+    "js": 31900,
+    "css": 400
+  },
+  "index": {
+    "js": 92400,
+    "css": 4900
+  }
+}

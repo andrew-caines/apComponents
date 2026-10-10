@@ -14,7 +14,12 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unit',
-          include: ['packages/*/src/**/*.test.{ts,tsx}'],
+          include: [
+            'packages/*/src/**/*.test.{ts,tsx}',
+            // Gate 10's pure budget logic lives beside its script, so the
+            // unit run covers it without a separate config.
+            'scripts/**/*.test.ts',
+          ],
           setupFiles: ['./vitest.setup.ts'],
           // These two gates build fixture apps and boot a server. They run
           // under vitest.gates.config.ts via test:ssr / test:consumer, and

@@ -27,6 +27,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run test:spa` | Gate 7 only: the same fixture built with `ssr: false` boots, and component CSS is still wired through the build |
 | `npm run test:stories` / `npm run test:a11y` | Gate 4/5: every story and its `play` function in headless Chromium, with axe running inside the same run. The two commands are aliases of each other |
 | `npm run report:contrast` | Writes `reports/contrast.md` (the WCAG compliance artifact) |
+| `npm run size` | Gate 10: brotli JS and CSS of every entry against `packages/react/size-budget.json`, plus the tree-shaking ratios; writes `reports/size.md`. `npm run size -- --seed` rewrites the budgets |
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
 | `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
 | `npm run gen:input-demo` | Regenerates `examples/InputFields.html` — renders the real components, compiles their real CSS, reads every code sample out of the AST, then runs six browser checks |
@@ -128,6 +129,43 @@ any change to what they show.
   point of the name: a step called `xxs` would pull an `ICON` counterpart along with it
   and put the two scales back in lockstep. An icon set beside fine print uses `md`
   (`1em`) and tracks it with no coordination at all.
+
+### Gate 10 — bundle budget
+
+`npm run size` builds each entry through the same pipeline a consumer uses (Vite plus
+`apComponents()`, so the `cssTarget` floor applies) with `react`, `react-dom` and
+`libphonenumber-js` external, and measures brotli bytes (quality 11) of the JS and the CSS
+separately. The entries are `index` (`export * from '@ap/react'`), `hooks`, `format`,
+`format/phone`, and one `import:<Dir>` per directory in `packages/react/src/components/`,
+which imports that component's export alone. Each is checked two ways:
+
+- **Against its budget** in `packages/react/size-budget.json`. Over by one byte fails.
+- **Against `index`, for `import:` entries only.** A single import may cost at most **70%**
+  of `index`'s JS and **50%** of its CSS (`JS_RATIO_LIMIT` and `CSS_RATIO_LIMIT` in
+  `scripts/size/budget.ts`). These are tree-shaking tripwires, not budgets. When
+  tree-shaking breaks (for example `"sideEffects": true` in `packages/react/package.json`),
+  every single import pulls in nearly the whole library: about 88% of `index`'s JS and
+  100% of its CSS. The heaviest honest imports today are `Select` at about 49% JS and
+  `Toast` at about 23% CSS, so both limits sit well clear of real components and well
+  below a broken build. A budget alone would not catch this, because re-seeding after
+  the breakage would bless it.
+
+The table goes to `reports/size.md` and, in CI, to the job summary. The CI job is advisory
+(ADR-0014: it warns on regression): `continue-on-error: true` on its measure step, and
+removing that line makes it blocking.
+
+**A new component needs a budget entry.** `import:<Dir>` is measured for every component
+directory, and a check with no budget fails with `no budget for import:<Dir>`. The script
+assumes the directory's export has the directory's name. If it does not (`Banner` exports
+`BannerRegion`), add it to `COMPONENT_EXPORTS` in `scripts/size/measure.ts`; the script
+checks every mapping against `packages/react/src/index.ts` before building and fails
+naming the directory.
+
+**Re-seeding.** `npm run size -- --seed` measures everything and rewrites the whole
+budget file at measured + 10%, rounded up to the next 100 bytes. Re-seed when a size
+change is intended, say why in the commit, and review the diff of `size-budget.json`: a
+re-seed resets every entry, not only the one you changed. Re-seeding never moves the
+ratio limits.
 
 ## Adding a component
 
@@ -468,6 +506,10 @@ Formatters live in `packages/react/src/format/` and are imported from `@ap/react
 hooks live in `packages/react/src/hooks/` and come from `@ap/react/hooks`. Neither is added
 to the main entry, which gate 10's budgets assume stays as it is. The one formatter that
 needs a library, `formatPhone`, is in `format/phone.ts` behind `@ap/react/format/phone`.
+Gate 10 (`npm run size`) budgets `hooks`, `format` and `format/phone` as entries of their
+own, with `libphonenumber-js` external, so a formatter that grows or a hook that drags in a
+component shows up there rather than inside `index`. See
+[Gate 10 — bundle budget](#gate-10--bundle-budget).
 
 - **Formatters are pure.** No `'use client'`, no `react` import, no `Date.now()`, no
   zero-argument `new Date()`: they have to work in a loader or a Node script. Every file in
