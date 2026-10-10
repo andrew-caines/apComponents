@@ -59,6 +59,8 @@ Popovers opened *from* a dialog stack correctly for free — Base UI portals nes
 - **Cost:** `@layer` requires the browsers of ~2022+. Our Base UI + React 19 baseline is already far past that.
 - **Cost:** losing to all unlayered CSS means a consumer's careless global rule (`button { border: none }`) also wins. This is the correct trade — predictable override beats accidental protection — but it goes in the consumer docs as the first FAQ.
 
+**Amended 2026-10-10 (Phase 5h).** The "~2022+" floor above holds for `@layer`, but not for all our CSS. For CSS, the floor is now Chrome and Edge 120 (with Safari 16.4, iOS 16.4 and Firefox 114), set by `@ap/vite`'s `AP_CSS_TARGET`. Our right-to-left rules use `:dir(rtl)`, which needs Chrome 120; below it, Vite's lightningcss minifier lowers `:dir()` to `:lang()` and RTL follows the page language instead of its direction. `@ap/vite` applies the target unless the consumer sets `build.cssTarget` or `build.target`, and warns if the built CSS still has `:dir()` lowered. See CONTRIBUTING, "The CSS browser floor".
+
 ## Alternatives considered
 
 - **High-specificity selectors / `!important` defence.** The traditional approach. Rejected: it makes intended overrides as hard as accidental ones.

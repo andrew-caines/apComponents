@@ -38,6 +38,13 @@ Phase 4e's deviation — hosting gate 5 in the showcase because Storybook did no
 exist yet — is closed. The honesty note is unchanged and still applies: this
 proves zero machine-detectable violations, not accessibility.
 
+**Amended 2026-10-10 (Phase 5h).** Gate 10 is not `size-limit`. It is
+`npm run size` (`scripts/size.ts`), a script that builds each entry point through
+the same Vite library pipeline a consumer uses (`@ap/vite`'s `apComponents()`,
+with React and `libphonenumber-js` external) and compares brotli bytes of the JS
+and the CSS with `packages/react/size-budget.json`, plus tree-shaking ratios. It
+measures the bundle a product actually ships. It stays advisory in CI.
+
 ### Gate 6 — the SSR smoke test
 
 A minimal React Router 8 framework-mode application in `fixtures/ssr-app` that server-renders **every** component in the library, tested through **the real RR8 pipeline** — the fixture's server entry (`createRequestHandler`, which streams via `renderToPipeableStream`) is booted and pages are requested over HTTP. `renderToString` assertions remain as fast unit-level checks, but the gate exercises what production actually runs, including one page that places components inside a deliberately slow `<Suspense>` boundary so streamed-late content is covered.
@@ -47,6 +54,13 @@ It asserts three things:
 - **No browser-global access during server render.** A component touching `window`, `document` or `matchMedia` crashes the server build, and the test fails.
 - **Expected markup is present in the streamed response** — not an empty shell, including the content flushed after the Suspense boundary resolves.
 - **Zero hydration warnings.** The console is captured during hydration and any React mismatch warning fails the test.
+
+**Amended 2026-10-10 (Phase 5h).** Hydration is enforced through React's
+`onRecoverableError` first: `fixtures/ssr-app/app/entry.client.tsx` records every
+recoverable error, and each hydration test asserts the record is empty. The
+console check is the second net. The fixture builds React in production mode, where
+a mismatch is a minified error that carries none of the console markers, so the
+console alone could not be trusted to see it.
 
 The third assertion is the important one. It is what catches non-deterministic render — dates, random IDs, locale-dependent formatting, media-query-derived state — which is the single most common way an SSR-safe library stops being SSR-safe.
 

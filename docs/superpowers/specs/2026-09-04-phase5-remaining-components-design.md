@@ -1543,8 +1543,12 @@ flaky, and the cheap open follow-ups (§6.3.4).
   ratio of 0.002 would let about 1,500 px through, enough to hide a focus-ring change.
 - **The screenshot is of the viewport,** not `#storybook-root`, because popups, toasts and
   dialogs are portalled to `body`.
-- **Opt-out.** A story may set `parameters.visual = { skip: '<reason>' }`, and the reason is
-  required. Skipped stories are listed in the job summary. Only one story opts out:
+- **Opt-out.** A story is opted out through the typed `SKIP` map in
+  `storybook/visual/stories.spec.ts` (`Record<string, string>`, story id to reason), and the
+  reason is required. A sanity test checks every key is a story id in `index.json` and every
+  reason is non-empty. Skipped stories are listed in the job summary. *(Amended 2026-10-10,
+  5h: this read `parameters.visual = { skip: '<reason>' }`. Storybook 10.6's `index.json`
+  carries no story parameters, so they could not be read without loading each story.)* Only one story opts out:
   `components-select--native-label-warning`, because it asserts a development-only console
   warning that a production build strips. Two other stories throw in the production build;
   each is fixed rather than opted out (§6.3.6):
@@ -1553,13 +1557,16 @@ flaky, and the cheap open follow-ups (§6.3.4).
 - **Linux only.** `snapshotPathTemplate` is `'{testDir}/__screenshots__/{projectName}/{arg}{ext}'`,
   with no platform suffix (§6.2). Every test calls
   `test.skip(process.platform !== 'linux', 'Baselines are Linux-only (spec §6.2)')`.
-- **Baselines.** A new `workflow_dispatch` workflow, `visual-baselines.yml`, takes a `branch`
-  input. It:
-  - checks that branch out;
+- **Baselines.** A new workflow, `visual-baselines.yml`, runs on `workflow_dispatch` with a
+  `branch` input, and on `pull_request` `labeled` with the label `update-visual-baselines`
+  *(amended 2026-10-10, 5h: `workflow_dispatch` only runs once the file is on the default
+  branch, so the label is the before-merge path; see §6.3.5)*. It:
+  - checks that branch (or the PR's head branch) out;
   - builds Storybook;
   - runs `test:visual -- --update-snapshots`;
   - commits `storybook/visual/__screenshots__` back to the branch, with
-    `permissions: contents: write`.
+    `permissions: contents: write`, even when some stories failed, and then goes red;
+  - removes the label, so adding it again re-runs.
 
   CONTRIBUTING documents local generation through the
   `mcr.microsoft.com/playwright:v<version>-noble` image as a convenience, not a
@@ -1570,7 +1577,8 @@ flaky, and the cheap open follow-ups (§6.3.4).
     sets `continue-on-error: true`.
   - When the step fails, actual, expected and diff images are uploaded as an artifact.
   - The job summary states the count of diffs and of skipped stories. When no baselines
-    exist, it says to run the Visual baselines workflow on the branch.
+    exist, it names the `update-visual-baselines` label first, then the
+    `gh workflow run` command.
 
 #### 6.3.3 The streamed route
 
@@ -1654,11 +1662,16 @@ turned out to be a bug (§6.3.6).
 
 `test:visual` is skipped locally by design.
 
-**The PR sequence:**
+**The PR sequence** *(amended 2026-10-10, 5h final fix wave: step 2 used
+`workflow_dispatch`, which cannot run before the workflow is on `main`, and step 3 was a
+re-run, which reuses the old commit and cannot see the baselines)*:
 1. Open the PR. Gates 1–8 are green, gate 10 reports, and gate 9 reports that there are no
    baselines.
-2. Run Visual baselines on the branch.
-3. The re-run reports zero diffs.
+2. Add the label `update-visual-baselines` to the PR. The Visual baselines workflow commits
+   the baselines to the branch.
+3. A push made with `GITHUB_TOKEN` starts no CI. So `git pull` the bot commit, then
+   `git commit --allow-empty -m "ci: run gate 9 against committed baselines"` and push. That
+   run reports zero diffs.
 4. A throwaway commit changes one token colour. Gate 9 must report diffs with images.
 5. Revert the throwaway commit.
 
@@ -1692,11 +1705,15 @@ production build. Both were settled with the user on 2026-10-10.
 *Fix* (the user's choice, over rewriting the selectors).
 - `@ap/vite` exports
   `AP_CSS_TARGET = ['chrome120', 'edge120', 'firefox114', 'safari16.4', 'ios16.4']`.
-- Its config hook sets `build.cssTarget` to that value **only when the consumer has not set
-  `build.cssTarget` themselves**.
+- Its config hook sets `build.cssTarget` to that value **only when the consumer has set
+  neither `build.cssTarget` nor `build.target`**. *(Amended 2026-10-10, 5h final fix wave:
+  this read "only when the consumer has not set `build.cssTarget`". Vite derives
+  `cssTarget` from an explicit `build.target`, so that choice is respected too. The
+  `es20xx` targets up to `es2024` map below Chrome 120 and lower `:dir()`, so the check
+  below warns, and gate 6 is the backstop.)*
 - If the consumer's own target lowers the rule anyway, a `generateBundle` check (enforce
-  `'post'`) sees `:lang(ae)` in an emitted CSS asset. It warns once, naming `:dir()` and
-  `AP_CSS_TARGET`.
+  `'post'`, apply `'build'`) sees the lowered `:lang(ae),:lang(ar)` shape in an emitted CSS
+  asset. It warns once per build environment, naming `:dir()` and `AP_CSS_TARGET`.
 - Storybook's `viteFinal` sets the same `build.cssTarget` from the imported constant. Storybook
   uses vanilla-extract directly, not `@ap/vite`.
 - The Chrome 120 floor this documents is the open 5e `:dir()` follow-up, now closed as a
@@ -1704,8 +1721,9 @@ production build. Both were settled with the user on 2026-10-10.
 
 *Proof.*
 - Gate 6's served-CSS test asserts `:dir(rtl)` is present and `:lang(ae)` is absent.
-- `@ap/vite`'s unit tests cover three cases: the default is set, a consumer value is
-  respected, and the warning fires.
+- `@ap/vite`'s unit tests cover: the default is set, a consumer `cssTarget` and a consumer
+  `build.target` are each respected, the check is `enforce: 'post'` and `apply: 'build'`, a
+  bare `:lang(ae)` does not warn, and the lowered shape warns once.
 - Perturbation: remove the `cssTarget` default, and gate 6 fails.
 
 **2. Select `Default` fails its play in the production Storybook.**
@@ -1770,7 +1788,7 @@ Ordered. Each is a command whose output is the evidence.
 | The Vitest 4 upgrade breaks the existing suite | It is task one of 5a with a named fallback (§3.3); nothing else in the phase starts until it is green |
 | Ten components in sequence fork the conventions | §4.1 is written first and every plan cites it; the review checklist is the same each time |
 | Storybook's a11y failure path depends on a transitive matcher package | Proven on first run with a deliberate violation (§3.6); if the import is missing, declare it |
-| Gate 9 produces noise that trains people to ignore CI | Advisory by construction, PR-only, with a pixel-ratio threshold; ADR-0014 already rejects blocking visual regression |
+| Gate 9 produces noise that trains people to ignore CI | Advisory by construction, PR-only, with a `maxDiffPixels: 10` threshold; ADR-0014 already rejects blocking visual regression |
 | Gate 10's number is honest but the pipeline is bespoke | It measures the real consumer pipeline; the alternative measures a bundle nobody ships (§6.1) |
 | The showcase and Storybook drift into two galleries | The showcase's job is narrowed to SSR smoke with no prose, and CONTRIBUTING says so |
 | `maskTaxId`'s per-country rules are a compliance question | Each country's rule is cited in the plan; uncited countries get the generic rule |

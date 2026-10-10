@@ -82,6 +82,8 @@ Spacing tokens are ratio-derived ([ADR-0006](0006-oklch-colour-engine.md)), so a
 - **Cost:** auto-adapting morphology means a component can look different in two places for reasons a developer must learn (`layout="auto"` documentation burden). The opt-out prop bounds the surprise.
 - Container queries and `@layer` share the same ~2022 browser floor already implied by our React 19 / Base UI baseline.
 
+**Amended 2026-10-10 (Phase 5h).** The "~2022" floor above holds for container queries and `@layer`, but not for all our CSS. For CSS, the floor is now Chrome and Edge 120 (with Safari 16.4, iOS 16.4 and Firefox 114), set by `@ap/vite`'s `AP_CSS_TARGET`. Our right-to-left rules use `:dir(rtl)`, which needs Chrome 120; below it, Vite's lightningcss minifier lowers `:dir()` to `:lang()` and RTL follows the page language instead of its direction. `@ap/vite` applies the target unless the consumer sets `build.cssTarget` or `build.target`, and warns if the built CSS still has `:dir()` lowered. See CONTRIBUTING, "The CSS browser floor".
+
 ## Alternatives considered
 
 - **Manual-only adaptation (props at every call site).** Fully predictable, and guarantees most products ship desktop dialogs on phones. Rejected: defaults are where mobile quality actually lives.

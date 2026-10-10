@@ -957,12 +957,13 @@ The five inputs most likely to bite that no task's own tests would naturally exe
   - showcase: `npm run showcase:install`, `npm --prefix showcase run typecheck`, `npm run showcase:test`;
   - `npm run size` (exit 0).
 
-- [ ] **Step 3: The PR sequence** (spec §6.3.5). Each step is outward-facing, so **ask the user before each push and before running the workflow.**
-  1. Push and open the PR. Gates 1–8 green, gate 10's table in the job summary, gate 9 summary: "no baselines".
-  2. `gh workflow run visual-baselines.yml -f branch=feat/phase5h-gates`, then wait for it to commit.
-  3. Re-run CI. Gate 9 reports 0 diffs, 0 play errors and 1 skip.
-  4. A throwaway commit changes one token colour, for example the accent step in the token source; regenerate the theme with `gen:theme-css`. Gate 9 must report diffs, with images in the `visual-diffs` artifact.
-  5. Revert that commit and confirm CI is back to 0 diffs.
+- [ ] **Step 3: The PR sequence** (spec §6.3.5, amended in the final fix wave). Each step is outward-facing, so **ask the user before each push and before adding the label.**
+  1. Push and open the PR. Gates 1–8 green, gate 10's table in the job summary, gate 9 summary: "no baselines", naming the label first.
+  2. Add the label `update-visual-baselines` to the PR. The Visual baselines workflow runs from the PR branch's own copy of the file (`workflow_dispatch` cannot run until the file is on `main`), commits the baselines and removes the label.
+  3. The bot's push used `GITHUB_TOKEN`, so it starts no CI, and a re-run would reuse the old commit. `git pull` the bot commit, then `git commit --allow-empty -m "ci: run gate 9 against committed baselines"` and push.
+  4. Expect gate 9 to report 0 diffs, 0 play errors and **2 skips** (`components-select--native-label-warning` in light and in dark).
+  5. A throwaway commit changes one token colour, for example the accent step in the token source, regenerated with `gen:theme-css`. Gate 9 must report diffs, with images in the `visual-diffs` artifact. Expect noise in gates 1–8 too, from the contrast report and the generated-artifacts freshness check: record it; it is not a regression.
+  6. Revert that commit and confirm CI is back to 0 diffs.
 
 - [ ] **Step 4: Close out.**
   - Append "What actually happened" to this plan, in the 5g format. Include:
@@ -994,4 +995,4 @@ The five inputs most likely to bite that no task's own tests would naturally exe
 | 10 | Screenshots match Linux baselines | gate 9 on the PR | a token colour changes |
 | 11 | Every CI job is green; gates 9 and 10 report | the PR's CI run | — |
 
-**Final proof artifact:** the PR's CI run, together with its `contrast-report`, `size-report` and gate 9 job summary. It must show gates 1–8 green, gate 10's table, and gate 9 clean against the committed baselines. Add Step 3.4's diff run, showing gate 9 catching a real change.
+**Final proof artifact:** the PR's CI run, together with its `contrast-report`, `size-report` and gate 9 job summary. It must show gates 1–8 green, gate 10's table, and gate 9 clean against the committed baselines. Add Step 3.5's diff run, showing gate 9 catching a real change.
