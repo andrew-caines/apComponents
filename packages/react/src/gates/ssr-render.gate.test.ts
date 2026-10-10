@@ -211,6 +211,66 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(html).toContain('streamed surface content')
     expect(html).toContain('id="streamed-surface"')
     expect(html.indexOf('loading…')).toBeLessThan(html.indexOf('streamed surface content'))
+
+    // Everything below runs on the part of the document after the fallback,
+    // which proves each component's markup arrived in the streamed chunk and
+    // not in the shell.
+    const late = html.slice(html.indexOf('loading…'))
+    const panelTagAround = (doc: string, id: string): string => {
+      const at = doc.indexOf(`id="${id}"`)
+      const before = doc.slice(0, at)
+      const start = before.lastIndexOf('role="region"')
+      const open = before.lastIndexOf('<div', start)
+      return at < 0 || start < 0 ? '' : doc.slice(open, doc.indexOf('>', start) + 1)
+    }
+
+    // Fails if Textarea's defaultValue stopped reaching its text content.
+    const messageMatch = /<textarea[^>]*\sname="streamed-message"[^>]*>([^<]*)<\/textarea>/.exec(late)
+    expect(messageMatch, 'no streamed <textarea name="streamed-message"> after the fallback').not.toBeNull()
+    expect(messageMatch![1]).toBe('streamed message')
+
+    // Scoped by tag: name/value/checked appear on other attributes elsewhere
+    // (see the form test), so an unscoped substring could never fail.
+    const lateInputs = late.match(/<input[^>]*>/g) ?? []
+    const subscribeTag = lateInputs.find((t) => /\bname="streamed-subscribe"/.test(t))
+    const alertsTag = lateInputs.find((t) => /\bname="streamed-alerts"/.test(t))
+    const smsTag = lateInputs.find(
+      (t) => /\bname="streamed-contact"/.test(t) && /\bvalue="sms"/.test(t),
+    )
+    const emailTag = lateInputs.find(
+      (t) => /\bname="streamed-contact"/.test(t) && /\bvalue="email"/.test(t),
+    )
+    expect(subscribeTag, 'no streamed-subscribe input after the fallback').toBeDefined()
+    expect(subscribeTag).toMatch(/\bchecked=/)
+    expect(alertsTag, 'no streamed-alerts input after the fallback').toBeDefined()
+    expect(alertsTag).toMatch(/\bchecked=/)
+    expect(smsTag, 'no streamed-contact sms input after the fallback').toBeDefined()
+    expect(smsTag).toMatch(/\bchecked=/)
+    expect(emailTag, 'no streamed-contact email input after the fallback').toBeDefined()
+    expect(emailTag).not.toMatch(/\bchecked=/)
+
+    // Select: same lookup as the form test, on the streamed chunk.
+    const countryLabelId = /<div[^>]*\sid="([^"]+)"[^>]*>Streamed country<\/div>/.exec(late)?.[1]
+    expect(countryLabelId, 'no <div id=…>Streamed country</div> after the fallback').toBeDefined()
+    const countryTrigger = new RegExp(
+      `<button\\b[^>]*\\saria-labelledby="${countryLabelId}"[^>]*>([\\s\\S]*?)<\\/button>`,
+    ).exec(late)
+    expect(countryTrigger, 'no Streamed country trigger after the fallback').not.toBeNull()
+    expect(countryTrigger![1]).toContain('France')
+    const countryTag = lateInputs.find((t) => /\bname="streamed-country"/.test(t))
+    expect(countryTag, 'no input named "streamed-country" after the fallback').toBeDefined()
+    expect(/\bvalue="([^"]*)"/.exec(countryTag!)?.[1]).toBe('fr')
+    expect(late).not.toContain('role="listbox"')
+
+    // Tabs render the selected panel only; Accordion renders the closed panel
+    // hidden, not absent.
+    expect(late).toContain('id="streamed-tab-one"')
+    expect(late).not.toContain('id="streamed-tab-two"')
+    expect(late).toContain('aria-selected="true"')
+    expect(late).toContain('id="streamed-acc-a"')
+    const closedPanel = panelTagAround(late, 'streamed-acc-b')
+    expect(closedPanel, 'the panel tag around streamed-acc-b was not found').not.toBe('')
+    expect(closedPanel).toMatch(/\shidden(=""|\s|>)/)
   })
 
   it("serves token custom properties and Surface's own recipe CSS over HTTP, not just on disk", async () => {

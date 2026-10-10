@@ -1,16 +1,18 @@
 import { expect, test, type ConsoleMessage, type Page } from '@playwright/test'
 
 /**
- * React hydration problems surface as console errors/warnings with these
- * markers — but only in an unminified/dev React build. This fixture builds
- * React in production mode, where a real mismatch instead surfaces as a
- * minified error (e.g. "Minified React error #418") that contains none of
- * these substrings — confirmed by deliberately injecting a mismatch during
- * this gate's own review (see task-8-report.md). So in practice this list is
- * a best-effort, friendlier failure message for local/dev debugging only; it
- * is NOT the enforcement mechanism. The broad "zero unexpected console
- * output" assertion below is what actually enforces the gate — never weaken
- * that assertion, and never treat a pass here as proof of a clean hydration.
+ * The primary enforcement is `window.__apRecoverableErrors`, filled by
+ * `app/entry.client.tsx`'s `onRecoverableError`: React reports a hydration
+ * mismatch it recovered from there, in every build. Each test asserts it is
+ * empty after hydration finished.
+ *
+ * The console check is the secondary net. Hydration problems surface as
+ * console errors/warnings with the markers below only in an unminified React
+ * build; this fixture builds React in production mode, where a mismatch is a
+ * minified error ("Minified React error #418") that contains none of them. So
+ * the marker list is a friendlier message for local debugging, and the broad
+ * "zero unexpected console output" assertion is the net behind the primary
+ * one. Never weaken either.
  */
 const HYDRATION_MARKERS = [
   'Hydration failed',
@@ -26,6 +28,8 @@ const HYDRATION_MARKERS = [
  * justified — never add a hydration marker to it.
  */
 const IGNORED = [/favicon/i, /Download the React DevTools/i]
+
+const recoverableErrors = (page: Page) => page.evaluate(() => window.__apRecoverableErrors)
 
 function collect(page: Page): string[] {
   const messages: string[] = []
@@ -54,6 +58,7 @@ test('home route hydrates with no React warnings or page errors', async ({ page 
   await page.goto('/')
   await expect(page.locator('#surface-raised')).toBeVisible()
   await waitForHydration(page)
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
   await page.waitForTimeout(200) // settle window for errors that fire just after hydration
 
   const hydration = messages.filter((m) => HYDRATION_MARKERS.some((k) => m.includes(k)))
@@ -66,6 +71,7 @@ test('streamed route hydrates cleanly after late Suspense content', async ({ pag
   await page.goto('/streamed')
   await expect(page.locator('#streamed-surface')).toBeVisible()
   await waitForHydration(page)
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
   await page.waitForTimeout(200)
 
   expect(messages, `unexpected console output:\n${messages.join('\n')}`).toEqual([])
@@ -73,6 +79,8 @@ test('streamed route hydrates cleanly after late Suspense content', async ({ pag
 
 test('token custom properties resolve to real computed values in the browser', async ({ page }) => {
   await page.goto('/')
+  await waitForHydration(page)
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
   const bg = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--ap-color-bg-canvas').trim(),
   )
@@ -100,6 +108,7 @@ test('Inter loads from our own origin, never a third party (ADR-0015)', async ({
   })
   await page.goto('/')
   await waitForHydration(page)
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
   await page.waitForTimeout(200)
   expect(external, `third-party requests: ${external.join(', ')}`).toEqual([])
   // The negative assertion above passes identically if fonts.css failed to
