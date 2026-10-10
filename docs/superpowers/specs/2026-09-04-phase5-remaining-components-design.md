@@ -1430,6 +1430,197 @@ repo on Vitest 4. It is not adopted here because gate 9 arrives in 5h, after Sto
 Playwright are already wired, and switching mechanisms mid-phase buys nothing. Named as a
 Phase 6 candidate.
 
+### 6.3 Plan 5h — scope and API, settled 2026-10-10, before the plan
+
+5h is **one plan and one PR**. It closes Phase 5.
+
+**What changed since §2 was written.** 5b–5f each added their own fixture route and showcase
+page, and 5g added the `./format` and `./hooks` imports to the consumer fixture. So "fixture
+and showcase pages for every new component" is already done, except for the streamed route
+(§6.3.3). In its place, 5h takes on the Tooltip flake, which would otherwise make gate 9
+flaky, and the cheap open follow-ups (§6.3.4).
+
+#### 6.3.1 Gate 10 — `npm run size`
+
+- **Mechanism.** `scripts/size.ts` (run with `tsx`) writes a one-line virtual entry for each
+  check and calls `vite.build()` on it with:
+  - `configFile: false` and `plugins: [apComponents()]`, which is `@ap/vite`, the real
+    consumer plugin;
+  - `react`, `react-dom`, `react/jsx-runtime` and `libphonenumber-js` marked external;
+  - minified output and `write: false`.
+
+  The script then brotli-compresses the JS outputs and the CSS outputs **separately** with
+  `node:zlib`.
+- **Checks.**
+  - `index` (`export * from '@ap/react'`), `hooks` and `format`.
+  - `format/phone`, measured with `libphonenumber-js` external. It is an optional peer, so
+    the number is our wrapper alone, and the report says so.
+  - One `import:<Name>` per directory in `packages/react/src/components/`, so a new
+    component is covered with no edit. The script fails, naming the directory, if a
+    directory's name is not a value export of the index.
+- **Budgets** live in `packages/react/size-budget.json`, shaped
+  `{ "<check>": { "js": <bytes>, "css": <bytes> } }`.
+  - The first ceilings are each measured size plus 10%, rounded up to the next 100 B.
+  - A check with no budget entry counts as a breach, so a new component forces someone to
+    choose its budget.
+- **Tree-shaking proof.** Every `import:<Name>` must have JS ≤ 50% of `index` JS. If side
+  effects drag the library in, every single import comes out close to 100%. The plan's
+  facts table confirms the 50% tripwire against the measured numbers before fixing it. If a
+  legitimate component exceeds it, the threshold question goes back to the user rather than
+  being raised silently.
+- **Output.**
+  - A markdown table (check, JS, CSS, budget, ratio, status) is written to `reports/size.md`
+    and appended to `$GITHUB_STEP_SUMMARY` when that variable is set.
+  - Exit code 1 on any breach.
+- **CI.** A new `size` job runs on pull requests and on `main`. The size step sets
+  `continue-on-error: true`, which keeps it advisory (ADR-0014's "warns on regression"), and
+  it uploads `reports/size.md` as an artifact.
+- **Tests.**
+  - The pure parts (budget comparison, the ratio check, rendering the table) get unit
+    tests.
+  - Perturbations:
+    - `"sideEffects": true` in `packages/react/package.json` must push `import:Button` past
+      the ratio;
+    - lowering one budget by 1 byte must report a breach;
+    - deleting one budget entry must report a breach.
+
+#### 6.3.2 Gate 9 — `npm run test:visual`
+
+- **Location.** `storybook/visual/`, with its own `playwright.config.ts` in the storybook
+  workspace. `@playwright/test` is added there at the fixtures' `^1.62.1`. Every lockfile
+  that installs the workspace is refreshed (5g's lesson).
+- **Server.** Playwright's `webServer` runs
+  `vite preview --outDir storybook-static --port 6007 --strictPort`. This adds no
+  dependency. `STORYBOOK_BASE_PATH` is unset, so the build is served from `/` (§3.5).
+- **Enumeration.** A single spec file reads `storybook-static/index.json` and generates one
+  test for each entry whose `type` is `'story'`. Docs entries are ignored.
+- **Projects.** Two projects, `light` and `dark`.
+  - Both use viewport 1024×768, `deviceScaleFactor: 1` and `reducedMotion: 'reduce'`.
+  - They differ only in `colorScheme`.
+  - Dark comes from emulation alone, because `theme.css` already switches on
+    `prefers-color-scheme`.
+- **When to shoot: after `play` finishes.** 119 of 126 stories have `play` functions, and
+  their end states (open popups, invalid fields, toasts) are where visual regressions live.
+  Each test:
+  1. opens `iframe.html?id=<id>&viewMode=story`;
+  2. polls `window.__STORYBOOK_PREVIEW__.currentRender.phase` until it reads `'completed'`;
+  3. fails immediately, naming the phase, on `'errored'` or `'aborted'`;
+  4. awaits `document.fonts.ready`;
+  5. calls `expect(page).toHaveScreenshot('<id>.png', { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.002 })`.
+
+  The phase names were checked in Storybook 10.6's `dist/preview/runtime.js`. The screenshot
+  is of the **viewport**, not `#storybook-root`, because popups, toasts and dialogs are
+  portalled to `body`.
+- **Opt-out.** A story may set `parameters.visual = { skip: '<reason>' }`, and the reason is
+  required. Skipped stories are listed in the job summary. The plan names every story that
+  opts out and why; an implementer does not decide this alone.
+- **Linux only.** `snapshotPathTemplate` is `'{testDir}/__screenshots__/{projectName}/{arg}{ext}'`,
+  with no platform suffix (§6.2). Every test calls
+  `test.skip(process.platform !== 'linux', 'Baselines are Linux-only (spec §6.2)')`.
+- **Baselines.** A new `workflow_dispatch` workflow, `visual-baselines.yml`, takes a `branch`
+  input. It:
+  - checks that branch out;
+  - builds Storybook;
+  - runs `test:visual -- --update-snapshots`;
+  - commits `storybook/visual/__screenshots__` back to the branch, with
+    `permissions: contents: write`.
+
+  CONTRIBUTING documents local generation through the
+  `mcr.microsoft.com/playwright:v<version>-noble` image as a convenience, not a
+  requirement.
+- **CI.** New steps in the existing `storybook` job, which reuse the build it already
+  produces.
+  - They run only on pull requests (`if: github.event_name == 'pull_request'`), and the step
+    sets `continue-on-error: true`.
+  - When the step fails, actual, expected and diff images are uploaded as an artifact.
+  - The job summary states the count of diffs and of skipped stories. When no baselines
+    exist, it says to run the Visual baselines workflow on the branch.
+
+#### 6.3.3 The streamed route
+
+- `fixtures/ssr-app/app/routes/streamed.tsx` gains `Select`, `Tabs`, `Accordion`, `Checkbox`,
+  `Switch`, `RadioGroup` and `Textarea`, inside the existing deferred `<Await>`.
+  - These are the components whose server markup carries real state, which a second-chunk
+    mismatch would break first.
+  - Tooltip, Popover and Toast are left out: their popups are absent server-side, so
+    streaming them proves nothing about the popups.
+- Gate 6 asserts that each component's state-bearing markup appears in the response
+  **after** `loading…`. The markup checked is:
+  - Select's selected item text;
+  - the selected tab's `aria-selected="true"`;
+  - the open Accordion panel;
+  - the checked state of each checkbox, switch and radio.
+- The hydration spec covers `/streamed` with zero recoverable errors. The plan checks that
+  it watches `onRecoverableError` and not only the console (5g's lesson).
+
+#### 6.3.4 The Tooltip flake and the cheap follow-ups
+
+**Tooltip `TwoOpen`** (`Tooltip.stories.tsx`).
+- The fixed 500 ms sleep becomes
+  `waitFor(() => expect(body().queryAllByRole('tooltip')).toHaveLength(1), { timeout: 3000 })`,
+  followed by the text assertion.
+- Perturbation: pin the first tooltip open, and the story must still fail.
+
+| # | Item | Kind |
+|---|---|---|
+| F1 | Notification option types (`notifications/types.ts`, `NotificationProvider`'s `placement`) declare optionals as `?: T \| undefined` | Types; consumer typecheck |
+| F2 | RadioGroup `invalid` JSDoc (5b): verify the existing doc covers it and record it closed | Doc, if anything |
+| F3 | Address templates for AU, NZ, IE, IN, SG, NL and CA, and JP's single-line form | Tests |
+| F4 | `maskPhone` keeps the last four digits **of the main number**. An extension (after `ext`, `x`, `#` or `;ext=`, case-insensitive) is masked in full and never counts toward the four | Fix + tests |
+| F5 | The storage `clear()` branch (`StorageEvent` with a `null` key) | Test |
+| F6 | Unmounting `useCopyToClipboard` during its reset sets no state and leaves no timer | Test |
+| F7 | The hydration-pass `timeZone: undefined` case, with a non-UTC zone forced so it cannot pass vacuously on a UTC host | Test |
+| F8 | The `timeZoneName`-alone test asserts the exact string | Test |
+| F9 | `useIntersectionObserver` resets a stale entry to `null` when its observer is rebuilt | Fix + test |
+| F10 | The SSR gate's AST check catches a storage read helper called through a local alias | Gate + perturbation |
+| F11 | `useEventListener`'s typing is tightened and the `defined()` casts are removed | Refactor; typecheck |
+| F12 | `useControllableState`'s JSDoc states that it cannot hold a function-typed value | Doc |
+
+**Still deferred:**
+- the date-only ISO default;
+- the focus ring against `bg-raised`;
+- underline vs hairline;
+- Switch `[data-invalid]`;
+- `:dir()`;
+- the Tooltip and Popover width caps.
+
+Each is a design or product call, not cheap work.
+
+#### 6.3.5 Order, sweep and proof
+
+**Task order:**
+1. F1–F12 and the Tooltip flake, so gate 9's baselines are taken on a stable tree.
+2. The streamed route.
+3. Gate 10.
+4. Gate 9.
+5. One whole-branch review and fix wave, before the CI sweep.
+
+**The local sweep** runs every `ci.yml` job and records its counts:
+- unit tests, also on Node 22.22.0;
+- gates;
+- `check:lockfiles`;
+- consumer;
+- SSR, SPA and hydration;
+- stories and the Storybook build;
+- showcase;
+- `size`.
+
+`test:visual` is skipped locally by design.
+
+**The PR sequence:**
+1. Open the PR. Gates 1–8 are green, gate 10 reports, and gate 9 reports that there are no
+   baselines.
+2. Run Visual baselines on the branch.
+3. The re-run reports zero diffs.
+4. A throwaway commit changes one token colour. Gate 9 must report diffs with images.
+5. Revert the throwaway commit.
+
+**Proof artifact** (§7, made concrete): the PR's CI run, plus `reports/contrast.md` and
+`reports/size.md` from it. The run must show:
+- gates 1–8 green;
+- gate 9 clean against committed baselines;
+- gate 10's summary table.
+
 ## 7. Verification plan
 
 Ordered. Each is a command whose output is the evidence.
