@@ -1463,11 +1463,20 @@ flaky, and the cheap open follow-ups (§6.3.4).
   - The first ceilings are each measured size plus 10%, rounded up to the next 100 B.
   - A check with no budget entry counts as a breach, so a new component forces someone to
     choose its budget.
-- **Tree-shaking proof.** Every `import:<Name>` must have JS ≤ 50% of `index` JS. If side
-  effects drag the library in, every single import comes out close to 100%. The plan's
-  facts table confirms the 50% tripwire against the measured numbers before fixing it. If a
-  legitimate component exceeds it, the threshold question goes back to the user rather than
-  being raised silently.
+- **Tree-shaking proof.** Every `import:<Name>` must stay within two limits: its JS at most
+  **70%** of `index` JS, and its CSS at most **50%** of `index` CSS.
+  - **The spec first said 50% of JS.** It changed on 2026-10-10, after a spike measured the
+    real numbers.
+  - **Today:** single imports come to 1–49% of `index` JS, with Select highest at 48.9%
+    because it shares positioning code with Popover and Tooltip. Their CSS is at most 24% of
+    `index` CSS.
+  - **Under `"sideEffects": true`:** every single import is about 88% of `index` JS and
+    exactly 100% of its CSS.
+  - So 50% of JS would leave Select 1.1 points of headroom, while the paired limits clear
+    both cases with margin. The user chose them.
+  - **Why both limits:** a side effect with no CSS could slip past the CSS limit alone.
+  - **The `Banner` directory** exports `BannerRegion`, so `import:Banner` measures
+    `export { BannerRegion }`. The script holds this directory-to-export map explicitly.
 - **Output.**
   - A markdown table (check, JS, CSS, budget, ratio, status) is written to `reports/size.md`
     and appended to `$GITHUB_STEP_SUMMARY` when that variable is set.
@@ -1495,25 +1504,52 @@ flaky, and the cheap open follow-ups (§6.3.4).
 - **Enumeration.** A single spec file reads `storybook-static/index.json` and generates one
   test for each entry whose `type` is `'story'`. Docs entries are ignored.
 - **Projects.** Two projects, `light` and `dark`.
-  - Both use viewport 1024×768, `deviceScaleFactor: 1` and `reducedMotion: 'reduce'`.
+  - Both use viewport 1024×768, `deviceScaleFactor: 1` and `reducedMotion: 'no-preference'`.
   - They differ only in `colorScheme`.
   - Dark comes from emulation alone, because `theme.css` already switches on
     `prefers-color-scheme`.
+- **Why not reduced motion** (spike, 2026-10-10). Under `'reduce'`, three plays were written
+  for full motion and fail or flake: Accordion `Motion`, Toast `Swipe`, and Select `Default`.
+  The plays are gate 4's tests and run with full motion there. `animations: 'disabled'` alone
+  is what freezes the frame.
+- **Spike result.** Under these conditions, three passes over all 126 stories in each scheme
+  were byte-identical. The one exception was `select--multiple`, which varied by 2–5 px of
+  anti-aliasing on its trigger border.
+- **The canvas is themed.** `theme.css` paints no page background, so dark screenshots would
+  otherwise show dark components on a white page. `storybook/.storybook/preview.css`
+  (imported by `preview.tsx`) sets
+  `body { background: var(--ap-color-bg-canvas); color: var(--ap-color-text-primary) }`.
+  Gate 5's axe run sees this canvas too, which is the truer test.
 - **When to shoot: after `play` finishes.** 119 of 126 stories have `play` functions, and
   their end states (open popups, invalid fields, toasts) are where visual regressions live.
   Each test:
-  1. opens `iframe.html?id=<id>&viewMode=story`;
-  2. polls `window.__STORYBOOK_PREVIEW__.currentRender.phase` until it reads `'completed'`;
-  3. fails immediately, naming the phase, on `'errored'` or `'aborted'`;
-  4. awaits `document.fonts.ready`;
-  5. calls `expect(page).toHaveScreenshot('<id>.png', { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.002 })`.
-
-  The phase names were checked in Storybook 10.6's `dist/preview/runtime.js`. The screenshot
-  is of the **viewport**, not `#storybook-root`, because popups, toasts and dialogs are
-  portalled to `body`.
+  1. installs, through `addInitScript`, a setter trap on
+     `window.__STORYBOOK_ADDONS_CHANNEL__`. When the channel is assigned, the trap subscribes
+     to `playFunctionThrewException`, `storyErrored`, `storyThrewException` and
+     `storyRenderPhaseChanged`, recording `newPhase === 'errored'` into
+     `window.__gate9Errors`.
+  2. opens `iframe.html?id=<id>&viewMode=story`;
+  3. polls `window.__STORYBOOK_PREVIEW__.currentRender.phase` until it reads `'finished'`;
+  4. fails, listing `__gate9Errors`, if any were recorded;
+  5. awaits `document.fonts.ready`;
+  6. calls `expect(page).toHaveScreenshot('<id>.png', { animations: 'disabled', caret: 'hide', maxDiffPixels: 10 })`.
+- **Why `'finished'`, and why the trap.** The spike against Storybook 10.6 found:
+  - `'completed'` lasts about 100 ms before the a11y `afterEach` runs, so a poll can miss
+    it. `'finished'` is the resting phase.
+  - A throwing `play` passes through `'errored'` and still ends at `'finished'`, with
+    `storyFinished` reporting `status: "success"`. So the phase alone cannot reveal a failed
+    play. The trap fired on all 756 spike page loads.
+- **The tolerance is `maxDiffPixels: 10`,** not a ratio. Observed noise is at most 5 px. A
+  ratio of 0.002 would let about 1,500 px through, enough to hide a focus-ring change.
+- **The screenshot is of the viewport,** not `#storybook-root`, because popups, toasts and
+  dialogs are portalled to `body`.
 - **Opt-out.** A story may set `parameters.visual = { skip: '<reason>' }`, and the reason is
-  required. Skipped stories are listed in the job summary. The plan names every story that
-  opts out and why; an implementer does not decide this alone.
+  required. Skipped stories are listed in the job summary. Only one story opts out:
+  `components-select--native-label-warning`, because it asserts a development-only console
+  warning that a production build strips. Two other stories throw in the production build;
+  each is fixed rather than opted out (§6.3.6):
+  - `tabs--right-to-left` and `toast--right-to-left`;
+  - `select--default`.
 - **Linux only.** `snapshotPathTemplate` is `'{testDir}/__screenshots__/{projectName}/{arg}{ext}'`,
   with no platform suffix (§6.2). Every test calls
   `test.skip(process.platform !== 'linux', 'Baselines are Linux-only (spec §6.2)')`.
@@ -1540,6 +1576,9 @@ flaky, and the cheap open follow-ups (§6.3.4).
 
 - `fixtures/ssr-app/app/routes/streamed.tsx` gains `Select`, `Tabs`, `Accordion`, `Checkbox`,
   `Switch`, `RadioGroup` and `Textarea`, inside the existing deferred `<Await>`.
+  - `Select` needs the message registry, so the route wraps its `<Suspense>` in a
+    `<LocaleProvider>`, outside the boundary, as `form.tsx` does.
+  - The Accordion passes `defaultValue={['one']}`, so one panel is open server-side.
   - These are the components whose server markup carries real state, which a second-chunk
     mismatch would break first.
   - Tooltip, Popover and Toast are left out: their popups are absent server-side, so
@@ -1550,8 +1589,14 @@ flaky, and the cheap open follow-ups (§6.3.4).
   - the selected tab's `aria-selected="true"`;
   - the open Accordion panel;
   - the checked state of each checkbox, switch and radio.
-- The hydration spec covers `/streamed` with zero recoverable errors. The plan checks that
-  it watches `onRecoverableError` and not only the console (5g's lesson).
+- The hydration spec covers `/streamed`, but **only through the console and `pageerror`**.
+  - The fixture has no `entry.client.tsx`, so React Router's default calls `hydrateRoot`
+    with no `onRecoverableError`.
+  - 5h adds `fixtures/ssr-app/app/entry.client.tsx`, which passes `onRecoverableError`, and
+    the handler pushes into `window.__apRecoverableErrors`.
+  - Every hydration test asserts that this array is empty (5g's lesson). That covers every
+    route, not just `/streamed`.
+  - Perturbation: render `Date.now()` text in a route, and the array must be non-empty.
 
 #### 6.3.4 The Tooltip flake and the cheap follow-ups
 
@@ -1563,17 +1608,17 @@ flaky, and the cheap open follow-ups (§6.3.4).
 
 | # | Item | Kind |
 |---|---|---|
-| F1 | Notification option types (`notifications/types.ts`, `NotificationProvider`'s `placement`) declare optionals as `?: T \| undefined` | Types; consumer typecheck |
-| F2 | RadioGroup `invalid` JSDoc (5b): verify the existing doc covers it and record it closed | Doc, if anything |
+| F1 | Notification option types (`notifications/types.ts`, `NotificationProvider`'s `placement`, `ApProvider`'s `notifications.placement`) declare optionals as `?: T \| undefined`, pinned by a type test that passes `{ description: undefined }` | Types; `npm run typecheck` |
+| F2 | RadioGroup `invalid` JSDoc (5b): **already resolved** by `d25edbb` (5c Task 8). Recorded closed; no change | None |
 | F3 | Address templates for AU, NZ, IE, IN, SG, NL and CA, and JP's single-line form | Tests |
 | F4 | `maskPhone` keeps the last four digits **of the main number**. An extension (after `ext`, `x`, `#` or `;ext=`, case-insensitive) is masked in full and never counts toward the four | Fix + tests |
-| F5 | The storage `clear()` branch (`StorageEvent` with a `null` key) | Test |
-| F6 | Unmounting `useCopyToClipboard` during its reset sets no state and leaves no timer | Test |
-| F7 | The hydration-pass `timeZone: undefined` case, with a non-UTC zone forced so it cannot pass vacuously on a UTC host | Test |
-| F8 | The `timeZoneName`-alone test asserts the exact string | Test |
-| F9 | `useIntersectionObserver` resets a stale entry to `null` when its observer is rebuilt | Fix + test |
-| F10 | The SSR gate's AST check catches a storage read helper called through a local alias | Gate + perturbation |
-| F11 | `useEventListener`'s typing is tightened and the `defined()` casts are removed | Refactor; typecheck |
+| F5 | The storage `clear()` branch (`StorageEvent` with a `null` key) purges this area's memory fallbacks and keeps the other area's. The existing test covers only the re-render | Test |
+| F6 | `useCopyToClipboard`, unmounted while `writeText` is still pending, sets no state and starts no timer. Today it does both, after `useTimeout`'s dispose has already run | Fix + test |
+| F7 | The hydration-pass `timeZone: undefined` case, with `process.env.TZ` forced to `Asia/Tokyo` (saved and restored) so it cannot pass vacuously on a UTC host | Test |
+| F8 | The `timeZoneName`-alone test asserts the exact string `'3/5/2026, UTC'` (the same on ICU 77.1 and 78.3). Intl fills in default *date* fields here; the JSDoc says so | Test + doc |
+| F9 | `useIntersectionObserver` resets a stale entry to `undefined` (its public empty value) when its observer is rebuilt | Fix + test |
+| F10 | The SSR gate flags any **reference** to `readRaw` or `getArea` in a hook body outside a nested function, not just a direct call. This catches `const read = readRaw`, `.call` and `(0, readRaw)()`; a self-test runs it over synthetic source | Gate + perturbation |
+| F11 | `useEventListener`'s handler is typed from the event name (`WindowEventMap & DocumentEventMap & HTMLElementEventMap`, falling back to `Event`). The four casts in `useFormatter.ts` (`defined()` and its call sites) are removed | Refactor; type tests |
 | F12 | `useControllableState`'s JSDoc states that it cannot hold a function-typed value | Doc |
 
 **Still deferred:**
@@ -1581,19 +1626,21 @@ flaky, and the cheap open follow-ups (§6.3.4).
 - the focus ring against `bg-raised`;
 - underline vs hairline;
 - Switch `[data-invalid]`;
-- `:dir()`;
 - the Tooltip and Popover width caps.
 
-Each is a design or product call, not cheap work.
+Each is a design or product call, not cheap work. The `:dir()` item is no longer deferred: it
+turned out to be a bug (§6.3.6).
 
 #### 6.3.5 Order, sweep and proof
 
 **Task order:**
-1. F1–F12 and the Tooltip flake, so gate 9's baselines are taken on a stable tree.
-2. The streamed route.
-3. Gate 10.
-4. Gate 9.
-5. One whole-branch review and fix wave, before the CI sweep.
+1. F1–F12 and the Tooltip flake.
+2. The two production-build bugs (§6.3.6). Steps 1 and 2 both land before gate 9, so its
+   baselines are taken on a stable, correct tree.
+3. The streamed route.
+4. Gate 10.
+5. Gate 9.
+6. One whole-branch review and fix wave, before the CI sweep.
 
 **The local sweep** runs every `ci.yml` job and records its counts:
 - unit tests, also on Node 22.22.0;
@@ -1620,6 +1667,56 @@ Each is a design or product call, not cheap work.
 - gates 1–8 green;
 - gate 9 clean against committed baselines;
 - gate 10's summary table.
+
+#### 6.3.6 Two production-build bugs the gate 9 spike found
+
+Neither shows up in gate 4: its stories run in Vite dev mode, and these bugs appear only in a
+production build. Both were settled with the user on 2026-10-10.
+
+**1. Consumers' production builds break RTL.**
+
+*Cause.*
+- Vite 8 minifies client CSS with lightningcss, against `build.cssTarget`.
+- That defaults to `build.target`'s `'baseline-widely-available'`, which is
+  `chrome111, edge111, firefox114, safari16.4, ios16.4`.
+- `:dir()` ships in Chrome 120, so lightningcss lowers `:dir(rtl)` to
+  `:is(:lang(ae),:lang(ar),…,:lang(yi))`. That matches on language, not direction.
+
+*Evidence.*
+- `fixtures/ssr-app`'s production build has no `:dir(rtl)` anywhere. The Tabs indicator rule
+  (`Tabs.css.ts:170`) and both Toast `-end` slide rules (`Toast.css.ts:161-162`) come out
+  lowered.
+- With `cssTarget: ['chrome120', 'edge120', 'firefox114', 'safari16.4', 'ios16.4']`,
+  `:dir(rtl)` survives, and both RTL stories pass in the production Storybook.
+
+*Fix* (the user's choice, over rewriting the selectors).
+- `@ap/vite` exports
+  `AP_CSS_TARGET = ['chrome120', 'edge120', 'firefox114', 'safari16.4', 'ios16.4']`.
+- Its config hook sets `build.cssTarget` to that value **only when the consumer has not set
+  `build.cssTarget` themselves**.
+- If the consumer's own target lowers the rule anyway, a `generateBundle` check (enforce
+  `'post'`) sees `:lang(ae)` in an emitted CSS asset. It warns once, naming `:dir()` and
+  `AP_CSS_TARGET`.
+- Storybook's `viteFinal` sets the same `build.cssTarget` from the imported constant. Storybook
+  uses vanilla-extract directly, not `@ap/vite`.
+- The Chrome 120 floor this documents is the open 5e `:dir()` follow-up, now closed as a
+  stated requirement.
+
+*Proof.*
+- Gate 6's served-CSS test asserts `:dir(rtl)` is present and `:lang(ae)` is absent.
+- `@ap/vite`'s unit tests cover three cases: the default is set, a consumer value is
+  respected, and the warning fires.
+- Perturbation: remove the `cssTarget` default, and gate 6 fails.
+
+**2. Select `Default` fails its play in the production Storybook.**
+- After the second ArrowDown, the highlight has not moved and the listbox is still open. This
+  happens on every run, in either motion mode, and in dev mode the story passes.
+- **5h investigates it to its root cause before touching code.**
+  - If production Select mishandles arrow keys, fix it, with a test that fails against a
+    production build.
+  - If it is a timing artifact of the play, fix the play so it waits on the state it asserts.
+- The story is baselined only after it passes in the production build. The controller records
+  which of the two it was.
 
 ## 7. Verification plan
 
