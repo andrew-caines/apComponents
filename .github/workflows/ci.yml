@@ -113,15 +113,18 @@ jobs:
       - name: Build the static Storybook
         run: npm --prefix storybook run build
       - name: Visual regression (gate 9, advisory)
+        id: visual
         if: github.event_name == 'pull_request'
         # Advisory (ADR-0014). Baselines are committed by the Visual baselines workflow.
         continue-on-error: true
         run: npm run test:visual
       - name: Summarise gate 9
-        if: always() && github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request' && steps.visual.outcome != 'skipped'
         run: npx tsx storybook/visual/summary.ts
       - uses: actions/upload-artifact@v4
-        if: always() && github.event_name == 'pull_request'
+        # outcome, not conclusion: continue-on-error makes a failed step conclude 'success'.
+        # A skipped visual step (an earlier step failed) leaves nothing to summarise.
+        if: always() && github.event_name == 'pull_request' && steps.visual.outcome != 'skipped'
         with:
           name: visual-diffs
           # playwright.config.ts puts both the JSON report and the per-test

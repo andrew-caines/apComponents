@@ -142,12 +142,15 @@ listed anywhere. The baselines are in `storybook/visual/__screenshots__/<project
 In CI it runs in the `storybook` job, on pull requests only, after the static build. It is
 **advisory** (ADR-0014): the step is `continue-on-error: true`, and a summary step writes
 passed, diffs, missing baselines, play errors, other failures and skips to the job
-summary. The actual, expected and diff images upload as the `visual-diffs` artifact.
+summary. Other failures include the report's global errors (a server that never started,
+a spec that failed to load), so a run that tested nothing does not read as clean. If the
+step wrote no report at all, the summary prints a warning and exits 0. The actual,
+expected and diff images upload as the `visual-diffs` artifact.
 Pixel output is not stable enough across machines to block a merge on.
 
 **Baselines are Linux-only.** Windows and macOS rasterise type differently, so on those
 platforms every story test skips ("Baselines are Linux-only") and only the "the static
-build has stories" check runs. Never write baselines on a dev machine.
+build has stories" and `SKIP` sanity checks run. Never write baselines on a dev machine.
 
 **Why the shots are taken after `play`.** Each test waits for Storybook's render phase to
 reach `finished`, the resting phase after `play` and `afterEach`. The screenshot is the
@@ -169,21 +172,49 @@ a dark component on a white page.
 
 **Opting a story out.** Add its id and a reason to `SKIP` in
 `storybook/visual/stories.spec.ts`. The reason is required (the map's values are
-strings), and it shows in the CI summary. Storybook 10.6's `index.json` carries no story
+strings), and it shows in the CI summary. A sanity test fails if a `SKIP` key is not a
+story id in `index.json` or its reason is blank. Storybook 10.6's `index.json` carries no story
 `parameters`, so a `parameters.visual.skip` on the story could not be read without loading
 each story first. Today there is one opt-out: `components-select--native-label-warning`,
 which asserts a development-only console warning that the production build strips.
 
-**Regenerating baselines.** Run the **Visual baselines** workflow for your branch:
+**Regenerating baselines.** The **Visual baselines** workflow
+(`.github/workflows/visual-baselines.yml`) makes them. It builds the Storybook on
+`ubuntu-latest` with the same Node as CI, runs `npm run test:visual -- --update-snapshots`,
+and commits any changed `storybook/visual/__screenshots__` to the branch. There are two
+ways to start it:
 
-```bash
-gh workflow run visual-baselines.yml -f branch=<branch>
-```
+- **Before merge (the usual path):** add the label `update-visual-baselines` to the PR.
+  The workflow runs from the PR branch's own copy of the file, so it works before the
+  file is on `main`. It removes the label when it finishes, so adding the label again
+  re-runs it. A PR from a fork gets a read-only token, and the push fails there.
+- **After merge:** `workflow_dispatch` only runs once the workflow is on the default
+  branch. Then:
 
-It builds the Storybook on `ubuntu-latest` with the same Node as CI, runs
-`npm run test:visual -- --update-snapshots`, and commits any changed
-`storybook/visual/__screenshots__` to that branch. Review the image diff in the PR.
-When a PR's summary shows only missing baselines, it says so and names this workflow.
+  ```bash
+  gh workflow run visual-baselines.yml -f branch=<branch>
+  ```
+
+Then, to run gate 9 against the new baselines:
+
+1. The bot pushes with `GITHUB_TOKEN`, and a push made with `GITHUB_TOKEN` starts no CI.
+2. Re-running an old CI run does not help either: it reuses that run's commit, which does
+   not have the baselines.
+3. So, once the bot has committed:
+
+   ```bash
+   git pull
+   git commit --allow-empty -m "ci: run gate 9 against committed baselines"
+   git push
+   ```
+
+4. Until you pull the bot commit, your own pushes to the branch are rejected as
+   non-fast-forward.
+
+If any story fails under `--update-snapshots` (a play error or a timeout, which write no
+PNG), the job still commits every baseline it could write, then goes red. Fix the story
+and run it again. Review the image diff in the PR. When a PR's summary shows only missing
+baselines, it says so and names the label first, then the workflow command.
 
 **Optional: a local Linux run in Docker.** This is a convenience for looking at Linux
 shots before pushing. The workflow is the source of truth, and its output is what gets

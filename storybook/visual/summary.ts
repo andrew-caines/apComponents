@@ -1,13 +1,17 @@
 // Gate 9's CI summary: reads the JSON report stories.spec.ts wrote and appends the
 // counts to $GITHUB_STEP_SUMMARY. Run with `npx tsx storybook/visual/summary.ts`
 // from any cwd; the report path resolves from this file.
-import { appendFileSync, readFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // The slice of Playwright's JSONReport that this script reads.
 export interface Report {
   suites: Suite[]
+  // Global errors, such as a webServer timeout or a spec file that fails to load. They
+  // arrive with empty suites, so without these a broken run would read as clean.
+  errors?: Array<{ message: string }>
+  stats?: { unexpected?: number }
 }
 interface Suite {
   title: string
@@ -84,12 +88,18 @@ export function summarise(report: Report, headRef = '<branch>'): Summary {
     }
   }
 
+  // Global errors, and any unexpected test the suites do not name, are failures too.
+  const globalErrors = (report.errors ?? []).map((e) => e.message.split('\n')[0] ?? '')
+  const classified = failures.missing.length + failures.playError.length + failures.diff.length + failures.other.length
+  const unaccounted = Math.max(0, (report.stats?.unexpected ?? 0) - classified)
+  const other = failures.other.length + globalErrors.length + unaccounted
+
   const lines = [
     `## Gate 9 ${DASH} visual regression (advisory)`,
     '',
     '| passed | diffs | missing baselines | play errors | other failures | skipped |',
     '| --- | --- | --- | --- | --- | --- |',
-    `| ${passed} | ${failures.diff.length} | ${failures.missing.length} | ${failures.playError.length} | ${failures.other.length} | ${skipped.length} |`,
+    `| ${passed} | ${failures.diff.length} | ${failures.missing.length} | ${failures.playError.length} | ${other} | ${skipped.length} |`,
     '',
   ]
   const list = (heading: string, ids: string[]) => {
@@ -97,12 +107,20 @@ export function summarise(report: Report, headRef = '<branch>'): Summary {
   }
   list('Diffs', failures.diff)
   list('Play errors', failures.playError)
-  list('Other failures', failures.other)
+  list('Other failures', [
+    ...failures.other,
+    ...globalErrors.map((m) => `global error: ${m}`),
+    ...(unaccounted ? [`${unaccounted} unexpected failure(s) the report's suites do not name`] : []),
+  ])
   if (skipped.length) lines.push('**Skipped**', '', ...skipped.map((s) => `- ${s.id}: ${s.reason}`), '')
-  const onlyMissing =
-    failures.missing.length > 0 && !failures.diff.length && !failures.playError.length && !failures.other.length
+  const onlyMissing = failures.missing.length > 0 && !failures.diff.length && !failures.playError.length && !other
   if (onlyMissing) {
-    lines.push(`No baselines on this branch ${DASH} run the "Visual baselines" workflow with branch=${headRef}.`, '')
+    lines.push(
+      `No baselines on this branch ${DASH} before merge, add the \`update-visual-baselines\` label to the PR; ` +
+        `after merge, run \`gh workflow run visual-baselines.yml -f branch=${headRef}\`. ` +
+        'The bot commit starts no CI: pull it and push an empty commit (docs/CONTRIBUTING.md, gate 9).',
+      '',
+    )
   } else {
     list('Missing baselines', failures.missing)
   }
@@ -112,7 +130,7 @@ export function summarise(report: Report, headRef = '<branch>'): Summary {
     diffs: failures.diff.length,
     missing: failures.missing.length,
     playErrors: failures.playError.length,
-    other: failures.other.length,
+    other,
     skipped,
     text: lines.join('\n'),
   }
@@ -120,14 +138,13 @@ export function summarise(report: Report, headRef = '<branch>'): Summary {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const path = join(import.meta.dirname, '..', 'test-results', 'visual.json')
-  let report: Report
-  try {
-    report = JSON.parse(readFileSync(path, 'utf8')) as Report
-  } catch (error) {
+  if (!existsSync(path)) {
     // The test step is continue-on-error, so it may have died before writing a report.
-    console.error(`gate 9: no report at ${path}: ${String(error)}`)
-    process.exit(1)
+    // Gate 9 is advisory: warn, and never turn the job red from here.
+    console.log('::warning::gate 9 produced no report')
+    process.exit(0)
   }
+  const report = JSON.parse(readFileSync(path, 'utf8')) as Report
   const { text } = summarise(report, process.env.GITHUB_HEAD_REF || '<branch>')
   console.log(text)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, text + '\n')

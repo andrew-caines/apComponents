@@ -2,23 +2,41 @@ name: Visual baselines
 
 # Gate 9 baselines are Linux-only (spec §6.2): Windows rasterises type differently,
 # so they are made here and committed, never on a dev machine.
+#
+# Two ways in:
+# - Before merge: add the label `update-visual-baselines` to the PR. pull_request
+#   workflows run from the PR branch's own workflow files, so this works before this
+#   file reaches main. The label is removed at the end, so re-adding it re-runs.
+# - After merge: `gh workflow run visual-baselines.yml -f branch=<branch>`.
+#   workflow_dispatch only runs once this file is on the default branch.
+#
+# A PR from a fork gets a read-only GITHUB_TOKEN, so the push below fails there.
+# A push made with GITHUB_TOKEN starts no CI: pull the bot commit and push an empty
+# commit to run gate 9 against the new baselines (docs/CONTRIBUTING.md, gate 9).
 on:
   workflow_dispatch:
     inputs:
       branch:
         description: Branch to generate baselines for and commit to
         required: true
+  pull_request:
+    types: [labeled]
 
 permissions:
   contents: write
+  pull-requests: write
+
+concurrency:
+  group: visual-baselines-${{ github.head_ref || inputs.branch }}
 
 jobs:
   baselines:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'update-visual-baselines'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || inputs.branch }}
       - uses: actions/setup-node@v4
         with:
           # Must equal NODE_VERSION in ci.yml, so the baselines come from the same
@@ -28,7 +46,13 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm --prefix storybook run build
-      - run: npm run test:visual -- --update-snapshots
+      - name: Write baselines
+        id: update
+        # Under --update-snapshots the only failures are play errors and timeouts, and
+        # those write no PNG, so the PNGs that were written are safe to commit. The last
+        # step still turns the job red.
+        continue-on-error: true
+        run: npm run test:visual -- --update-snapshots
       - name: Commit baselines
         run: |
           git config user.name 'github-actions[bot]'
@@ -37,3 +61,13 @@ jobs:
           if git diff --cached --quiet; then echo 'Baselines unchanged.'; exit 0; fi
           git commit -m "chore(visual): regenerate gate 9 baselines"
           git push
+      - name: Remove the label, so adding it again re-runs
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label update-visual-baselines
+      - name: Fail if any story failed
+        if: steps.update.outcome == 'failure'
+        run: |
+          echo "::error::Some stories failed under --update-snapshots (play errors or timeouts). The baselines that were written are committed; see the Write baselines step."
+          exit 1

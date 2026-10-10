@@ -68,15 +68,49 @@ describe('summarise', () => {
     expect(s.text).toContain('a--slow')
   })
 
-  // Fails if the hint is missing, or names the wrong workflow or branch.
-  it('points at the baselines workflow when every failure is a missing baseline', () => {
+  // Fails if the hint is missing, names the wrong branch, or drops the label path that
+  // works before merge (workflow_dispatch only runs once the workflow is on main).
+  it('points at the label, then the workflow, when every failure is a missing baseline', () => {
     const s = summarise(report(test('a', { fail: MISSING }), test('b', { fail: MISSING }), test('c', 'pass')), 'feat/x')
-    expect(s.text).toContain('run the "Visual baselines" workflow with branch=feat/x')
+    expect(s.text).toContain('add the `update-visual-baselines` label to the PR')
+    expect(s.text).toContain('gh workflow run visual-baselines.yml -f branch=feat/x')
+    expect(s.text.indexOf('update-visual-baselines')).toBeLessThan(s.text.indexOf('gh workflow run'))
+    expect(s.text).toContain('push an empty commit')
   })
 
   // Fails if the hint shows while a real diff is also present.
   it('does not blame missing baselines when there is also a diff', () => {
     const s = summarise(report(test('a', { fail: MISSING }), test('b', { fail: DIFF })), 'feat/x')
-    expect(s.text).not.toContain('Visual baselines')
+    expect(s.text).not.toContain('update-visual-baselines')
+  })
+
+  // Fails if summarise ignores the report's top-level errors: a webServer timeout or a
+  // module-load ENOENT arrives with empty suites and would otherwise read as clean.
+  it('counts global errors as other and lists their first lines', () => {
+    const s = summarise({
+      suites: [],
+      errors: [{ message: 'Error: Timed out waiting 60000ms from config.webServer.\n    at frame' }],
+      stats: { unexpected: 0 },
+    })
+    expect(s.other).toBe(1)
+    expect(s.text).toContain('global error: Error: Timed out waiting 60000ms from config.webServer.')
+    expect(s.text).not.toContain('at frame')
+  })
+
+  // Fails if stats.unexpected beyond what the suites name is dropped, or if a failure the
+  // suites do name is counted twice.
+  it('counts unexpected tests the suites do not name, once', () => {
+    const named = { ...report(test('a', { fail: TIMEOUT }), test('b', { fail: DIFF })), stats: { unexpected: 2 } }
+    expect(summarise(named).other).toBe(1)
+    const unnamed = { ...report(test('a', { fail: DIFF })), stats: { unexpected: 4 } }
+    const s = summarise(unnamed)
+    expect([s.diffs, s.other]).toEqual([1, 3])
+    expect(s.text).toContain("3 unexpected failure(s) the report's suites do not name")
+  })
+
+  // Fails if a global error leaves the missing-baselines hint in place of the real cause.
+  it('does not blame missing baselines when there is also a global error', () => {
+    const s = summarise({ ...report(test('a', { fail: MISSING })), errors: [{ message: 'Error: ENOENT' }] })
+    expect(s.text).not.toContain('update-visual-baselines')
   })
 })

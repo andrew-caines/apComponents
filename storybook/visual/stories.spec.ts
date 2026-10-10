@@ -23,6 +23,15 @@ test('the static build has stories', () => {
   expect(stories.length).toBeGreaterThan(0)
 })
 
+test('every SKIP entry names a real story and gives a reason', () => {
+  // Reads only index.json, so it runs on every platform. Fails if a story is renamed or
+  // deleted while its opt-out stays behind, or if an opt-out's reason is blank.
+  const ids = new Set(stories.map((s) => s.id))
+  expect(Object.keys(SKIP).filter((id) => !ids.has(id)), 'SKIP keys with no story').toEqual([])
+  const blank = Object.entries(SKIP).filter(([, reason]) => typeof reason !== 'string' || !reason.trim())
+  expect(blank, 'SKIP entries with no reason').toEqual([])
+})
+
 for (const story of stories) {
   test(story.id, async ({ page }) => {
     test.skip(process.platform !== 'linux', 'Baselines are Linux-only (spec §6.2)')
