@@ -17,6 +17,9 @@ export interface UseControllableStateOptions<T> {
  * otherwise. `onChange` fires in both modes whenever the value changes.
  * The setter accepts a value or an updater, resolves updaters against the
  * latest value, ignores a same-value set, and is referentially stable.
+ * `T` cannot be a function type. The setter treats any function as an
+ * updater, so a function-typed value would be called rather than stored.
+ * Wrap it in an object instead.
  */
 export function useControllableState<T>(
   options: UseControllableStateOptions<T>,

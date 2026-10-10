@@ -65,6 +65,15 @@ describe('useIntersectionObserver', () => {
     expect(el.getAttribute('data-r')).toBe('true:0.75')
   })
 
+  it('resets a stale entry when the observer is rebuilt', () => {
+    const { container, rerender } = render(<Probe threshold={0.5} />)
+    const el = container.firstElementChild as HTMLElement
+    act(() => instances[0]!.trigger([{ isIntersecting: true, intersectionRatio: 0.75 }]))
+    expect(el.getAttribute('data-r')).toBe('true:0.75')
+    rerender(<Probe threshold={[0, 1]} />)
+    expect(el.getAttribute('data-r'), 'the old observer entry must not outlive its observer').toBe('none')
+  })
+
   it('disconnects on unmount', () => {
     const { unmount } = render(<Probe />)
     unmount()

@@ -139,6 +139,31 @@ describe('the two-pass date rule', () => {
     expect(result.text).toBe('Mar 6, 2026')
   })
 
+  it('the hydration pass ignores an explicit undefined timeZone even on a non-UTC host', () => {
+    const savedTZ = process.env.TZ
+    process.env.TZ = 'Asia/Tokyo'
+    try {
+      function ExplicitUndefined() {
+        const { formatDate } = useFormatter()
+        const text = formatDate(V, { timeZone: undefined })
+        seen.push(text)
+        return <span>{text}</span>
+      }
+      const tree = (
+        <LocaleProvider locale="en-US">
+          <ExplicitUndefined />
+        </LocaleProvider>
+      )
+      const html = renderToString(tree)
+      expect(html, 'the server pass must format in UTC, not the host zone').toContain('Mar 5, 2026')
+      const result = hydrate(tree, html)
+      expect(result.seen[0], 'the hydration pass must match the server (UTC)').toBe('Mar 5, 2026')
+    } finally {
+      if (savedTZ === undefined) delete process.env.TZ
+      else process.env.TZ = savedTZ
+    }
+  })
+
   it('a client-only mount renders the browser zone on its first render', () => {
     stubBrowserZone('Asia/Tokyo')
     seen = []

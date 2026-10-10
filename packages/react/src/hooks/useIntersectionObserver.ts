@@ -15,7 +15,7 @@ export interface UseIntersectionObserverOptions {
  * `root`, `rootMargin` or the threshold values change; a new array literal
  * with equal values does not rebuild it. The ref must be attached when the
  * hook's effect runs; a node that mounts later is observed only after a
- * dependency changes.
+ * dependency changes. A rebuilt observer starts again from `undefined`.
  */
 export function useIntersectionObserver(
   ref: RefObject<Element | null>,
@@ -39,7 +39,10 @@ export function useIntersectionObserver(
       if (last) setEntry(last)
     }, init)
     observer.observe(node)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      setEntry(undefined)
+    }
     // `threshold` is keyed by its string form so an equal array literal is stable.
   }, [ref, root, rootMargin, thresholdKey])
   return entry

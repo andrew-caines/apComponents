@@ -87,4 +87,26 @@ describe('useCopyToClipboard', () => {
     expect(ok).toBe(false)
     expect(result[0]).toBe(false)
   })
+
+  it('does not set state or start a timer when unmounted while writeText is pending', async () => {
+    let resolve!: () => void
+    stubClipboard(() => new Promise<void>((r) => (resolve = r)))
+    const { unmount } = render(<Probe />)
+    const pending = result[1]('x')
+    unmount()
+    resolve()
+    expect(await pending).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('does not set state or start a timer when unmounted while writeText is pending and then rejects', async () => {
+    let reject!: (e: Error) => void
+    stubClipboard(() => new Promise<void>((_, r) => (reject = r)))
+    const { unmount } = render(<Probe />)
+    const pending = result[1]('x')
+    unmount()
+    reject(new Error('denied'))
+    expect(await pending).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
 })

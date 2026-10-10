@@ -226,6 +226,44 @@ describe('useLocalStorage', () => {
     expect(container.textContent, 'the memory entry from the failed write must not mask the other tab').toBe('9')
   })
 
+  it("a clear() event purges this area's memory fallbacks and keeps the other area's", () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(quota)
+    let sessionSet: StorageSetter<number> | null = null
+    function SessionNum(_props: { tick: number }) {
+      const [v, set] = useSessionStorage<number>('m', 0)
+      sessionSet = set
+      return <span data-testid="session">{String(v)}</span>
+    }
+    const ui = (tick: number) => (
+      <>
+        <Num />
+        <SessionNum tick={tick} />
+      </>
+    )
+    const { container, rerender } = render(ui(0))
+    act(() => {
+      api!.set(5)
+      sessionSet!(5)
+    })
+    expect(container.querySelector('[data-testid="a"]')!.textContent).toBe('5')
+    expect(container.querySelector('[data-testid="session"]')!.textContent).toBe('5')
+    spy.mockRestore()
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: null, storageArea: localStorage }))
+    })
+    expect(
+      container.querySelector('[data-testid="a"]')!.textContent,
+      'the local memory fallback must be purged',
+    ).toBe('0')
+    // The clear event only notifies the local area's subscribers, so re-render
+    // the session probe to make it re-read its snapshot.
+    rerender(ui(1))
+    expect(
+      container.querySelector('[data-testid="session"]')!.textContent,
+      "the other area's memory fallback must survive",
+    ).toBe('5')
+  })
+
   it('setValue(undefined) behaves as remove: default returned, key absent, no warning', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     localStorage.setItem('n', '7')
