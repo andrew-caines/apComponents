@@ -88,18 +88,43 @@ describe('CSS browser floor', () => {
     expect(presetConfig({})['build'].cssTarget).toEqual([...AP_CSS_TARGET])
   })
 
+  // Fails if the cssTarget default is spread unconditionally, overwriting the
+  // consumer's own value.
   it('leaves a consumer cssTarget alone', () => {
     expect(presetConfig({ build: { cssTarget: 'chrome100' } })['build']?.cssTarget).toBeUndefined()
   })
 
+  // Fails if only build.cssTarget is checked: Vite derives cssTarget from an
+  // explicit build.target, and the preset must not override that choice.
+  it('leaves a consumer build.target alone', () => {
+    expect(presetConfig({ build: { target: 'es2020' } })['build']?.cssTarget).toBeUndefined()
+  })
+
+  // Fails if enforce is dropped or set to 'pre': the check would then see CSS
+  // before the minifier lowers `:dir()`, and never warn.
+  it('runs the rtl-check after the minifier', () => {
+    expect(findPlugin('ap-components:rtl-check').enforce).toBe('post')
+  })
+
+  // Fails if apply is dropped: the check would also run in dev, where nothing
+  // is minified.
+  it('runs the rtl-check on builds only', () => {
+    expect(findPlugin('ap-components:rtl-check').apply).toBe('build')
+  })
+
+  const run = (bundle: Record<string, any>): string[] => {
+    const warnings: string[] = []
+    findPlugin('ap-components:rtl-check').generateBundle.call({ warn: (m: string) => warnings.push(m) }, {}, bundle)
+    return warnings
+  }
+
+  // Fails if the matcher goes back to a bare ':lang(ae)' substring.
+  it("does not warn for a consumer's own bare :lang(ae)", () => {
+    expect(run({ 'a.css': { type: 'asset', fileName: 'a.css', source: '.a:lang(ae){font-family:x}' } })).toEqual([])
+  })
+
   it('warns once when emitted CSS still has :dir() lowered', () => {
-    const check = findPlugin('ap-components:rtl-check')
     const lowered = '.a:is(:lang(ae),:lang(ar)){left:0}'
-    const run = (bundle: Record<string, any>): string[] => {
-      const warnings: string[] = []
-      check.generateBundle.call({ warn: (m: string) => warnings.push(m) }, {}, bundle)
-      return warnings
-    }
     const warnings = run({
       'a.css': { type: 'asset', fileName: 'a.css', source: lowered },
       'b.css': { type: 'asset', fileName: 'b.css', source: lowered },

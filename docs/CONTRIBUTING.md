@@ -1352,12 +1352,20 @@ The build succeeds and nothing errors, but RTL then follows the page's `lang` in
 direction, which is wrong for any page that sets `dir="rtl"` without an RTL language code.
 
 `@ap/vite` sets `build.cssTarget` to `AP_CSS_TARGET` (`chrome120`, `edge120`, `firefox114`,
-`safari16.4`, `ios16.4`) when the consumer has not set one. A consumer's own `cssTarget` is
-respected, never overwritten. If it is low enough that `:dir()` still gets lowered, the build
-prints one warning from `ap-components:rtl-check`, which scans the final minified CSS. Fix it
-by raising the target to `AP_CSS_TARGET` or newer. Storybook does not use `@ap/vite`, so
-`storybook/.storybook/main.ts` sets the same floor, and gate 6 (`npm run test:ssr`) asserts
-the built fixture still serves `:dir(rtl)`.
+`safari16.4`, `ios16.4`) only when the consumer has set neither `build.cssTarget` nor
+`build.target`. Both are respected, never overwritten: Vite derives `cssTarget` from an
+explicit `build.target`. The `es20xx` targets up to `es2024` map to Chrome versions below
+120 (`es2024` is `chrome119` in Vite 8's map), so they lower `:dir()`. The `config` hook's
+`user` argument includes the config of plugins listed before `apComponents()`, so a target
+one of those sets counts as the consumer's too.
+
+If the target is low enough that `:dir()` still gets lowered, `ap-components:rtl-check`,
+which scans the final minified CSS for the lowered `:lang(ae),:lang(ar)` shape, prints one
+warning per build environment. A React Router app builds two (client and SSR), so it prints
+two. Fix it by raising the target to `AP_CSS_TARGET` or newer. Gate 6 (`npm run test:ssr`)
+asserts the built fixture still serves `:dir(rtl)`, and is the backstop if the warning is
+missed. Storybook does not run the `apComponents()` preset; `storybook/.storybook/main.ts`
+imports `AP_CSS_TARGET` from `@ap/vite` and sets the same floor itself.
 
 The phase 5e and 5f plans noted that `:dir()` sits above the roughly 2022 floor in ADR-0016 and
 ADR-0017, and left it there as a caveat. It is now a stated requirement: for CSS, apComponents
