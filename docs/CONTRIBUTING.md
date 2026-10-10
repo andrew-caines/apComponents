@@ -27,6 +27,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run test:spa` | Gate 7 only: the same fixture built with `ssr: false` boots, and component CSS is still wired through the build |
 | `npm run test:stories` / `npm run test:a11y` | Gate 4/5: every story and its `play` function in headless Chromium, with axe running inside the same run. The two commands are aliases of each other |
 | `npm run report:contrast` | Writes `reports/contrast.md` (the WCAG compliance artifact) |
+| `npm run test:visual` | Gate 9: screenshots every story of the built Storybook (`npm --prefix storybook run build` first), light and dark, after its `play`, against the Linux baselines. On Windows and macOS every story test skips |
 | `npm run size` | Gate 10: brotli JS and CSS of every entry against `packages/react/size-budget.json`, plus the tree-shaking ratios; writes `reports/size.md`. `npm run size -- --seed` rewrites the budgets |
 | `npm run gen:scale-demo` | Recaptures `examples/scales/` screenshots and prints the measured size table |
 | `npm run gen:colour-demo` | Regenerates `examples/colours/index.html`, verifies it in both schemes, recaptures screenshots |
@@ -129,6 +130,81 @@ any change to what they show.
   point of the name: a step called `xxs` would pull an `ICON` counterpart along with it
   and put the two scales back in lockstep. An icon set beside fine print uses `md`
   (`1em`) and tracks it with no coordination at all.
+
+### Gate 9 — visual regression
+
+`npm run test:visual` serves the static Storybook (`storybook/storybook-static/`, so build
+it first) with `vite preview` on port 6007, and Playwright screenshots every story at
+1024×768 in a `light` and a `dark` project. The tests live in `storybook/visual/`. The
+story list is read from the build's `index.json`, so a new story is covered without being
+listed anywhere. The baselines are in `storybook/visual/__screenshots__/<project>/`.
+
+In CI it runs in the `storybook` job, on pull requests only, after the static build. It is
+**advisory** (ADR-0014): the step is `continue-on-error: true`, and a summary step writes
+passed, diffs, missing baselines, play errors, other failures and skips to the job
+summary. The actual, expected and diff images upload as the `visual-diffs` artifact.
+Pixel output is not stable enough across machines to block a merge on.
+
+**Baselines are Linux-only.** Windows and macOS rasterise type differently, so on those
+platforms every story test skips ("Baselines are Linux-only") and only the "the static
+build has stories" check runs. Never write baselines on a dev machine.
+
+**Why the shots are taken after `play`.** Each test waits for Storybook's render phase to
+reach `finished`, the resting phase after `play` and `afterEach`. The screenshot is the
+state the story's own test leaves behind: the open menu, the shown error, the toast. A
+`play` that throws still ends at `finished`, so the phase alone cannot reveal it. An init
+script traps the assignment of `window.__STORYBOOK_ADDONS_CHANNEL__` and records
+`playFunctionThrewException`, `storyErrored`, `storyThrewException` and any `errored`
+phase. A story with any of those fails as a play error, before its screenshot.
+
+**Why not reduced motion.** The plays are gate 4's tests and are written for full motion.
+Under `reducedMotion: 'reduce'`, Accordion `Motion` and Toast `Swipe` fail and Select
+`Default` flakes. So the browser runs with `'no-preference'`, and the screenshot itself
+uses `animations: 'disabled'`, which freezes the frame. Run-to-run noise was at most 5 px,
+so the tolerance is `maxDiffPixels: 10`.
+
+**Why the canvas is themed.** `storybook/.storybook/preview.css` paints the body with
+`--ap-color-bg-canvas` and `--ap-color-text-primary`. Without it, every dark screenshot is
+a dark component on a white page.
+
+**Opting a story out.** Add its id and a reason to `SKIP` in
+`storybook/visual/stories.spec.ts`. The reason is required (the map's values are
+strings), and it shows in the CI summary. Storybook 10.6's `index.json` carries no story
+`parameters`, so a `parameters.visual.skip` on the story could not be read without loading
+each story first. Today there is one opt-out: `components-select--native-label-warning`,
+which asserts a development-only console warning that the production build strips.
+
+**Regenerating baselines.** Run the **Visual baselines** workflow for your branch:
+
+```bash
+gh workflow run visual-baselines.yml -f branch=<branch>
+```
+
+It builds the Storybook on `ubuntu-latest` with the same Node as CI, runs
+`npm run test:visual -- --update-snapshots`, and commits any changed
+`storybook/visual/__screenshots__` to that branch. Review the image diff in the PR.
+When a PR's summary shows only missing baselines, it says so and names this workflow.
+
+**Optional: a local Linux run in Docker.** This is a convenience for looking at Linux
+shots before pushing. The workflow is the source of truth, and its output is what gets
+committed. Do not bind-mount the checkout read-write and run `npm ci` in it: that
+replaces your `node_modules` with Linux native binaries. Mount it read-only, copy the
+committed tree (`git archive HEAD`, so commit first) into the container, and copy the
+screenshots back out to the gitignored `storybook/test-results/`:
+
+```bash
+docker run --rm -v "$PWD":/src:ro -v "$PWD/storybook/test-results":/out \
+  mcr.microsoft.com/playwright:v1.62.1-noble bash -c '
+    git config --global --add safe.directory /src && mkdir /w &&
+    git -C /src archive HEAD | tar -x -C /w && cd /w && npm ci &&
+    npm --prefix storybook run build &&
+    { npm run test:visual -- --update-snapshots; status=$?; }
+    cp -r storybook/visual/__screenshots__ /out/
+    exit $status'
+```
+
+The shots land in `storybook/test-results/__screenshots__/`. The image tag must match the
+installed `@playwright/test` version.
 
 ### Gate 10 — bundle budget
 

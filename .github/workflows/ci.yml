@@ -112,6 +112,22 @@ jobs:
       - run: npm run test:stories
       - name: Build the static Storybook
         run: npm --prefix storybook run build
+      - name: Visual regression (gate 9, advisory)
+        if: github.event_name == 'pull_request'
+        # Advisory (ADR-0014). Baselines are committed by the Visual baselines workflow.
+        continue-on-error: true
+        run: npm run test:visual
+      - name: Summarise gate 9
+        if: always() && github.event_name == 'pull_request'
+        run: npx tsx storybook/visual/summary.ts
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'pull_request'
+        with:
+          name: visual-diffs
+          # playwright.config.ts puts both the JSON report and the per-test
+          # actual/expected/diff images under storybook/test-results/.
+          path: storybook/test-results/
+          if-no-files-found: ignore
 
   size:
     name: Bundle budget (gate 10, advisory)

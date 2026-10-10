@@ -18,6 +18,7 @@
     ".storybook/**/*",
     "docs/**/*",
     "support/**/*",
+    "visual/**/*",
     "../packages/react/src/**/*.stories.ts",
     "../packages/react/src/**/*.stories.tsx"
   ]

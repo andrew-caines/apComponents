@@ -1,0 +1,39 @@
+name: Visual baselines
+
+# Gate 9 baselines are Linux-only (spec §6.2): Windows rasterises type differently,
+# so they are made here and committed, never on a dev machine.
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to generate baselines for and commit to
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  baselines:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: actions/setup-node@v4
+        with:
+          # Must equal NODE_VERSION in ci.yml, so the baselines come from the same
+          # toolchain that compares against them.
+          node-version: '22.22.0'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm --prefix storybook run build
+      - run: npm run test:visual -- --update-snapshots
+      - name: Commit baselines
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add storybook/visual/__screenshots__
+          if git diff --cached --quiet; then echo 'Baselines unchanged.'; exit 0; fi
+          git commit -m "chore(visual): regenerate gate 9 baselines"
+          git push

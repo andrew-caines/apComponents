@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "storybook dev -p 6006 --no-open",
     "build": "storybook build -o storybook-static",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:visual": "playwright test -c visual/playwright.config.ts"
   },
   "dependencies": {
     "@ap/react": "file:../packages/react"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }
