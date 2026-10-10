@@ -16,7 +16,7 @@ export type { CssTextOptions } from './emit/cssText.js'
 export type { Ramp, RampStep } from './colour/ramp.js'
 
 /** Placeholder default brand until the seed decision (design doc §9.1). */
-export const DEFAULT_BRAND = '#2e5fd9'
+export const DEFAULT_BRAND = '#d92e8a'
 export {
   contrastPairings,
   renderContrastReport,
