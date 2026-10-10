@@ -50,6 +50,64 @@ function directCallsDuringRender(hook: ts.Node, names: Set<string>): string[] {
   return hits
 }
 
+// Wider than directCallsDuringRender: any reference to a read helper in a hook
+// body, outside a nested arrow or function expression, counts. That catches
+// an alias (`const read = readRaw`), `readRaw.call(...)` and `(0, readRaw)(...)`,
+// which a call-only check misses. Not references to the binding: the property
+// name in `x.readRaw`, and an import specifier.
+function referencesDuringRender(hook: ts.Node, names: Set<string>): string[] {
+  const hits: string[] = []
+  const visit = (node: ts.Node) => {
+    if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) return
+    if (ts.isImportSpecifier(node)) return
+    if (ts.isIdentifier(node) && names.has(node.text)) {
+      const { parent } = node
+      const isPropertyName = parent !== undefined && ts.isPropertyAccessExpression(parent) && parent.name === node
+      if (!isPropertyName) hits.push(node.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  ts.forEachChild(hook, visit)
+  return hits
+}
+
+describe('referencesDuringRender (self-test)', () => {
+  const hookIn = (code: string) => {
+    const sf = ts.createSourceFile('synthetic.ts', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+    let found: ts.FunctionDeclaration | undefined
+    ts.forEachChild(sf, (node) => {
+      if (ts.isFunctionDeclaration(node) && node.name?.text === 'useX') found = node
+    })
+    if (!found) throw new Error('self-test: no useX in the synthetic source')
+    return found
+  }
+  const NAMES = new Set(['readRaw'])
+
+  it('the reference check flags aliases and indirect calls', () => {
+    const flagged = [
+      "function useX() { const read = readRaw; return read('local', 'k') }",
+      "function useX() { return readRaw.call(null, 'local', 'k') }",
+      "function useX() { return (0, readRaw)('local', 'k') }",
+      "function useX() { return readRaw('local', 'k') }",
+    ]
+    // One assertion over every case, so a regression names each case it misses.
+    // Fails if the walker goes back to recording only direct calls.
+    const hits = Object.fromEntries(flagged.map((code) => [code, referencesDuringRender(hookIn(code), NAMES)]))
+    expect(hits).toEqual(Object.fromEntries(flagged.map((code) => [code, ['readRaw']])))
+  })
+
+  it('does not flag a reference inside a nested callback, or a property name', () => {
+    const clean = [
+      "function useX() { return useSyncExternalStore(s, () => readRaw('local', 'k')) }",
+      'function useX() { return x.readRaw }',
+    ]
+    for (const code of clean) {
+      // Fails if the walker descends into nested arrows or counts `x.readRaw`.
+      expect(referencesDuringRender(hookIn(code), NAMES), code).toEqual([])
+    }
+  })
+})
+
 describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
   const files = runtimeSources(SRC)
 
@@ -295,11 +353,12 @@ describe('gate: runtime source is SSR-safe (ADR-0005)', () => {
       }
     })
 
-    it('no hook body calls readRaw or getArea during render', () => {
+    it('no hook body references readRaw or getArea during render', () => {
       const sf = sourceFile()
       for (const name of ['useStorageValue', 'useLocalStorage', 'useSessionStorage']) {
         const hook = requireFunction(sf, name)
-        expect(directCallsDuringRender(hook, new Set(['readRaw', 'getArea'])), name).toEqual([])
+        // Any reference counts, so an alias or `.call` cannot slip a read into render.
+        expect(referencesDuringRender(hook, new Set(['readRaw', 'getArea'])), name).toEqual([])
       }
     })
   })

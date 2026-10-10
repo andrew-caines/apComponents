@@ -59,6 +59,16 @@ describe('toPromiseOptions', () => {
     expect(out.success).toMatchObject({ title: 'Saved', type: 'success' })
   })
 
+  it('drops an explicit undefined description from the loading branch', () => {
+    const out = toPromiseOptions({
+      loading: { title: 'Saving', description: undefined },
+      success: 'Saved',
+      error: 'Failed',
+    })
+    // Fails if the loading branch passes its rest through, key and all, to Base UI.
+    expect(Object.keys(out.loading as object)).toEqual(['title'])
+  })
+
   it('forces the error branch to priority high and timeout 0 for a string', () => {
     const out = toPromiseOptions({ loading: 'a', success: 'b', error: 'Failed' })
     expect(out.error).toMatchObject({ title: 'Failed', type: 'error', priority: 'high', timeout: 0 })

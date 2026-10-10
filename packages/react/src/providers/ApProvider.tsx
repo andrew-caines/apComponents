@@ -13,7 +13,7 @@ export interface ApProviderProps
     Omit<LocaleProviderProps, 'children'> {
   icons?: IconOverrides
   /** Where toasts dock. Defaults to `bottom-end`. */
-  notifications?: { placement?: ToastPlacement }
+  notifications?: { placement?: ToastPlacement | undefined } | undefined
   children: ReactNode
 }
 

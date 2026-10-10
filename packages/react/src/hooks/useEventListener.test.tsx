@@ -112,4 +112,25 @@ describe('useEventListener', () => {
     other.dispatchEvent(new Event('ping'))
     expect(h).toHaveBeenCalledTimes(1)
   })
+
+  // Type test. `npm run typecheck` is the assertion: the handler's event is
+  // narrowed by the event name. If the handler goes back to `(event: Event)`,
+  // `e.key` on 'keydown' stops compiling and the `@ts-expect-error` below
+  // becomes an unused directive, so typecheck fails on these lines. Same
+  // mechanism as Select.test.tsx.
+  it('types the handler event from the event name', () => {
+    const seen: string[] = []
+    function Typed() {
+      useEventListener(window, 'keydown', (e) => seen.push(e.key)) // compiles: KeyboardEvent
+      useEventListener(document, 'visibilitychange', (e) => seen.push(e.type)) // compiles: Event
+      useEventListener(window, 'my-custom', (e) => seen.push(e.type)) // compiles: Event fallback
+      // @ts-expect-error a click is a MouseEvent, which has no `key`
+      useEventListener(window, 'click', (e) => e.key)
+      return null
+    }
+    render(<Typed />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent(window, new Event('my-custom'))
+    expect(seen).toEqual(['Escape', 'my-custom'])
+  })
 })

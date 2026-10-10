@@ -25,11 +25,8 @@ import {
 import type {
   DateFormatOptions,
   DateInput,
-  DurationOptions,
   NumberFormatOptions,
-  PersonName,
   PluralForms,
-  PostalAddress,
   RelativeOptions,
 } from '../format/index.js'
 import { useLocale } from '../providers/LocaleProvider.js'
@@ -41,10 +38,20 @@ type Bound<F> = F extends (value: infer V, options: infer O) => string
   : never
 
 // Drops keys whose value is undefined, so an explicit `{ timeZone: undefined }`
-// falls back to the bound default instead of overwriting it.
-type Defined<O> = { [K in keyof O]: Exclude<O[K], undefined> }
+// falls back to the bound default instead of overwriting it. Every key comes
+// back optional, and `O[K] & ({} | null)` is what `!== undefined` narrows a
+// value to, so the loop needs no cast. A caller re-adds a required key
+// (`now`, `length`) after the spread.
+type Defined<O> = { [K in keyof O]?: O[K] & ({} | null) }
 function defined<O extends object>(options: O | undefined): Defined<O> {
-  return Object.fromEntries(Object.entries(options ?? {}).filter(([, value]) => value !== undefined)) as Defined<O>
+  const out: Defined<O> = {}
+  if (options === undefined) return out
+  for (const key in options) {
+    if (!Object.hasOwn(options, key)) continue
+    const value = options[key]
+    if (value !== undefined) out[key] = value
+  }
+  return out
 }
 
 export interface Formatter {
@@ -116,8 +123,8 @@ export function useFormatter(): Formatter {
       formatTime: (v, o) => formatTime(v, { ...Z, ...defined(o) }),
       formatDateTime: (v, o) => formatDateTime(v, { ...Z, ...defined(o) }),
       formatDateRange: (a, b, o) => formatDateRange(a, b, { ...Z, ...defined(o) }),
-      formatRelative: (v, o) => formatRelative(v, { ...L, ...defined(o) }),
-      formatDuration: (v, o) => formatDuration(v, { ...L, ...defined(o) } as DurationOptions),
+      formatRelative: (v, o) => formatRelative(v, { ...L, ...defined(o), now: o.now }),
+      formatDuration: (v, o) => formatDuration(v, { ...L, ...defined(o) }),
       formatNumber: (v, o) => formatNumber(v, { ...L, ...defined(o) }),
       formatCurrency: (v, o) => formatCurrency(v, { ...L, currency, ...defined(o) }),
       formatPercent: (v, o) => formatPercent(v, { ...L, ...defined(o) }),
@@ -125,11 +132,11 @@ export function useFormatter(): Formatter {
       formatCompact: (v, o) => formatCompact(v, { ...L, ...defined(o) }),
       formatOrdinal: (v, o) => formatOrdinal(v, { ...L, ...defined(o) }),
       formatBytes: (v, o) => formatBytes(v, { ...L, ...defined(o) }),
-      formatName: (v, o) => formatName(v as PersonName | null | undefined, { ...L, ...defined(o) }),
+      formatName: (v, o) => formatName(v, { ...L, ...defined(o) }),
       formatList: (v, o) => formatList(v, { ...L, ...defined(o) }),
-      formatAddress: (v, o) => formatAddress(v as PostalAddress | null | undefined, { ...L, ...defined(o) }),
+      formatAddress: (v, o) => formatAddress(v, { ...L, ...defined(o) }),
       pluralize: (n, forms, o) => pluralize(n, forms, { ...L, ...defined(o) }),
-      truncate: (t, o) => truncate(t, { ...L, ...defined(o) }),
+      truncate: (t, o) => truncate(t, { ...L, ...defined(o), length: o.length }),
       collator: (o) => collator(locale, o),
       isoFor: (v) => {
         const ms = v instanceof Date ? v.getTime() : new Date(v).getTime()

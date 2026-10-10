@@ -44,11 +44,10 @@ function toUpdate(value: Resolved, branch: Branch): UpdateOptions {
   const base = typeof value === 'string' ? { title: value } : value
   if (branch === 'loading') {
     // Base UI owns the loading toast's type, and it never times out.
-    const { severity: _severity, timeout: _timeout, action: _action, ...rest } = base as Omit<
-      ToastOptions,
-      'id'
-    >
-    return rest
+    // Each key is spread only when set, as in toBaseToast: an explicit
+    // `undefined` never reaches Base UI's update.
+    const { title, description } = base as Omit<ToastOptions, 'id'>
+    return { title, ...(description !== undefined ? { description } : {}) }
   }
   // The error branch is forced through severity 'error', whatever the caller gave.
   const severity = branch === 'error' ? 'error' : ((base as Omit<ToastOptions, 'id'>).severity ?? 'success')

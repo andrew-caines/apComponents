@@ -15,7 +15,7 @@ import type { DialogRequest } from './types.js'
 
 export interface NotificationProviderProps {
   /** Where toasts dock. Defaults to `bottom-end`. */
-  placement?: ToastPlacement
+  placement?: ToastPlacement | undefined
   children: ReactNode
 }
 

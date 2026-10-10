@@ -10,14 +10,14 @@ export interface NotificationAction {
 
 export interface ToastOptions {
   title: string
-  description?: string
+  description?: string | undefined
   /** Defaults to 'info'. */
-  severity?: NotificationSeverity
-  action?: NotificationAction
+  severity?: NotificationSeverity | undefined
+  action?: NotificationAction | undefined
   /** Adding with an existing id updates that toast in place. */
-  id?: string
+  id?: string | undefined
   /** Milliseconds before auto-dismiss. Ignored when severity is 'error'. */
-  timeout?: number
+  timeout?: number | undefined
 }
 
 export type ToastPromiseOption<T> =
@@ -33,25 +33,25 @@ export interface ToastPromiseOptions<T> {
 
 export interface BannerOptions {
   title: string
-  description?: string
-  severity?: NotificationSeverity
-  action?: NotificationAction
-  id?: string
-  dismissible?: boolean
+  description?: string | undefined
+  severity?: NotificationSeverity | undefined
+  action?: NotificationAction | undefined
+  id?: string | undefined
+  dismissible?: boolean | undefined
 }
 
 export interface ConfirmOptions {
   title: string
-  description?: string
-  confirmLabel?: string
-  cancelLabel?: string
-  tone?: 'default' | 'danger'
+  description?: string | undefined
+  confirmLabel?: string | undefined
+  cancelLabel?: string | undefined
+  tone?: 'default' | 'danger' | undefined
 }
 
 export interface AlertOptions {
   title: string
-  description?: string
-  okLabel?: string
+  description?: string | undefined
+  okLabel?: string | undefined
 }
 
 export type DialogRequest =
@@ -59,5 +59,5 @@ export type DialogRequest =
   | { type: 'alert'; id: string; options: AlertOptions; resolve: () => void }
 
 export interface AnnounceOptions {
-  politeness?: 'polite' | 'assertive'
+  politeness?: 'polite' | 'assertive' | undefined
 }
