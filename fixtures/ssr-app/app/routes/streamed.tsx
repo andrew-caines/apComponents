@@ -42,11 +42,6 @@ export default function Streamed({ loaderData }: { loaderData: { slow: Promise<s
     // be testing the provider rather than the streaming. `Select` throws
     // without one, and the provider itself is not what this route is about.
     <LocaleProvider>
-    // `LocaleProvider` sits OUTSIDE the Suspense boundary, for the reason the
-    // comment inside the boundary gives about Dialog: a provider inside would
-    // be testing the provider rather than the streaming. `Select` throws
-    // without one, and the provider itself is not what this route is about.
-    <LocaleProvider>
       <main>
         <h1>streamed</h1>
         <Suspense fallback={<p>loading…</p>}>
@@ -105,7 +100,6 @@ export default function Streamed({ loaderData }: { loaderData: { slow: Promise<s
           </Await>
         </Suspense>
       </main>
-    </LocaleProvider>
     </LocaleProvider>
   )
 }
