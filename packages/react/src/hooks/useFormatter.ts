@@ -123,7 +123,7 @@ export function useFormatter(): Formatter {
       formatTime: (v, o) => formatTime(v, { ...Z, ...defined(o) }),
       formatDateTime: (v, o) => formatDateTime(v, { ...Z, ...defined(o) }),
       formatDateRange: (a, b, o) => formatDateRange(a, b, { ...Z, ...defined(o) }),
-      formatRelative: (v, o) => formatRelative(v, { ...L, ...defined(o), now: o.now }),
+      formatRelative: (v, o) => formatRelative(v, { ...L, ...defined(o), now: o?.now }),
       formatDuration: (v, o) => formatDuration(v, { ...L, ...defined(o) }),
       formatNumber: (v, o) => formatNumber(v, { ...L, ...defined(o) }),
       formatCurrency: (v, o) => formatCurrency(v, { ...L, currency, ...defined(o) }),
@@ -136,7 +136,7 @@ export function useFormatter(): Formatter {
       formatList: (v, o) => formatList(v, { ...L, ...defined(o) }),
       formatAddress: (v, o) => formatAddress(v, { ...L, ...defined(o) }),
       pluralize: (n, forms, o) => pluralize(n, forms, { ...L, ...defined(o) }),
-      truncate: (t, o) => truncate(t, { ...L, ...defined(o), length: o.length }),
+      truncate: (t, o) => truncate(t, { ...L, ...defined(o), length: o?.length }),
       collator: (o) => collator(locale, o),
       isoFor: (v) => {
         const ms = v instanceof Date ? v.getTime() : new Date(v).getTime()

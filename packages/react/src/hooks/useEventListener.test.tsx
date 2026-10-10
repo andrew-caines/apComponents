@@ -114,10 +114,12 @@ describe('useEventListener', () => {
   })
 
   // Type test. `npm run typecheck` is the assertion: the handler's event is
-  // narrowed by the event name. If the handler goes back to `(event: Event)`,
-  // `e.key` on 'keydown' stops compiling and the `@ts-expect-error` below
-  // becomes an unused directive, so typecheck fails on these lines. Same
-  // mechanism as Select.test.tsx.
+  // narrowed by the event name. Two perturbations, each caught by one line:
+  // - the handler goes back to `(event: Event)`: `e.key` on the 'keydown' line
+  //   stops compiling (TS2339);
+  // - the handler loosens to `(event: any)`: the 'click' line compiles, so its
+  //   `@ts-expect-error` becomes an unused directive (TS2578).
+  // Same mechanism as Select.test.tsx.
   it('types the handler event from the event name', () => {
     const seen: string[] = []
     function Typed() {

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { evaluate, renderTable, seedBudgets } from './budget.js'
+import { evaluate, parseBudgets, renderTable, seedBudgets } from './budget.js'
 import type { Budgets, Measured } from './budget.js'
 
 const index: Measured = { js: 1000, css: 100 }
@@ -107,5 +107,34 @@ describe('renderTable', () => {
       '| import:B | 401 | 31 | 400 | 30 | 40.1% | 31.0% | FAIL: js 401 > budget 400; css 31 > budget 30 |',
     )
     expect(lines).toHaveLength(4)
+  })
+})
+
+describe('parseBudgets', () => {
+  // Fails if a well-formed budget file is rejected or reshaped.
+  it('accepts { [check]: { js, css } } and returns it', () => {
+    const raw = { index: { js: 1000, css: 100 }, 'import:A': { js: 0, css: 0 } }
+    expect(parseBudgets(raw)).toEqual(raw)
+  })
+
+  // Fails if the top-level shape is not checked: an array or null would
+  // otherwise read as "no budget" for every check.
+  it.each([null, [], 'x', 3])('rejects a top level of %j', (raw) => {
+    expect(() => parseBudgets(raw)).toThrow(/size-budget\.json must be an object/)
+  })
+
+  // Fails if an entry is not checked to be an object.
+  it('rejects an entry that is not an object, naming it', () => {
+    expect(() => parseBudgets({ index: 1000 })).toThrow('"index" must be { js: number, css: number }')
+  })
+
+  // Fails if js or css is not checked to be a finite number: a string or a
+  // missing key compares as false against every size and passes silently.
+  it.each([
+    [{ index: { js: '1000', css: 100 } }, '"index".js must be a finite number, got "1000"'],
+    [{ index: { js: 1000 } }, '"index".css must be a finite number, got undefined'],
+    [{ index: { js: 1000, css: null } }, '"index".css must be a finite number, got null'],
+  ])('rejects a bad number in %j', (raw, message) => {
+    expect(() => parseBudgets(raw)).toThrow(message)
   })
 })

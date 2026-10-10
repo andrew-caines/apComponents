@@ -1,6 +1,7 @@
-// CI check: fails when a fixture's or the showcase's package-lock.json lists
-// different dependencies for a local package than that package's own
-// package.json does.
+// CI check: fails when the root's, a fixture's or the showcase's package-lock.json lists
+// different dependencies for a local package (a workspace or a `file:` link) than that
+// package's own package.json does. '.' is the root lockfile, which installs
+// packages/* and storybook.
 // Run: npm run check:lockfiles   — fix with `npm --prefix <dir> install` and commit.
 //
 // It compares lockfile entries with package.json declarations, not lockfile
@@ -11,17 +12,28 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const DIRS = ['fixtures/consumer', 'fixtures/ssr-app', 'showcase']
-const FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const
+const DIRS = ['.', 'fixtures/consumer', 'fixtures/ssr-app', 'showcase']
+const FIELDS = [
+  'dependencies',
+  'devDependencies',
+  'peerDependencies',
+  'peerDependenciesMeta',
+  'optionalDependencies',
+] as const
 
-type Deps = Record<string, string>
+// A version range, or for peerDependenciesMeta an object such as { optional: true }.
+type Deps = Record<string, unknown>
 type Entry = Partial<Record<(typeof FIELDS)[number], Deps>>
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'))
-const same = (a: Deps = {}, b: Deps = {}): boolean => {
-  const keys = Object.keys(a)
-  return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k])
-}
+// Key order is not meaningful, so objects are compared with their keys sorted.
+const canon = (v: unknown): string =>
+  JSON.stringify(v, (_, x) =>
+    x && typeof x === 'object' && !Array.isArray(x)
+      ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b)))
+      : x,
+  )
+const same = (a: Deps = {}, b: Deps = {}): boolean => canon(a) === canon(b)
 
 const problems: string[] = []
 for (const dir of DIRS) {

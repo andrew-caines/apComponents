@@ -6,7 +6,7 @@
 //      npm run size -- --seed  — rewrites the budget file from this run (+10%)
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { evaluate, renderTable, seedBudgets } from './size/budget.js'
+import { evaluate, parseBudgets, renderTable, seedBudgets } from './size/budget.js'
 import type { Budgets, Measured } from './size/budget.js'
 import { ROOT, checkExports, checks, componentDirs, measure } from './size/measure.js'
 
@@ -14,17 +14,37 @@ const BUDGET_FILE = join(ROOT, 'packages/react/size-budget.json')
 const REPORT_FILE = join(ROOT, 'reports/size.md')
 const seed = process.argv.includes('--seed')
 
+// A failure before the table (a bad export, a build that throws, a malformed budget
+// file) still reaches the CI log as an annotation and the job summary.
+function fail(error: unknown): never {
+  // Vite's build errors carry ANSI colour codes; strip them for the log and the summary.
+  const message = (error instanceof Error ? error.message : String(error)).replace(/\x1b\[[0-9;]*m/g, '')
+  // A workflow command is one line; GitHub decodes %0A back to a newline.
+  console.log(`::error::${message.replaceAll('\n', '%0A')}`)
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    const fence = '```'
+    appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      `## Bundle budget (gate 10)\n\n**Error:**\n\n${fence}\n${message}\n${fence}\n`,
+    )
+  }
+  process.exit(1)
+}
+
 const dirs = componentDirs()
 try {
   checkExports(dirs)
 } catch (e) {
-  console.error(e instanceof Error ? e.message : e)
-  process.exit(1)
+  fail(e)
 }
 
 const measured: Record<string, Measured> = {}
 for (const [check, entry] of Object.entries(checks(dirs))) {
-  measured[check] = await measure(entry)
+  try {
+    measured[check] = await measure(entry)
+  } catch (e) {
+    fail(new Error(`building ${check} failed: ${e instanceof Error ? e.message : String(e)}`))
+  }
   console.log(`measured ${check}: js ${measured[check].js}, css ${measured[check].css}`)
 }
 
@@ -36,7 +56,12 @@ if (seed) {
   process.exit(0)
 }
 
-const budgets = JSON.parse(readFileSync(BUDGET_FILE, 'utf8')) as Budgets
+let budgets: Budgets = {}
+try {
+  budgets = parseBudgets(JSON.parse(readFileSync(BUDGET_FILE, 'utf8')))
+} catch (e) {
+  fail(e)
+}
 const rows = evaluate(measured, budgets)
 const table = `## Bundle budget (gate 10)\n\nBrotli bytes, quality 11.\n\n${renderTable(rows)}`
 mkdirSync(join(ROOT, 'reports'), { recursive: true })

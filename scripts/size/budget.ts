@@ -85,3 +85,29 @@ export function seedBudgets(measured: Record<string, Measured>): Budgets {
     Object.entries(measured).map(([check, { js, css }]) => [check, { js: seed(js), css: seed(css) }]),
   )
 }
+
+/**
+ * Shape-checks the parsed budget file as `{ [check]: { js: number, css: number } }`.
+ * Throws an Error naming the first bad entry, so a hand edit that breaks the file
+ * fails with a message rather than as NaN comparisons that pass.
+ */
+export function parseBudgets(raw: unknown): Budgets {
+  const where = 'packages/react/size-budget.json'
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error(`${where} must be an object of { js, css } entries`)
+  }
+  const out: Budgets = {}
+  for (const [check, entry] of Object.entries(raw)) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      throw new Error(`${where}: "${check}" must be { js: number, css: number }`)
+    }
+    const { js, css } = entry as Record<string, unknown>
+    for (const [key, value] of [['js', js], ['css', css]] as const) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error(`${where}: "${check}".${key} must be a finite number, got ${JSON.stringify(value)}`)
+      }
+    }
+    out[check] = { js: js as number, css: css as number }
+  }
+  return out
+}

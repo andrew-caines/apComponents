@@ -13,6 +13,7 @@
     "@ap/react": "file:../packages/react"
   },
   "devDependencies": {
+    "@ap/vite": "file:../packages/vite",
     "@playwright/test": "^1.62.1"
   }
 }

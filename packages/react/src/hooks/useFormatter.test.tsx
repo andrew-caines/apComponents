@@ -66,6 +66,17 @@ describe('useFormatter inside a provider', () => {
     expect(f().formatRelative(V - 3 * 3600_000, { now: V })).toBe('vor 3 Stunden')
   })
 
+  // Spec §5.5.2: bad input returns '', never throws. Fails if the bound
+  // formatRelative or truncate reads `o.now` / `o.length` without `?.`: an
+  // untyped caller omitting the options then gets a TypeError.
+  it('an untyped call with no options reaches the guard and returns an empty string', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    render(wrap(<Capture />))
+    const loose = f() as any
+    expect(loose.formatRelative(V)).toBe('')
+    expect(loose.truncate('hello')).toBe('')
+  })
+
   it('is referentially stable across a re-render with the same provider values', () => {
     const { rerender } = render(wrap(<Capture />))
     const first = f()
