@@ -54,6 +54,11 @@ export function formatDate(value: DateInput | null | undefined, options: DateFor
   })
 }
 
+/**
+ * Formats the time of day. Passing only `timeZoneName` switches off the time default,
+ * so `Intl` fills in its default date fields. To get a time with a zone name, pass
+ * `hour` and `minute` too.
+ */
 export function formatTime(value: DateInput | null | undefined, options: DateFormatOptions): string {
   const ts = toTimestamp(value)
   return guard('formatTime', value, ts === undefined, () => {

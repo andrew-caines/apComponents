@@ -41,6 +41,22 @@ describe('maskPhone', () => {
   })
 })
 
+describe('maskPhone extensions', () => {
+  it.each([
+    ['+1 (555) 123-4567 ext. 89', '+* (***) ***-4567 ext. **'],
+    ['+1 555 123 4567 x1234', '+* *** *** 4567 x****'],
+    ['+1 555 123 4567x12', '+* *** *** 4567x**'],
+    ['tel:+1-555-123-4567;ext=12', 'tel:+*-***-***-4567;ext=**'],
+    ['020 7946 0958 #5', '*** **** 0958 #*'],
+    ['020 7946 0958 EXT 7', '*** **** 0958 EXT *'],
+    // Full-width 1 and 2 after the marker.
+    ['+1 555 123 4567 x\uff11\uff12', '+* *** *** 4567 x**'],
+    ['+1 (555) 123-4567', '+* (***) ***-4567'],
+  ])('masks %j as %j', (input, expected) => {
+    expect(maskPhone(input)).toBe(expected)
+  })
+})
+
 describe('maskCardNumber', () => {
   it('keeps the last four digits', () => {
     expect(maskCardNumber('4111 1111 1111 1111')).toBe('**** **** **** 1111')

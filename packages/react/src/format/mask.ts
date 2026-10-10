@@ -36,11 +36,23 @@ export function maskEmail(value: string | null | undefined): string {
   })
 }
 
-/** Keeps the last four digits; separators, spaces, '+' and parentheses pass through. */
+// An extension is a marker (`;ext=`, `ext`, `ext.`, `x` or `#`, any case) followed by
+// digits at the very end. The leftmost possible marker wins, so `;ext=` is taken
+// whole rather than matching its `x`.
+const EXTENSION = /(;ext=|\s*(?:ext\.?|x|#)\s*)(\p{Nd}+)$/iu
+
+/**
+ * Keeps the last four digits of the main number; separators, spaces, '+' and
+ * parentheses pass through. An extension is masked in full and never counts
+ * toward the four.
+ */
 export function maskPhone(value: string | null | undefined): string {
-  return guard('maskPhone', value, typeof value !== 'string' || value === '', () =>
-    maskKeepingLast(value!, 4, isDigit),
-  )
+  return guard('maskPhone', value, typeof value !== 'string' || value === '', () => {
+    const match = EXTENSION.exec(value!)
+    if (!match) return maskKeepingLast(value!, 4, isDigit)
+    const main = value!.slice(0, match.index)
+    return maskKeepingLast(main, 4, isDigit) + match[1] + '*'.repeat(Array.from(match[2]!).length)
+  })
 }
 
 /** Keeps the last four digits; spaces and dashes pass through. */

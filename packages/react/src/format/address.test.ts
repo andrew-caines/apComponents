@@ -52,6 +52,88 @@ describe('formatAddress', () => {
     ).toBe('10 Downing St\nLondon\nSW1A 2AA\nUnited Kingdom')
   })
 
+  // The AU expectation equals the generic fallback, so deleting AU's entry cannot fail it.
+  // It pins the output, not the entry.
+  it('keeps the AU city line without commas', () => {
+    expect(
+      formatAddress(
+        { lines: ['1 George St'], locality: 'Sydney', region: 'NSW', postalCode: '2000', country: 'AU' },
+        { locale: 'en-US' },
+      ),
+    ).toBe('1 George St\nSydney NSW 2000\nAustralia')
+  })
+
+  it('drops the region for NZ', () => {
+    expect(
+      formatAddress(
+        { lines: ['1 Queen St'], locality: 'Auckland', region: 'Auckland', postalCode: '1010', country: 'NZ' },
+        { locale: 'en-US' },
+      ),
+    ).toBe('1 Queen St\nAuckland 1010\nNew Zealand')
+  })
+
+  it('stacks IE locality, region and postal code', () => {
+    expect(
+      formatAddress(
+        { lines: ['1 Grafton St'], locality: 'Dublin', region: 'Co. Dublin', postalCode: 'D02 X285', country: 'IE' },
+        { locale: 'en-US' },
+      ),
+    ).toBe('1 Grafton St\nDublin\nCo. Dublin\nD02 X285\nIreland')
+  })
+
+  it('puts the IN region after the postal line', () => {
+    expect(
+      formatAddress(
+        { lines: ['1 MG Road'], locality: 'Bengaluru', region: 'Karnataka', postalCode: '560001', country: 'IN' },
+        { locale: 'en-US' },
+      ),
+    ).toBe('1 MG Road\nBengaluru 560001\nKarnataka\nIndia')
+  })
+
+  it('writes the SG postal code after the locality', () => {
+    expect(
+      formatAddress(
+        { lines: ['1 Raffles Place'], locality: 'Singapore', postalCode: '048616', country: 'SG' },
+        { locale: 'en-US' },
+      ),
+    ).toBe('1 Raffles Place\nSingapore 048616\nSingapore')
+  })
+
+  it('puts the NL postal code first', () => {
+    expect(
+      formatAddress(
+        { lines: ['Damrak 1'], locality: 'Amsterdam', postalCode: '1012 LG', country: 'NL' },
+        { locale: 'en-US' },
+      ),
+    ).toBe('Damrak 1\n1012 LG Amsterdam\nNetherlands')
+  })
+
+  const CA = { lines: ['1 Yonge St'], locality: 'Toronto', region: 'ON', postalCode: 'M5E 1W7', country: 'CA' }
+
+  it('formats CA like US', () => {
+    expect(formatAddress(CA, { locale: 'en-US' })).toBe('1 Yonge St\nToronto, ON M5E 1W7\nCanada')
+  })
+
+  it('omits the country line for a CA address read in en-CA', () => {
+    expect(formatAddress(CA, { locale: 'en-CA' })).toBe('1 Yonge St\nToronto, ON M5E 1W7')
+  })
+
+  it('joins a Japanese address on one line in single form', () => {
+    expect(
+      formatAddress(
+        {
+          name: '\u5c71\u7530\u592a\u90ce',
+          lines: ['1-2-3'],
+          locality: '\u5343\u4ee3\u7530\u533a',
+          region: '\u6771\u4eac\u90fd',
+          postalCode: '100-0001',
+          country: 'JP',
+        },
+        { locale: 'ja-JP', form: 'single' },
+      ),
+    ).toBe('\u3012100-0001, \u6771\u4eac\u90fd\u5343\u4ee3\u7530\u533a, 1-2-3, \u5c71\u7530\u592a\u90ce')
+  })
+
   it('writes Japanese addresses largest to smallest', () => {
     expect(
       formatAddress(
