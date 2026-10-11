@@ -1,0 +1,137 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks'
+import { extractRegion } from './lib/extractRegion'
+import ssrVite from '../../fixtures/ssr-app/vite.config.ts?raw'
+import rootTsx from '../../fixtures/ssr-app/app/root.tsx?raw'
+import startTsx from '../../fixtures/ssr-app/app/routes/start.tsx?raw'
+import spaVite from '../../fixtures/consumer/vite.config.ts?raw'
+import consumerPkg from '../../fixtures/consumer/package.json?raw'
+import './docs.css'
+
+<Meta title="Guides/Getting started" />
+
+# Getting started
+
+apComponents is a React component library with a build-time theme: the
+colour tokens, fonts and motion live in plain stylesheets, so a page paints
+correctly from the server response before any JavaScript runs. You vendor it
+into your app as a git submodule, add one Vite plugin, load three stylesheets,
+and wrap your tree in one provider. This page takes you from nothing to a
+rendered, accessible form, and every code sample on it is quoted from a
+fixture app that the library's own test gates build and run.
+
+## What you get
+
+Four packages ship from the one repository.
+
+<table>
+  <thead>
+    <tr>
+      <th>Package</th>
+      <th>What it is</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code className="mono">@ap/react</code></td>
+      <td>The components and providers, hooks at <code className="mono">@ap/react/hooks</code>, and formatters at <code className="mono">@ap/react/format</code>.</td>
+    </tr>
+    <tr>
+      <td><code className="mono">@ap/tokens</code></td>
+      <td>The colour engine and <code className="mono">generateTheme</code>.</td>
+    </tr>
+    <tr>
+      <td><code className="mono">@ap/vite</code></td>
+      <td>The build preset: one plugin that configures Vite for the other three.</td>
+    </tr>
+    <tr>
+      <td><code className="mono">@ap/motion</code></td>
+      <td>The motion tokens. They are already inside <code className="mono">@ap/react</code>'s CSS, so you rarely import them yourself.</td>
+    </tr>
+  </tbody>
+</table>
+
+## Add the submodule
+
+Add the repository to your app as a submodule.
+
+```sh
+git submodule add https://github.com/andrew-caines/apComponents vendor/apComponents
+```
+
+Then depend on the two packages you use directly through `file:` paths. The
+paths are relative to your app's `package.json`, so adjust them to wherever
+you placed the submodule.
+
+<Source
+  language="json"
+  code={JSON.stringify({ dependencies: { '@ap/react': JSON.parse(consumerPkg).dependencies['@ap/react'] }, devDependencies: { '@ap/vite': JSON.parse(consumerPkg).devDependencies['@ap/vite'] } }, null, 2)}
+/>
+
+## Wire Vite
+
+Add the plugin to your `vite.config.ts`'s `plugins`.
+
+<Source
+  language="ts"
+  code={`import { apComponents } from '@ap/vite'\n\nexport default defineConfig({\n  ${extractRegion(ssrVite, 'vite')}\n})`}
+/>
+
+`apComponents()` sets three things:
+
+- **vanilla-extract**, which the components' styles are written in.
+- **`ssr.noExternal` for the `@ap/*` packages only.** Their source is compiled by your build rather than loaded as-is, so an SSR build runs the style transform over it.
+- **`build.cssTarget`** set to `AP_CSS_TARGET` (Chrome and Edge 120, Firefox 114, Safari 16.4), so the minifier does not rewrite `:dir()` into `:lang()` and break right-to-left styling. It does this only if you set neither `build.target` nor `build.cssTarget`; if you set either, your value wins.
+
+> **SSR apps that consume through a `file:` path.** When an SSR app consumes
+> `@ap/react` through a `file:` path into the submodule, two `node_modules`
+> trees are in play, and Base UI can load a second copy of React, which fails
+> at render time with a null hook dispatcher. Bundle Base UI's React-importing
+> dependencies into the same chunk:
+
+<Source language="ts" code={extractRegion(ssrVite, 'ssr-noexternal')} />
+
+`@ap/vite` does not add this for you. The reasoning is written up under
+[the second React](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md)
+in CONTRIBUTING.
+
+## Load the CSS
+
+Import three stylesheets once, at the root of your app.
+
+<Source language="tsx" code={extractRegion(rootTsx, 'css')} />
+
+`fonts.css` declares the typefaces, `theme.css` defines the colour, spacing and
+type tokens every component reads, and `motion.css` defines the animation
+custom properties. `motion.css` is load-bearing: components such as Dialog and
+Spinner animate through `animation: var(--ap-motion-*)`, which resolves to
+nothing, silently, without it.
+
+## Wrap and render
+
+<Source language="tsx" code={extractRegion(startTsx, 'start')} />
+
+`ApProvider` composes the theme, locale, icon and notification providers in one
+element. `Field` derives the label and description wiring for its control, so
+you do not pass ids around yourself. The `action` of `/subscribe` is
+illustrative; point it at your own endpoint.
+
+The form submits before hydration, because the controls are uncontrolled: the
+browser owns their values, so a submission made before your JavaScript loads
+still works. To change the palette, read
+[Theming](?path=/docs/foundations-theming--docs).
+
+## SPA instead of SSR
+
+If your app is client-only, you need no SSR settings. Add the same plugin
+alongside your React plugin.
+
+<Source language="ts" code={extractRegion(spaVite, 'spa-vite')} />
+
+The `Start` component above works unchanged in a client-only app.
+
+## Next
+
+- [SSR rules](?path=/docs/guides-ssr-rules--docs): what to keep in mind when components render on the server.
+- [Theming](?path=/docs/foundations-theming--docs): the build-time default and the runtime override.
+- [Theme generator](?path=/docs/foundations-theme-generator--docs): pick a brand colour and copy the code.
+- Components: browse them in the sidebar.
