@@ -1,0 +1,253 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks'
+import { extractRegion } from './lib/extractRegion'
+import ssrVite from '../../fixtures/ssr-app/vite.config.ts?raw'
+import './docs.css'
+
+<Meta title="Guides/SSR rules" />
+
+# SSR rules
+
+apComponents renders on the server and hydrates in the browser. React Router 8
+framework mode is the server-rendering setup it is built and tested against.
+The components keep their side of that contract, and the rules below are the
+part your app has to keep. Each rule says what to do, why, what it looks like
+when it breaks, and which test in the repository proves the library's side of
+it. When a rule says "enforced", there is a test in the repository that
+fails if the library breaks it.
+
+Two commands carry most of this page:
+
+- `npm run test:ssr` is gate 6. It builds the fixture app, starts it, and
+  requests pages over HTTP.
+- `npm run test:hydration` loads the same app in a real browser and records
+  every hydration error React reports.
+
+## Never read browser state during render
+
+**Rule.** Do not read storage, the current time, random numbers, `window`,
+`document` or `matchMedia` while a component renders. Use the hooks from
+`@ap/react/hooks` instead: `useHydrated`, `useMediaQuery(query, ssrDefault)`,
+`useLocalStorage` and `useSessionStorage`, and `useFormatter` for dates and
+numbers.
+
+**Why.** The server has no browser, so it cannot know these values, and the
+first client render must produce the same markup as the server. Each hook
+renders a value the server can also produce, both on the server and during
+hydration, and switches to the live value only after hydration:
+
+- `useHydrated` returns `false` on the server and on the first client render,
+  then flips to `true` in an effect.
+- `useMediaQuery` renders the `ssrDefault` you pass. It is required, so you
+  decide what the server assumes.
+- `useLocalStorage` and `useSessionStorage` render your `defaultValue`, then
+  read the stored value.
+- `useFormatter` formats dates in UTC on the server and during hydration, then
+  in the browser's time zone. If you give `LocaleProvider` a `timeZone`, the
+  server renders in that zone from the start and nothing switches.
+
+**Broken looks like.** A read at module scope or during render on the server
+fails the request with `ReferenceError: window is not defined`. A value that
+renders on both sides but differs between them, such as a timestamp, a random
+id or a media-query result, is a hydration mismatch. In development, React
+logs an error that starts `Hydration failed`. In a production build, it
+reports `Minified React error #418`. In the worst case, React discards the
+server markup and re-renders the tree on the client.
+
+**Enforced by.** The SSR-safety guard (`npm run test:guards`),
+[`ssr-safety.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-safety.gate.test.ts),
+scans every runtime file in `@ap/react`. It fails on `window.`, `document.`,
+`localStorage`, `sessionStorage`, `matchMedia`, `useLayoutEffect`,
+`Date.now()` and `Math.random()`. It also parses `useMediaQuery` and the
+storage hooks to prove that their browser reads happen only in callbacks,
+never in the hook body. It checks the
+library's code, not yours: in your components, the hooks are how you keep this
+rule. In the browser,
+[`hydration.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/hydration.spec.ts)
+(`npm run test:hydration`) fails on any hydration error React reports.
+
+## Portalled UI is not in the server HTML
+
+**Rule.** Dialog, Popover, Tooltip, the Select popup and Toast render nothing
+on the server. Do not rely on their markup being in the server response, for
+a test, a crawler or a script that runs before hydration.
+
+**Why.** These parts render into a portal at the end of `<body>`, and React's
+server renderer cannot emit a portal's children. They also open from user
+input or from client state, which the server does not have. A Dialog,
+Popover, Tooltip or Select trigger is in the server HTML; the popup arrives
+after hydration, when it opens.
+
+**Broken looks like.** The popup's markup is missing from the raw response:
+there is no `role="dialog"`, `role="tooltip"` or `role="listbox"` element, and
+the Tooltip trigger has no `aria-describedby` yet. The toast viewport is
+missing too; the server HTML holds only the notification provider's two
+empty live regions. A toast raised in an effect appears only after
+hydration.
+
+**Enforced by.** `npm run test:hydration` reads the raw server response before
+any script runs:
+[`dialog.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/dialog.spec.ts)
+for Dialog,
+[`overlays.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/overlays.spec.ts)
+for Tooltip and Popover, and
+[`notifications.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/notifications.spec.ts)
+for toasts. Gate 6,
+[`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts),
+asserts that the Select listbox is not in the served form page.
+
+## Forms work before hydration
+
+**Rule.** Leave form controls uncontrolled, with `name` and `defaultValue` or
+`defaultChecked`, inside a real `<form method="post">`. The browser then owns
+the values, and a submission made before your JavaScript loads still reaches
+your action.
+
+**Why.** Until hydration finishes, React is not attached to the page, so a
+controlled value has nothing to keep it in sync. An uncontrolled control
+submits natively, as plain HTML. Text inputs and `Textarea` are real
+elements, so a visitor can edit them before hydration. Checkbox, Switch,
+RadioGroup and Select also submit their server-rendered default value through
+a hidden input, but changing them needs JavaScript.
+
+**Broken looks like.** A field is missing from what your action receives: a
+control with no `name`, or a value kept only in React state, is not part of a
+native submission. Before hydration, clicking a Checkbox, Switch, RadioGroup
+or Select does nothing; their defaults still submit.
+
+**Enforced by.** `npm run test:hydration`,
+[`progressive-enhancement.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/progressive-enhancement.spec.ts),
+blocks every client JavaScript file, checks that hydration did not happen,
+fills in the `/form` route, submits it and checks that the action received the
+value. Gate 6,
+[`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts),
+posts the server-rendered defaults of `Textarea`, `Checkbox`, `Switch`,
+`RadioGroup` and `Select` to the same action with no JavaScript involved.
+
+## Bundle Base UI into a `file:` SSR build
+
+**Rule.** If your SSR app consumes `@ap/react` through a `file:` path into the
+submodule, add Base UI's React-importing packages to `ssr.noExternal` in your
+own `vite.config.ts`:
+
+<Source language="ts" code={extractRegion(ssrVite, 'ssr-noexternal')} />
+
+`@ap/vite` does not add this for you. A client-only app does not need it, and
+neither does an app that installs `@ap/react` from a registry.
+
+**Why.** A `file:` path puts two `node_modules` trees in play: your app's, and
+the one in the submodule, where `@base-ui/react` is installed. Left external,
+Base UI loads at request time from the submodule's tree and finds a second
+copy of React there. A component then renders through one copy of React while
+the renderer drives the other. Every package in Base UI's dependency chain
+that imports React must be bundled into the same chunk. If a future component
+pulls in a new one, the symptom below names the package to add.
+
+**Broken looks like.** The build succeeds, then the request fails with a null
+hook dispatcher:
+
+```
+TypeError: Cannot read properties of null (reading 'useId')
+```
+
+Leaving out `use-sync-external-store` gives the same failure as
+`Cannot read properties of null (reading 'useSyncExternalStore')`, and only on
+pages whose components use a Base UI store, such as Dialog. Pages with only
+fields and buttons keep working, which makes it easy to miss.
+
+**Enforced by.** The fixture app is exactly this shape: a `file:` consumer
+nested in the repository, with this `ssr.noExternal` entry in its
+[`vite.config.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/vite.config.ts).
+Gate 6,
+[`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts),
+builds and serves it, and requires its form, streamed and getting-started
+pages to render their markup, and
+[`dialog.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/dialog.spec.ts)
+(`npm run test:hydration`) loads the Dialog route. The whole diagnosis is in
+[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md),
+under "`@base-ui/react` left external in an SSR build loads a second React".
+
+## Accordion content is findable only after hydration
+
+**Rule.** Closed Accordion content is in the server HTML, but find-in-page
+cannot open it until the page has hydrated. Do not rely on it being findable
+before then.
+
+**Why.** Accordion keeps a closed panel's content in the page under
+`hidden="until-found"`, so that the browser's find-in-page can match it and
+open the panel. React renders `hidden` as a plain boolean, so the server sends
+`hidden=""`, and Base UI sets the `until-found` value in a layout effect on
+the client. The listener that opens the panel on a match is attached at the
+same time.
+
+**Broken looks like.** Before hydration, find-in-page does not match text
+inside a closed section, and the panel stays shut. After hydration, the same
+search opens it.
+
+**Enforced by.** `npm run test:hydration`,
+[`disclosure.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/disclosure.spec.ts),
+asserts that the server HTML has the closed content under a plain `hidden`
+and not `until-found`. It then asserts that after hydration the panel is
+`hidden="until-found"`, and that a `beforematch` event, which the browser
+fires on a find-in-page match, opens it. The reasoning
+is in
+[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md),
+under "`hidden="until-found"` is client-only".
+
+## Stateful components can stream inside `<Suspense>`
+
+**Rule.** You can put stateful components such as Select, Tabs, Accordion,
+Checkbox, Switch, RadioGroup and Textarea inside a `<Suspense>` boundary whose content streams
+after the shell. They hydrate without errors.
+
+**Why.** React hydrates each Suspense boundary separately, once its chunk
+arrives. The styles are static stylesheets in the shell, so content that
+streams late arrives already styled, and there is no style collection for the
+stream to race.
+
+**Broken looks like.** A mismatch inside the boundary is reported only when
+the boundary hydrates, after the rest of the page. React reports the same
+hydration errors as in the first rule.
+
+**Enforced by.** Gate 6,
+[`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts),
+requests `/streamed` and checks that the fallback arrives first and that each
+component's markup arrives in the streamed chunk after it.
+[`hydration.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/hydration.spec.ts)
+(`npm run test:hydration`) waits for that boundary itself to hydrate, then
+fails on any hydration error.
+
+## Keep `:dir(rtl)` in your production CSS
+
+**Rule.** Do not lower your CSS build target below Chrome 120. Leave
+`build.target` and `build.cssTarget` unset, so `apComponents()` sets the
+floor, or set them to `AP_CSS_TARGET` (exported from `@ap/vite`) or newer.
+
+**Why.** The components' right-to-left rules are written with `:dir(rtl)`,
+which needs Chrome 120. Below that, Vite's CSS minifier rewrites `:dir(rtl)`
+into a list of `:lang()` selectors, so right-to-left styling follows the
+page's language instead of its direction. If you set `build.target`, Vite
+derives the CSS target from it, and every `es20xx` target up to `es2024` is
+below Chrome 120.
+
+**Broken looks like.** The build succeeds, and right-to-left styling breaks on
+any page that sets `dir="rtl"` without a right-to-left language code. The
+`ap-components:rtl-check` plugin in `@ap/vite` prints this warning once for
+each build environment, so twice for a React Router app:
+
+```
+@ap/vite: a :dir() rule was lowered to :lang(), so RTL styling will follow the page language instead of direction. Set build.cssTarget to AP_CSS_TARGET (exported from @ap/vite) or newer.
+```
+
+**Enforced by.** Gate 6,
+[`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts),
+fetches the CSS the built fixture actually serves, and fails unless it
+contains `:dir(rtl)` and no `:lang(ae)`. More detail is in
+[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md),
+under "The CSS browser floor (Chrome 120)".
+
+## Next
+
+- [Getting started](?path=/docs/guides-getting-started--docs): install, wire
+  Vite, load the CSS and render a form.
+- The gates themselves are listed in
+  [ADR-0014](https://github.com/andrew-caines/apComponents/blob/main/docs/adr/0014-verification-gates.md).
