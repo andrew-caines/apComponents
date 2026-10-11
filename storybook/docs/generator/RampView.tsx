@@ -1,7 +1,8 @@
+import { memo } from 'react'
 import type { Theme } from '@ap/tokens'
 import { RampTable } from '../lib/Swatches.js'
 
-export function RampView({ theme }: { theme: Theme }) {
+export const RampView = memo(function RampView({ theme }: { theme: Theme }) {
   return (
     <section aria-labelledby="gen-ramps">
       <h2 id="gen-ramps">Ramps</h2>
@@ -11,4 +12,4 @@ export function RampView({ theme }: { theme: Theme }) {
       </div>
     </section>
   )
-}
+})

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { generateTheme, toCssText } from '@ap/tokens'
-import { ThemeGenerator } from './ThemeGenerator.js'
+import { SEED_DEBOUNCE_MS, ThemeGenerator } from './ThemeGenerator.js'
 
 const meta = {
   // Not 'Foundations/Theme generator/Stories': the MDX page owns
@@ -42,10 +42,10 @@ export const InvalidHex: Story = {
     await userEvent.clear(hex)
     await userEvent.type(hex, '#zz')
     await expect(await c.findByText('Use #rgb or #rrggbb')).toBeVisible()
-    // Past the 100 ms debounce, so an invalid value that leaked into the theme
+    // Well past the debounce, so an invalid value that leaked into the theme
     // would have reached generateTheme by now. Nothing changes on screen when
     // the component is right, so there is no event to wait for instead.
-    await new Promise((r) => setTimeout(r, 300))
+    await new Promise((r) => setTimeout(r, SEED_DEBOUNCE_MS * 3))
     await expect(snippet(canvasElement)).toHaveTextContent("brand: '#2e5fd9'")
   },
 }

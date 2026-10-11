@@ -1,7 +1,9 @@
+import { memo, useMemo } from 'react'
 import { contrastPairings, type Theme } from '@ap/tokens'
 
-export function ContrastTable({ theme }: { theme: Theme }) {
-  const rows = contrastPairings(theme)
+/** Memoised: the generator re-renders on every keystroke, the theme only once it settles. */
+export const ContrastTable = memo(function ContrastTable({ theme }: { theme: Theme }) {
+  const rows = useMemo(() => contrastPairings(theme), [theme])
   return (
     <section aria-labelledby="gen-contrast">
       <h2 id="gen-contrast">Contrast</h2>
@@ -35,4 +37,4 @@ export function ContrastTable({ theme }: { theme: Theme }) {
       </div>
     </section>
   )
-}
+})

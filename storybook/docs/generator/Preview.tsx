@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Button, Checkbox, Field, Input, Select, Switch, Tabs, ThemeProvider } from '@ap/react'
 import type { Theme } from '@ap/tokens'
 
@@ -34,7 +35,7 @@ function Panel({ name }: { name: string }) {
  * `data-ap-scheme` on its own element, so a nested `scheme="dark"` resolves
  * the generated dark tokens inside a light page, and the panels sit side by side.
  */
-export function Preview({ theme }: { theme: Theme }) {
+export const Preview = memo(function Preview({ theme }: { theme: Theme }) {
   return (
     <section aria-labelledby="gen-preview" data-testid="preview">
       <h2 id="gen-preview">Preview</h2>
@@ -44,4 +45,4 @@ export function Preview({ theme }: { theme: Theme }) {
       </div>
     </section>
   )
-}
+})
