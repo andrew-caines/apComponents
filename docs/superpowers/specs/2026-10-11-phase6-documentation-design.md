@@ -1,7 +1,7 @@
 # Phase 6: documentation, design
 
 **Date:** 2026-10-11
-**Status:** approved in conversation; awaiting review of this written spec
+**Status:** approved 2026-10-11. Amended the same day while planning: §4.0, §4.1, §4.1a, §4.2 and §5.1 were corrected against the code (`Banner` is imperative; `@ap/vite` does not bundle Base UI; no fixture uses `ApProvider`).
 **Parent:** [component-library-design.md §5, Phase 6](2026-08-29-component-library-design.md)
 
 ## 1. Intent
@@ -58,7 +58,7 @@ Components/...         (existing)
 
 Every code sample in Getting started and SSR rules comes from a file that a gate already builds and runs:
 
-- `fixtures/ssr-app/vite.config.ts`, `app/root.tsx`, `app/entry.client.tsx` and the route files;
+- `fixtures/ssr-app/vite.config.ts`, `app/root.tsx`, and a new route `app/routes/start.tsx` (§4.1a);
 - `fixtures/consumer/vite.config.ts` and `src/main.tsx`.
 
 The samples are quoted by named region, not as whole files, because the fixtures also carry test-only code such as the `__apRecoverableErrors` recorder.
@@ -76,11 +76,15 @@ Sections, in order:
 
 1. **What you get.** One paragraph, plus the package table: `@ap/react`, `@ap/tokens`, `@ap/vite` and `@ap/motion`, each with one line.
 2. **Add the submodule.** Shows `git submodule add`, plus the `file:` dependencies in `package.json` (from the consumer fixture's manifest, quoted from the file).
-3. **Wire Vite.** The `apComponents()` plugin in `vite.config.ts` (region `vite`). Covers what it sets: vanilla-extract, the `noExternal` rule and the CSS floor (`AP_CSS_TARGET`, Chrome 120). Notes when an explicit `build.target` overrides it.
-4. **Wrap the app.** `ApProvider` in `root.tsx` (region `provider`), with theme, locale and notifications. Covers `theme.css` delivery, linking to Theming.
-5. **First component.** A `Field` with `Input` and a `Button` from a fixture route (region `first-form`).
+3. **Wire Vite.** The `apComponents()` plugin in `vite.config.ts` (region `vite`). Covers what it sets: vanilla-extract, `ssr.noExternal` for the `@ap/*` packages only, and the CSS floor (`AP_CSS_TARGET`, Chrome 120). Notes when an explicit `build.target` overrides it. When `@ap/react` is consumed through a `file:` path into the submodule (the ADR-0002 route), an SSR app also needs the three Base UI `ssr.noExternal` entries (region `ssr-noexternal`), for the reason CONTRIBUTING's "second React" section gives. `@ap/vite` does **not** add them.
+4. **Load the CSS.** The three stylesheet imports in `root.tsx` (region `css`).
+5. **Wrap and render.** `ApProvider` around a `Field` with `Input` and a `Button`, from `routes/start.tsx` (region `start`). Links to Theming.
 6. **SPA instead of SSR.** The consumer fixture's `main.tsx` (region `spa`).
 7. **Next.** Links to SSR rules, Theming, Theme generator and Components.
+
+### 4.1a The `/start` fixture route
+
+`fixtures/ssr-app/app/routes/start.tsx` is new. It is the getting-started sample written as a real route: `ApProvider`, then a `Field` with `Input`, then a `Button`. It has no fixture-only comments inside its `start` region. It has no loader and no action, so it is routed in both SSR and SPA mode. Gate 6 asserts that its label is wired in the server HTML, and `test:hydration` asserts that it hydrates with no recoverable errors and no console output. The sample is therefore proven by the same gates as every other fixture route.
 
 ### 4.2 SSR rules
 
@@ -91,7 +95,7 @@ The rules are written for consumers. Each one has a **rule**, a **why**, a **bro
 | Never read storage, time, randomness or `window` during render; use the hooks, which defer to an effect | gate 6 (the SSR safety walker) |
 | Portalled UI (Dialog, Popover, Tooltip, Select popup, Toast) renders nothing on the server, so do not rely on its markup there | gate 6 |
 | Forms work before hydration: uncontrolled values submit natively | `test:hydration` (`/form`, all bundles blocked) |
-| Keep `@base-ui/react` bundled (`noExternal`); `@ap/vite` does this for you | gate 8 and CONTRIBUTING's "second React" trap |
+| A `file:`/submodule SSR app bundles `@base-ui/react`, `@base-ui/utils` and `use-sync-external-store` (`ssr.noExternal`) | `test:ssr` and `test:hydration` (the fixture is exactly this shape); CONTRIBUTING's "second React" trap |
 | Content in `hidden="until-found"` (Accordion) is client-only for find-in-page | CONTRIBUTING's `until-found` trap |
 | Streaming: stateful components inside `<Suspense>` hydrate without recoverable errors | `test:hydration` (`/streamed`) |
 | The production CSS must keep `:dir(rtl)`; a low `build.target` lowers it, and `rtl-check` warns | gate 6 (the RTL CSS test) |
@@ -121,7 +125,7 @@ All files are under `storybook/docs/generator/`. They ship to the docs site, nev
 | `SeedInput.tsx` | Native `<input type="color">` plus `Field` and `Input` for the hex, two-way synced |
 | `RampView.tsx` | Six ramps × twelve steps, light and dark |
 | `ContrastTable.tsx` | `contrastPairings(theme)`: mode, pairing, ratio, required, APCA Lc, pass/fail |
-| `Preview.tsx` | `ThemeProvider theme={theme}` around real components: Button variants, Field with Input, Checkbox, Switch, Select, Tabs and a Banner. Both schemes side by side. |
+| `Preview.tsx` | `ThemeProvider theme={theme}` around real components: Button (solid, outline and ghost; action and danger tones), Field with Input (plus one with an error), Checkbox, Switch, Select and Tabs. It shows light and dark side by side if a nested `ThemeProvider scheme="dark"` scopes the generated theme; otherwise it follows the page's scheme (the plan probes this). |
 | `Export.tsx` | Copy the snippet (`useCopyToClipboard`) and download `theme.css` (a Blob of `toCssText(theme)`) |
 | `logic.ts` | Pure helpers: `isValidHex`, `buildSnippet(hex)` and `readBrandParam(search)` |
 | `ThemeGenerator.stories.tsx` | Stories, §5.4 |
@@ -137,7 +141,7 @@ All files are under `storybook/docs/generator/`. They ship to the docs site, nev
 ### 5.3 Error handling
 
 - **Invalid hex:** `Field` shows the error "Use #rgb or #rrggbb". The last valid theme stays rendered, and nothing blanks or throws.
-- **A failing pairing:** the table marks the row, and `Export` shows a warning `Banner` ("N pairings fail WCAG AA in this theme") above the buttons. Export is not blocked.
+- **A failing pairing:** the table marks the row, and `Export` shows an inline `role="status"` warning ("N pairings fail WCAG AA in this theme") above the buttons. `Banner` is imperative (`banner()` plus `BannerRegion`), so it is not used inline. Export is not blocked.
 - **Clipboard unavailable or rejected:** `useCopyToClipboard` returns `[copied, copy]`, and `copy()` resolves `false` on failure. When it does, `Export` shows "Copy failed; select the text instead". The snippet is always visible in a `<pre>`.
 
 ### 5.4 Testing
