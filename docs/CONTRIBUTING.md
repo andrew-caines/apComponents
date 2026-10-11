@@ -34,6 +34,7 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run gen:input-demo` | Regenerates `examples/InputFields.html` — renders the real components, compiles their real CSS, reads every code sample out of the AST, then runs six browser checks |
 | `npm run showcase` | Builds and serves the showcase app — every component, server-rendered, in both schemes |
 | `npm run showcase:test` | Smoke-tests every showcase section: 200, server-rendered heading, nav state, zero console output |
+| `npm --prefix storybook run dev` | Storybook at http://localhost:6006, including the guides and the theme generator |
 
 The published Storybook is at https://andrew-caines.github.io/apComponents/. `.github/workflows/pages.yml` rebuilds and deploys it on every push to `main`, with `STORYBOOK_BASE_PATH=/apComponents/`. To reproduce that build locally from Git Bash, prefix the command with `MSYS_NO_PATHCONV=1`, or Git Bash rewrites the path into a Windows one.
 
@@ -1343,6 +1344,16 @@ focused (`toast/close/ToastClose.js:49`), and an unfocused high-priority Root is
 `<Button />` render cannot catch a dropped `nativeButton` derivation, since `Button` derives
 `true`, which is Base UI's default; the anchor-render test in `ToastParts.test.tsx` is the one
 that fails.
+
+## Writing docs pages
+
+The guides live in `storybook/docs/*.mdx`. Every page is public, so no employer, client or product names go in published text.
+
+- **Quote code with `extractRegion`, never a pasted copy.** Import the fixture file with `?raw` and pull a named region out of it: `import rootTsx from '../../fixtures/ssr-app/app/root.tsx?raw'`, then `<Source language="tsx" code={extractRegion(rootTsx, 'css')} />`. The sample is then the code the fixture builds and tests, so it cannot drift.
+- **Marker forms.** In TypeScript or CSS-in-TS: `// #region docs:<name>` and `// #endregion docs:<name>`. Inside JSX: `{/* #region docs:<name> */}` and `{/* #endregion docs:<name> */}`. A name is unique per file, and a region must not be empty.
+- **Keep fixture-only comments outside a region.** Anything between the markers is shown to readers verbatim, so a note that only matters to the fixture (a test hook, a gate explanation) belongs above or below the markers.
+- **A missing file, region or relative link fails `scripts/docs-refs.test.ts`.** It runs in the unit run (`npm test`). `storybook build` does **not** catch a missing region, and neither does the Storybook test project, because MDX pages are not run as tests; the error only appears when the page renders in a browser. Storybook-internal links use `?path=/docs/...`, which the check leaves alone.
+- **Colour numbers are computed, never typed.** The colour theory guide derives every ratio, Lc value and ramp step at render time from the real token code. Do not paste a hex value or a contrast number into prose.
 
 ## The CSS browser floor (Chrome 120)
 
