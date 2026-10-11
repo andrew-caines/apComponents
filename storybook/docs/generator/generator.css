@@ -1,0 +1,20 @@
+/* Layout only, from existing tokens. */
+.gen { display: grid; gap: 2rem; }
+.gen-seed { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; }
+.gen-picker { display: grid; gap: 0.25rem; }
+.gen-picker input { inline-size: 3rem; block-size: 2.5rem; border: 1px solid var(--ap-color-border-normal); }
+.gen-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
+/* Each preview panel paints its own scheme's canvas, so the dark panel reads as dark on a light page. */
+.gen-panel {
+  background: var(--ap-color-bg-canvas);
+  color: var(--ap-color-text-primary);
+  border: 1px solid var(--ap-color-border-subtle);
+  border-radius: 8px;
+  padding: 1rem;
+}
+/* Storybook's docs styles colour every <p> for the page's scheme; inside a panel, take the panel's. */
+.gen .gen-panel p { color: inherit; margin: 0; }
+.gen-panel-name { font-weight: 600; }
+.gen-scroll, .gen pre { overflow-x: auto; }
+.gen-warn { color: var(--ap-color-danger-text); }
+.gen tr[data-pass='false'] td { color: var(--ap-color-danger-text); }
