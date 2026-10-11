@@ -37,8 +37,8 @@ different contrast at different hues. That is why hand-built palettes tend to
 contain one colour that "doesn't work". The HSL strip shows the other half of
 the problem: the steps are even on paper and uneven to the eye.
 
-OKLCH is perceptually uniform: the same lightness looks equally light at every
-hue. The engine does all its colour maths in OKLCH, with three channels:
+OKLCH is perceptually uniform: the same lightness looks approximately equally
+light at every hue. The engine does all its colour maths in OKLCH, with three channels:
 lightness, chroma (how colourful) and hue. One set of lightness targets can
 then be applied to any hue and give predictable contrast. The engine converts
 to sRGB hex only at the end
@@ -72,9 +72,11 @@ targets. Dark is not an inverted light theme.
 Every ramp has {THEME.ramps.light.brand.steps.length} steps, and each step has a fixed role: backgrounds first, then
 component fills, then borders, then the solid colour, then text. Components ask
 for a step by role, never by lightness or hue name, so swapping the brand colour
-cannot break component styling. The table below is read straight from the
-semantic map, so it lists the tokens that really consume each step. The
-`onSolid` row is the text colour drawn on top of a solid step, chosen per ramp.
+cannot break component styling. The raw steps are not part of the component
+contract: components read semantic tokens, and the last column lists the ones
+that map to each step, read straight from the semantic map. A step no token
+maps to is marked as such. The `onSolid` row is the text colour drawn on top of
+a solid step, chosen per ramp.
 
 <StepRoles />
 
@@ -90,7 +92,7 @@ not yet a ratified standard. apComponents uses both, for different jobs
   which is what makes dark mode read well.
 - **WCAG 2.1 AA is the gate.** AA is a hard floor: a test checks every semantic
   text and UI pairing in both modes, and a theme that fails it fails the build.
-  APCA is reported next to the ratio but never gates anything.
+  APCA is not the compliance gate: it is reported next to the ratio.
 
 The table shows the first {HEADLINE.length} pairings for the light theme,
 computed now with the same functions the gate uses.

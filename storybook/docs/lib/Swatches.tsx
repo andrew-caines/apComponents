@@ -28,30 +28,56 @@ export function RampTable({ theme, mode }: { theme: Theme; mode: 'light' | 'dark
   )
 }
 
-/** Which semantic tokens read each step, from SEMANTIC_MAP, not a retyped list. */
+// Role of each step, from ADR-0006. Index 0 is step 1.
+const STEP_ROLES = [
+  'App background',
+  'Subtle background',
+  'Component background: rest',
+  'Component background: hover',
+  'Component background: active',
+  'Border: subtle',
+  'Border: normal',
+  'Border: focus',
+  'Solid fill (the brand colour on the brand ramp)',
+  'Solid fill: hover',
+  'Low-contrast text',
+  'High-contrast text',
+]
+
+/** Every step with its role, and the semantic tokens that read it, from SEMANTIC_MAP. */
 export function StepRoles() {
-  const byStep = new Map<string, string[]>()
+  const byStep = new Map<number, string[]>()
+  const onSolid: string[] = []
   for (const e of SEMANTIC_MAP) {
-    const key = String(e.step)
-    byStep.set(key, [...(byStep.get(key) ?? []), `${e.token} (${e.ramp})`])
+    const label = `${e.token} (${e.ramp})`
+    if (e.step === 'onSolid') onSolid.push(label)
+    else byStep.set(e.step, [...(byStep.get(e.step) ?? []), label])
   }
-  const rank = (k: string): number => (k === 'onSolid' ? Infinity : Number(k))
-  const rows = [...byStep.entries()].sort((a, b) => rank(a[0]) - rank(b[0]))
   return (
     <table>
       <thead>
         <tr>
           <th scope="col">Step</th>
+          <th scope="col">Role</th>
           <th scope="col">Read by</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map(([step, tokens]) => (
-          <tr key={step}>
-            <th scope="row" className="mono">{step}</th>
-            <td className="mono">{tokens.join(', ')}</td>
-          </tr>
-        ))}
+        {STEP_ROLES.map((role, i) => {
+          const tokens = byStep.get(i + 1)
+          return (
+            <tr key={i}>
+              <th scope="row" className="mono">{i + 1}</th>
+              <td>{role}</td>
+              <td className="mono">{tokens ? tokens.join(', ') : 'no semantic token reads it yet'}</td>
+            </tr>
+          )
+        })}
+        <tr>
+          <th scope="row" className="mono">onSolid</th>
+          <td>Text drawn on a solid step, chosen per ramp</td>
+          <td className="mono">{onSolid.join(', ')}</td>
+        </tr>
       </tbody>
     </table>
   )

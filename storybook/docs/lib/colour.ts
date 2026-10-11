@@ -28,6 +28,7 @@ function hexToHs(hex: string): { h: number; s: number } {
 
 /** `steps` colours at the seed's HSL hue and saturation, lightness evenly spaced 0.95 → 0.15. */
 export function hslRamp(hex: string, steps: number): string[] {
+  if (steps < 2) throw new RangeError('hslRamp needs at least 2 steps')
   const { h, s } = hexToHs(hex)
   return Array.from({ length: steps }, (_, i) => hslToHex(h, s, 0.95 - (0.8 * i) / (steps - 1)))
 }
