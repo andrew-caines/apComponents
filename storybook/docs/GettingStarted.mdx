@@ -59,8 +59,11 @@ git submodule add https://github.com/andrew-caines/apComponents vendor/apCompone
 ```
 
 Then depend on the two packages you use directly through `file:` paths. The
-paths are relative to your app's `package.json`, so adjust them to wherever
-you placed the submodule.
+sample below comes from a fixture app inside this repository, so its paths are
+relative to that fixture. Yours are relative to your app's `package.json`:
+with the submodule at `vendor/apComponents` beside it, as in the command
+above, they are `file:vendor/apComponents/packages/react` and
+`file:vendor/apComponents/packages/vite`.
 
 <Source
   language="json"
@@ -83,16 +86,19 @@ your `defineConfig({ … })`.
 - **`build.cssTarget`** set to `AP_CSS_TARGET` (Chrome and Edge 120, Firefox 114, Safari 16.4), so the minifier does not rewrite `:dir()` into `:lang()` and break right-to-left styling. It does this only if you set neither `build.target` nor `build.cssTarget`; if you set either, your value wins.
 - **A build warning**, from a small `ap-components:rtl-check` plugin, if a `:dir()` rule still ends up lowered to `:lang()` in your built CSS.
 
-> **SSR apps that consume through a `file:` path.** When an SSR app consumes
-> `@ap/react` through a `file:` path into the submodule, two `node_modules`
-> trees are in play, and Base UI can load a second copy of React, which fails
-> at render time with a null hook dispatcher. Bundle Base UI's React-importing
-> dependencies into the same chunk:
+> **SSR apps that consume through a `file:` path.** The SSR fixture these
+> samples come from needs three Base UI entries in `ssr.noExternal`, because
+> it sits inside this repository's workspace. No gate builds an app outside
+> the repository that consumes the submodule through `file:`, so whether yours
+> needs them is not tested. If your SSR build succeeds but fails at request
+> time with a null hook dispatcher,
+> `TypeError: Cannot read properties of null (reading 'useId')`, add the
+> entries shown:
 
 <Source language="ts" code={extractRegion(ssrVite, 'ssr-noexternal')} />
 
 `@ap/vite` does not add this for you. The reasoning is written up under
-[`@base-ui/react` left external in an SSR build loads a second React](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md)
+[`@base-ui/react` left external in an SSR build loads a second React](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md#base-uireact-left-external-in-an-ssr-build-loads-a-second-react)
 in CONTRIBUTING.
 
 ## Load the CSS

@@ -33,7 +33,10 @@ numbers.
 **Why.** The server has no browser, so it cannot know these values, and the
 first client render must produce the same markup as the server. Each hook
 renders a value the server can also produce, both on the server and during
-hydration, and switches to the live value only after hydration:
+hydration, and switches to the live value only after hydration. A component
+that mounts later, on a page that has already hydrated, reads the live value
+at once, except through `useHydrated`, which returns `false` on every
+component's first render:
 
 - `useHydrated` returns `false` on the server and on the first client render,
   then flips to `true` in an effect.
@@ -45,8 +48,8 @@ hydration, and switches to the live value only after hydration:
   in the browser's time zone. If you give `LocaleProvider` a `timeZone`, the
   server renders in that zone from the start and nothing switches.
 
-**Broken looks like.** A read at module scope or during render on the server
-fails the request with `ReferenceError: window is not defined`. A value that
+**Broken looks like.** A `window` read at module scope or during render on
+the server fails the request with `ReferenceError: window is not defined`. A value that
 renders on both sides but differs between them, such as a timestamp, a random
 id or a media-query result, is a hydration mismatch. In development, React
 logs an error that starts `Hydration failed`. In a production build, it
@@ -63,7 +66,8 @@ never in the hook body. It checks the
 library's code, not yours: in your components, the hooks are how you keep this
 rule. In the browser,
 [`hydration.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/hydration.spec.ts)
-(`npm run test:hydration`) fails on any hydration error React reports.
+(`npm run test:hydration`) fails on any hydration error React reports on the
+routes it loads.
 
 ## Portalled UI is not in the server HTML
 
@@ -81,7 +85,7 @@ after hydration, when it opens.
 there is no `role="dialog"`, `role="tooltip"` or `role="listbox"` element, and
 the Tooltip trigger has no `aria-describedby` yet. The toast viewport is
 missing too; the server HTML holds only the notification provider's two
-empty live regions. A toast raised in an effect appears only after
+empty live regions and an empty banner container. A toast raised in an effect appears only after
 hydration.
 
 **Enforced by.** `npm run test:hydration` reads the raw server response before
@@ -126,21 +130,25 @@ posts the server-rendered defaults of `Textarea`, `Checkbox`, `Switch`,
 ## Bundle Base UI into a `file:` SSR build
 
 **Rule.** If your SSR app consumes `@ap/react` through a `file:` path into the
-submodule, add Base UI's React-importing packages to `ssr.noExternal` in your
+submodule, and its build succeeds but fails at request time with a null hook
+dispatcher, add Base UI's React-importing packages to `ssr.noExternal` in your
 own `vite.config.ts`:
 
 <Source language="ts" code={extractRegion(ssrVite, 'ssr-noexternal')} />
 
-`@ap/vite` does not add this for you. A client-only app does not need it, and
-neither does an app that installs `@ap/react` from a registry.
+`@ap/vite` does not add this for you. A client-only app does not need it.
 
-**Why.** A `file:` path puts two `node_modules` trees in play: your app's, and
-the one in the submodule, where `@base-ui/react` is installed. Left external,
-Base UI loads at request time from the submodule's tree and finds a second
-copy of React there. A component then renders through one copy of React while
-the renderer drives the other. Every package in Base UI's dependency chain
+**Why.** The fixture app these samples come from needs these three entries
+because it sits inside this repository's workspace. `@base-ui/react` is
+installed only in the repository's root `node_modules`, not in the fixture's
+own, so left external it loads at request time next to the root copy of
+React, while the rest of the server build uses the fixture's copy. A component
+then renders through one copy of React while the renderer drives the other.
+No gate builds an app outside the repository that consumes the submodule
+through `file:`, so whether your layout needs the entries is not tested. If it
+fails as shown below, it does. Every package in Base UI's dependency chain
 that imports React must be bundled into the same chunk. If a future component
-pulls in a new one, the symptom below names the package to add.
+pulls in a new one, the same failure appears again.
 
 **Broken looks like.** The build succeeds, then the request fails with a null
 hook dispatcher:
@@ -154,16 +162,17 @@ Leaving out `use-sync-external-store` gives the same failure as
 pages whose components use a Base UI store, such as Dialog. Pages with only
 fields and buttons keep working, which makes it easy to miss.
 
-**Enforced by.** The fixture app is exactly this shape: a `file:` consumer
-nested in the repository, with this `ssr.noExternal` entry in its
+**Enforced by.** The gates prove that the fixture renders and hydrates with
+these entries in its
 [`vite.config.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/vite.config.ts).
 Gate 6,
-[`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts),
-builds and serves it, and requires its form, streamed and getting-started
-pages to render their markup, and
+[`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts)
+(`npm run test:ssr`), builds and serves it, and requires its form, streamed
+and getting-started pages to render their markup, and
 [`dialog.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/dialog.spec.ts)
-(`npm run test:hydration`) loads the Dialog route. The whole diagnosis is in
-[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md),
+(`npm run test:hydration`) loads and hydrates the Dialog route. The whole
+diagnosis is in
+[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md#base-uireact-left-external-in-an-ssr-build-loads-a-second-react),
 under "`@base-ui/react` left external in an SSR build loads a second React".
 
 ## Accordion content is findable only after hydration
@@ -190,7 +199,7 @@ and not `until-found`. It then asserts that after hydration the panel is
 `hidden="until-found"`, and that a `beforematch` event, which the browser
 fires on a find-in-page match, opens it. The reasoning
 is in
-[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md),
+[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md#hiddenuntil-found-is-client-only),
 under "`hidden="until-found"` is client-only".
 
 ## Stateful components can stream inside `<Suspense>`
@@ -214,7 +223,7 @@ requests `/streamed` and checks that the fallback arrives first and that each
 component's markup arrives in the streamed chunk after it.
 [`hydration.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/hydration.spec.ts)
 (`npm run test:hydration`) waits for that boundary itself to hydrate, then
-fails on any hydration error.
+fails on any hydration error on the routes it loads.
 
 ## Keep `:dir(rtl)` in your production CSS
 
@@ -242,7 +251,7 @@ each build environment, so twice for a React Router app:
 [`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts),
 fetches the CSS the built fixture actually serves, and fails unless it
 contains `:dir(rtl)` and no `:lang(ae)`. More detail is in
-[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md),
+[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md#the-css-browser-floor-chrome-120),
 under "The CSS browser floor (Chrome 120)".
 
 ## Next
