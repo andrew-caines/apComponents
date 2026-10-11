@@ -69,18 +69,19 @@ you placed the submodule.
 
 ## Wire Vite
 
-Add the plugin to your `vite.config.ts`'s `plugins`.
+Import the plugin in your `vite.config.ts`, then add it to the `plugins` inside
+your `defineConfig({ … })`.
 
-<Source
-  language="ts"
-  code={`import { apComponents } from '@ap/vite'\n\nexport default defineConfig({\n  ${extractRegion(ssrVite, 'vite')}\n})`}
-/>
+<Source language="ts" code={extractRegion(ssrVite, 'vite-imports')} />
 
-`apComponents()` sets three things:
+<Source language="ts" code={extractRegion(ssrVite, 'vite')} />
+
+`apComponents()` configures Vite for the library:
 
 - **vanilla-extract**, which the components' styles are written in.
-- **`ssr.noExternal` for the `@ap/*` packages only.** Their source is compiled by your build rather than loaded as-is, so an SSR build runs the style transform over it.
+- **`ssr.noExternal` and `optimizeDeps.exclude`** for the `@ap/*` packages only. Their source is compiled by your build rather than loaded as-is, so an SSR build runs the style transform over it and the dev server does not pre-bundle it.
 - **`build.cssTarget`** set to `AP_CSS_TARGET` (Chrome and Edge 120, Firefox 114, Safari 16.4), so the minifier does not rewrite `:dir()` into `:lang()` and break right-to-left styling. It does this only if you set neither `build.target` nor `build.cssTarget`; if you set either, your value wins.
+- **A build warning**, from a small `ap-components:rtl-check` plugin, if a `:dir()` rule still ends up lowered to `:lang()` in your built CSS.
 
 > **SSR apps that consume through a `file:` path.** When an SSR app consumes
 > `@ap/react` through a `file:` path into the submodule, two `node_modules`
@@ -91,7 +92,7 @@ Add the plugin to your `vite.config.ts`'s `plugins`.
 <Source language="ts" code={extractRegion(ssrVite, 'ssr-noexternal')} />
 
 `@ap/vite` does not add this for you. The reasoning is written up under
-[the second React](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md)
+[`@base-ui/react` left external in an SSR build loads a second React](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md)
 in CONTRIBUTING.
 
 ## Load the CSS
@@ -123,7 +124,9 @@ still works. To change the palette, read
 ## SPA instead of SSR
 
 If your app is client-only, you need no SSR settings. Add the same plugin
-alongside your React plugin.
+alongside your React plugin, inside your `defineConfig({ … })`.
+
+<Source language="ts" code={extractRegion(spaVite, 'vite-imports')} />
 
 <Source language="ts" code={extractRegion(spaVite, 'spa-vite')} />
 

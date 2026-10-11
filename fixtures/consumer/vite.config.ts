@@ -1,6 +1,8 @@
+// #region docs:vite-imports
 import react from '@vitejs/plugin-react'
 import { apComponents } from '@ap/vite'
 import { defineConfig } from 'vite'
+// #endregion docs:vite-imports
 
 const isWin = process.platform === 'win32'
 
