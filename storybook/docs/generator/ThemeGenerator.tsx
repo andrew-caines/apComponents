@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_BRAND, generateTheme, normalizeHex } from '@ap/tokens'
 import { useDebouncedValue } from '@ap/react/hooks'
-import { brandParamValue, readBrandParam } from './logic.js'
+import { brandParamValue, mirrorBrand, readBrandParam } from './logic.js'
 import { SeedInput } from './SeedInput.js'
 import { RampView } from './RampView.js'
 import { ContrastTable } from './ContrastTable.js'
@@ -20,29 +20,6 @@ export interface ThemeGeneratorProps {
 /** How long the seed must stay unchanged before the theme regenerates. */
 export const SEED_DEBOUNCE_MS = 100
 
-/**
- * Writes `?brand=` where a visitor can copy it. In Storybook the generator runs
- * in the preview iframe, and the address bar belongs to the top window: write
- * there when it is same-origin, keeping its other params (`path` among them).
- * A cross-origin top throws on access, so fall back to this window's own URL.
- */
-function mirrorBrand(value: string): void {
-  try {
-    const top = window.top
-    if (top && top !== window) {
-      const url = new URL(top.location.href)
-      url.searchParams.set('brand', value)
-      top.history.replaceState(top.history.state, '', url)
-      return
-    }
-  } catch {
-    // Cross-origin top: fall through.
-  }
-  const url = new URL(window.location.href)
-  url.searchParams.set('brand', value)
-  window.history.replaceState(window.history.state, '', url)
-}
-
 export function ThemeGenerator({ initialBrand, syncUrl = true }: ThemeGeneratorProps) {
   const [brand, setBrand] = useState(() =>
     normalizeHex(initialBrand ?? (syncUrl ? readBrandParam(window.location.search) : null) ?? DEFAULT_BRAND),
@@ -56,8 +33,16 @@ export function ThemeGenerator({ initialBrand, syncUrl = true }: ThemeGeneratorP
     return generateTheme({ brand: settled })
   }, [settled])
 
+  // Mirror only once the visitor has changed the brand. Writing on mount would
+  // add `brand=` to a URL nobody edited, and would overwrite a top-window
+  // `brand=` that this iframe did not read (a revisit).
+  const firstBrand = useRef(brand)
+  const edited = useRef(false)
   useEffect(() => {
-    if (syncUrl) mirrorBrand(brandParamValue(settled))
+    if (!syncUrl) return
+    if (!edited.current && settled === firstBrand.current) return
+    edited.current = true
+    mirrorBrand(brandParamValue(settled))
   }, [settled, syncUrl])
 
   return (

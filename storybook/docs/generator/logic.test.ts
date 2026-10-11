@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeHex } from '@ap/tokens'
-import { brandParamValue, buildSnippet, isValidHex, readBrandParam } from './logic.js'
+import { brandParamValue, buildSnippet, isValidHex, mirrorBrand, readBrandParam } from './logic.js'
 
 const CASES = ['#2e5fd9', '#2E5FD9', '  #2e5fd9 ', '#abc', '#ABC', 'abc', '#abcd', '#gggggg', '', '#', '#2e5fd9ff']
 
@@ -36,4 +36,51 @@ describe('readBrandParam', () => {
 
 describe('brandParamValue', () => {
   it('strips the hash and lowercases', () => expect(brandParamValue('#2E5FD9')).toBe('2e5fd9'))
+})
+
+/** A window stand-in: a URL and a history whose replaceState records or throws. */
+function fakeWindow(href: string, refuses = false) {
+  const w = {
+    location: { href },
+    history: {
+      state: null,
+      replaceState: (_s: unknown, _t: string, url: URL) => {
+        if (refuses) throw new DOMException('denied', 'SecurityError')
+        w.location.href = String(url)
+      },
+    },
+    top: null as unknown,
+  }
+  return w
+}
+const asWindow = (w: ReturnType<typeof fakeWindow>) => w as unknown as Window
+
+describe('mirrorBrand', () => {
+  it('writes the same-origin top URL, keeping its other params', () => {
+    const top = fakeWindow('http://x/?path=/docs/a--docs')
+    const frame = fakeWindow('http://x/iframe.html?id=a')
+    top.top = top
+    frame.top = top
+    mirrorBrand('00897b', asWindow(frame))
+    expect(new URL(top.location.href).searchParams.get('path')).toBe('/docs/a--docs')
+    expect(new URL(top.location.href).searchParams.get('brand')).toBe('00897b')
+    expect(frame.location.href).toBe('http://x/iframe.html?id=a')
+  })
+  it('falls back to its own URL when the top is cross-origin', () => {
+    const frame = fakeWindow('http://x/iframe.html?id=a')
+    Object.defineProperty(frame, 'top', {
+      get() {
+        throw new DOMException('cross-origin', 'SecurityError')
+      },
+    })
+    mirrorBrand('00897b', asWindow(frame))
+    expect(new URL(frame.location.href).searchParams.get('brand')).toBe('00897b')
+  })
+  it('does not throw when its own window refuses the write too', () => {
+    // Perturbation: drop the try/catch around the fallback replaceState, and this throws.
+    const frame = fakeWindow('http://x/iframe.html?id=a', true)
+    frame.top = frame
+    expect(() => mirrorBrand('00897b', asWindow(frame))).not.toThrow()
+    expect(frame.location.href).toBe('http://x/iframe.html?id=a')
+  })
 })
