@@ -35,6 +35,8 @@ Node 22.22.0 or later (React Router 8's floor). npm 10+.
 | `npm run showcase` | Builds and serves the showcase app — every component, server-rendered, in both schemes |
 | `npm run showcase:test` | Smoke-tests every showcase section: 200, server-rendered heading, nav state, zero console output |
 
+The published Storybook is at https://andrew-caines.github.io/apComponents/. `.github/workflows/pages.yml` rebuilds and deploys it on every push to `main`, with `STORYBOOK_BASE_PATH=/apComponents/`. To reproduce that build locally from Git Bash, prefix the command with `MSYS_NO_PATHCONV=1`, or Git Bash rewrites the path into a Windows one.
+
 `npm run test:watch` only watches in an interactive terminal. Vitest 4 defaults
 `watch` to off when stdin is not a TTY or when it detects an agent, so in CI or
 an agent shell the same command runs once and exits.
