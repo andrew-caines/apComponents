@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router'
+// #region docs:css
 import '@ap/react/fonts.css'
 import '@ap/react/theme.css'
 // Load-bearing now that a component animates: Dialog's enter/exit and Spinner's
 // rotation are `animation: var(--ap-motion-*)`, which resolves to nothing
 // without this. See docs/CONTRIBUTING.md, "Motion".
 import '@ap/react/motion.css'
+// #endregion docs:css
 
 export default function Root() {
   useEffect(() => {

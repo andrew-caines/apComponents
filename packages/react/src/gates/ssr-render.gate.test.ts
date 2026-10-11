@@ -350,6 +350,18 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${escapedLabelFor}"`))
   })
 
+  it('serves the getting-started route: ApProvider, a labelled input and a button, in the markup', async () => {
+    // Guides/Getting started quotes this route (Phase 6 spec §4.1a), so the
+    // sample a reader copies is proven to server-render.
+    // Perturbation: drop `label="Email"` from start.tsx, and the label match fails.
+    const res = await fetchAsBrowser(`${base}/start`)
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toMatch(/<label[^>]*>Email<\/label>/)
+    expect(html).toMatch(/<input[^>]*\sname="email"/)
+    expect(html).toMatch(/<button[^>]*>Subscribe<\/button>/)
+  })
+
   it('posts the server-rendered DEFAULT values of Textarea, Checkbox, Switch, RadioGroup and Select through to the action, with no JavaScript involved', async () => {
     // Phase 1: pin the expected defaults against the REAL server markup,
     // with literal assertions — this is what makes the whole test non-

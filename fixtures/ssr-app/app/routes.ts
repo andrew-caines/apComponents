@@ -20,5 +20,7 @@ export default [
   // Same reasoning: no loader or action, so it is routed in both modes.
   route('notifications', 'routes/notifications.tsx'),
   route('theme', 'routes/theme.tsx'),
+  // Quoted by the Getting started guide. No loader or action, so routed in both modes.
+  route('start', 'routes/start.tsx'),
   ...(isSpa ? [] : [route('streamed', 'routes/streamed.tsx'), route('form', 'routes/form.tsx')]),
 ] satisfies RouteConfig

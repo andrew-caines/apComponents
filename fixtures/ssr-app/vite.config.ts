@@ -5,7 +5,9 @@ import { defineConfig } from 'vite'
 const isWin = process.platform === 'win32'
 
 export default defineConfig({
+  // #region docs:vite
   plugins: [reactRouter(), apComponents()],
+  // #endregion docs:vite
   // Local workaround for a drive-letter casing artifact on this Windows
   // checkout (D:\DEV vs d:\dev) that breaks vanilla-extract's symlink
   // resolution — not a requirement of @ap/vite. See docs/CONTRIBUTING.md
@@ -55,5 +57,7 @@ export default defineConfig({
   // or it re-introduces the duplicate one hop further down. Adding a Base UI
   // component that pulls in a new React-importing transitive dependency will
   // need a fourth entry here — the symptom is always a null dispatcher.
+  // #region docs:ssr-noexternal
   ssr: { noExternal: ['@base-ui/react', '@base-ui/utils', 'use-sync-external-store'] },
+  // #endregion docs:ssr-noexternal
 })

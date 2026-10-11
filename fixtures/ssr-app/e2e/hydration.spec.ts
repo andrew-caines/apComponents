@@ -81,6 +81,19 @@ test('home route hydrates with no React warnings or page errors', async ({ page 
   expect(messages, `unexpected console output:\n${messages.join('\n')}`).toEqual([])
 })
 
+test('getting-started route hydrates with no React warnings or recoverable errors', async ({ page }) => {
+  // ApProvider is mounted on this route only. It writes the scheme to <html>,
+  // which is the hydration path the guide's reader will take.
+  // Perturbation: render `{String(Date.now())}` inside <main> in start.tsx.
+  const messages = collect(page)
+  await page.goto('/start')
+  await expect(page.getByRole('button', { name: 'Subscribe' })).toBeVisible()
+  await waitForHydration(page)
+  await page.waitForTimeout(200)
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
+  expect(messages, `unexpected console output:\n${messages.join('\n')}`).toEqual([])
+})
+
 test('streamed route hydrates cleanly after late Suspense content', async ({ page }) => {
   const messages = collect(page)
   await page.goto('/streamed')
