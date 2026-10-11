@@ -11,6 +11,8 @@ const config: StorybookConfig = {
   stories: [
     '../../packages/react/src/**/*.stories.@(ts|tsx)',
     '../docs/**/*.mdx',
+    // The theme generator's stories (Phase 6), so play, axe and gate 9 cover it.
+    '../docs/**/*.stories.@(ts|tsx)',
   ],
   addons: ['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-vitest'],
   // forwardRef + Omit<> props are invisible to the default react-docgen, which

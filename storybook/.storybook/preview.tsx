@@ -24,6 +24,12 @@ const preview: Preview = {
     ),
   ],
   parameters: {
+    options: {
+      // Getting started is first in this order, so it is the landing page.
+      storySort: {
+        order: ['Guides', ['Getting started', 'SSR rules', 'Colour theory'], 'Foundations', 'Components'],
+      },
+    },
     a11y: {
       // 'error' fails the test run on a violation. 'todo' only warns in the
       // UI, which would make gate 5 a suggestion.

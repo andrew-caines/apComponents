@@ -1,0 +1,37 @@
+// Guides quote fixture code by named region rather than copying it, so a
+// sample cannot drift from code the gates build and run (Phase 6 spec §4.0).
+// Markers: `// #region docs:<name>` … `// #endregion docs:<name>`, or the JSX
+// form `{/* #region docs:<name> */}`.
+
+const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const marker = (kind: 'region' | 'endregion', name: string): RegExp =>
+  new RegExp(`^\\s*(?:\\/\\/|\\{\\/\\*)\\s*#${kind} docs:${escape(name)}\\s*(?:\\*\\/\\})?\\s*$`)
+
+const ANY_REGION = /^\s*(?:\/\/|\{\/\*)\s*#region docs:([\w-]+)\s*(?:\*\/\})?\s*$/
+
+export function regionNames(raw: string): string[] {
+  const names: string[] = []
+  for (const line of raw.split(/\r?\n/)) {
+    const m = ANY_REGION.exec(line)
+    if (m && !names.includes(m[1]!)) names.push(m[1]!)
+  }
+  return names
+}
+
+export function extractRegion(raw: string, name: string): string {
+  const lines = raw.split(/\r?\n/)
+  const open = marker('region', name)
+  const starts = lines.flatMap((line, i) => (open.test(line) ? [i] : []))
+  if (starts.length === 0) throw new Error(`extractRegion: no region "docs:${name}"`)
+  if (starts.length > 1) throw new Error(`extractRegion: region "docs:${name}" appears ${starts.length} times`)
+  const start = starts[0]! + 1
+  const close = marker('endregion', name)
+  const length = lines.slice(start).findIndex((line) => close.test(line))
+  if (length === -1) throw new Error(`extractRegion: region "docs:${name}" is not closed`)
+  const body = lines.slice(start, start + length)
+  const indents = body.filter((l) => l.trim() !== '').map((l) => /^\s*/.exec(l)![0].length)
+  if (indents.length === 0) throw new Error(`extractRegion: region "docs:${name}" is empty`)
+  const strip = Math.min(...indents)
+  return body.map((l) => l.slice(strip)).join('\n')
+}

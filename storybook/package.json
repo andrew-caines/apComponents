@@ -10,7 +10,8 @@
     "test:visual": "playwright test -c visual/playwright.config.ts"
   },
   "dependencies": {
-    "@ap/react": "file:../packages/react"
+    "@ap/react": "file:../packages/react",
+    "@ap/tokens": "file:../packages/tokens"
   },
   "devDependencies": {
     "@ap/vite": "file:../packages/vite",

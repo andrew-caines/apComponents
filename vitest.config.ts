@@ -19,6 +19,8 @@ export default defineConfig({
             // Gate 10's pure budget logic lives beside its script, so the
             // unit run covers it without a separate config.
             'scripts/**/*.test.ts',
+            // The docs site's pure helpers (extractRegion, generator logic).
+            'storybook/docs/**/*.test.ts',
           ],
           setupFiles: ['./vitest.setup.ts'],
           // These two gates build fixture apps and boot a server. They run
