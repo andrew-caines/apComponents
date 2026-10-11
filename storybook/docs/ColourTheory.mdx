@@ -1,0 +1,146 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+import { generateTheme, DEFAULT_BRAND, contrastPairings } from '@ap/tokens'
+import { hslRamp } from './lib/colour'
+import { RampStrip, RampTable, StepRoles } from './lib/Swatches'
+import './docs.css'
+
+export const THEME = generateTheme({ brand: DEFAULT_BRAND })
+export const HEADLINE = contrastPairings(THEME).filter((p) => p.mode === 'light').slice(0, 6)
+export const P3_STEPS = THEME.ramps.light.brand.steps.filter((s) => s.p3).length
+
+<Meta title="Guides/Colour theory" />
+
+# Colour theory
+
+apComponents turns one brand colour into six complete colour ramps, for light
+and for dark. This page explains how, and why the ramps are built the way they
+are. Every swatch and number below is computed when the page renders, from the
+same `generateTheme` call your app would make, so it cannot drift from the
+library. Hover a swatch to see its hex. For the semantic roles the ramps feed,
+see [Colour](?path=/docs/foundations-colour--docs).
+
+## Why OKLCH
+
+The obvious way to make a ramp is to keep a colour's hue and saturation and
+step its HSL lightness evenly. The top strip does exactly that, starting from
+the default brand colour. The bottom strip is the brand ramp the engine
+generates.
+
+<div className="stack">
+  <RampStrip label="HSL, even lightness steps" hexes={hslRamp(DEFAULT_BRAND, 12)} />
+  <RampStrip label="apComponents brand ramp" hexes={THEME.ramps.light.brand.steps.map((s) => s.hex)} />
+</div>
+
+HSL lightness is not perceptual. Yellow and blue can both claim the same HSL
+lightness while one looks far brighter, so a ramp built by stepping it gives
+different contrast at different hues. That is why hand-built palettes tend to
+contain one colour that "doesn't work". The HSL strip shows the other half of
+the problem: the steps are even on paper and uneven to the eye.
+
+OKLCH is perceptually uniform: the same lightness looks equally light at every
+hue. The engine does all its colour maths in OKLCH, with three channels:
+lightness, chroma (how colourful) and hue. One set of lightness targets can
+then be applied to any hue and give predictable contrast. The engine converts
+to sRGB hex only at the end
+([ADR-0006](https://github.com/andrew-caines/apComponents/blob/main/docs/adr/0006-oklch-colour-engine.md)).
+
+## From one seed to six ramps
+
+The brand colour you pass in is the seed. From it the engine derives:
+
+- the **brand** ramp, anchored so that step 9 is the seed itself;
+- a **neutral** ramp, tinted with the brand hue so greys do not look dead next
+  to a saturated brand;
+- **danger**, **warning**, **success** and **info** ramps, each starting from a
+  conventional hue for its meaning and nudged toward the brand hue so the
+  family resembles itself. A status ramp is also kept a minimum distance from
+  the brand hue, so a red brand cannot swallow danger.
+
+Light and dark are generated from the same seed against separate lightness
+targets. Dark is not an inverted light theme.
+
+### Light
+
+<RampTable theme={THEME} mode="light" />
+
+### Dark
+
+<RampTable theme={THEME} mode="dark" />
+
+## Twelve steps, each with a job
+
+Every ramp has {THEME.ramps.light.brand.steps.length} steps, and each step has a fixed role: backgrounds first, then
+component fills, then borders, then the solid colour, then text. Components ask
+for a step by role, never by lightness or hue name, so swapping the brand colour
+cannot break component styling. The table below is read straight from the
+semantic map, so it lists the tokens that really consume each step. The
+`onSolid` row is the text colour drawn on top of a solid step, chosen per ramp.
+
+<StepRoles />
+
+## Contrast policy
+
+Two standards measure contrast, and they disagree. The WCAG 2.1 contrast ratio
+is the one audits and procurement are written against, but it is known to be
+over-permissive in dark mode. APCA models perceived contrast better, but it is
+not yet a ratified standard. apComponents uses both, for different jobs
+([ADR-0008](https://github.com/andrew-caines/apComponents/blob/main/docs/adr/0008-contrast-policy.md)):
+
+- **APCA drives generation.** The engine solves lightness against APCA targets,
+  which is what makes dark mode read well.
+- **WCAG 2.1 AA is the gate.** AA is a hard floor: a test checks every semantic
+  text and UI pairing in both modes, and a theme that fails it fails the build.
+  APCA is reported next to the ratio but never gates anything.
+
+The table shows the first {HEADLINE.length} pairings for the light theme,
+computed now with the same functions the gate uses.
+
+<table>
+  <thead>
+    <tr>
+      <th scope="col">Pairing</th>
+      <th scope="col">Foreground</th>
+      <th scope="col">Background</th>
+      <th scope="col">Ratio</th>
+      <th scope="col">Required</th>
+      <th scope="col">APCA Lc</th>
+      <th scope="col">Pass</th>
+    </tr>
+  </thead>
+  <tbody>
+    {HEADLINE.map((p) => (
+      <tr key={`${p.fg}|${p.bg}`}>
+        <th scope="row" className="mono">{p.fg} on {p.bg}</th>
+        <td className="mono">{p.fgHex}</td>
+        <td className="mono">{p.bgHex}</td>
+        <td>{p.ratio.toFixed(2)}</td>
+        <td>{p.required}</td>
+        <td>{p.apca.toFixed(1)}</td>
+        <td>{p.pass ? 'Pass' : 'Fail'}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+Colour is never the only signal either: every semantic state in the component
+API ships an icon or text alongside its colour.
+
+## Gamut
+
+OKLCH can describe colours that sRGB cannot display. A browser that clips such
+a colour naively shifts its hue. The engine instead lowers chroma while holding
+lightness and hue fixed until the colour fits, and uses that colour as the hex
+value.
+
+When the colour the engine wanted was outside sRGB, the step also carries a
+wide-gamut `p3` value: the richer colour, clamped to Display P3. Steps whose
+colour is already in sRGB have `p3: null`. Only the solid, hover and text steps
+can carry one; the background and border steps are sRGB by design. The default
+brand ramp in light mode has {P3_STEPS} such steps. A `p3` value is emitted
+inside a `color-gamut: p3` media query, so sRGB screens keep the hex.
+
+## Try it
+
+Pick your own brand colour in the
+[Theme generator](?path=/docs/foundations-theme-generator--docs) and copy the
+code.
