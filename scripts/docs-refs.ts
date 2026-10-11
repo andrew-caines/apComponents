@@ -6,7 +6,7 @@
 // notices. This runs in the unit job and is the only build-time net.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { regionNames } from '../storybook/docs/lib/extractRegion.js'
+import { extractRegion } from '../storybook/docs/lib/extractRegion.js'
 
 function mdxFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -25,10 +25,13 @@ export function checkDocsRefs(docsDir: string): string[] {
   for (const file of mdxFiles(docsDir)) {
     const src = readFileSync(file, 'utf8')
     const raws = new Map<string, string>()
+    const missing = new Set<string>()
     for (const m of src.matchAll(/import\s+(\w+)\s+from\s+['"]([^'"]+)\?raw['"]/g)) {
       const target = resolve(dirname(file), m[2]!)
-      if (!existsSync(target)) problems.push(`${file}: ?raw import of missing file ${m[2]}`)
-      else raws.set(m[1]!, target)
+      if (!existsSync(target)) {
+        problems.push(`${file}: ?raw import of missing file ${m[2]}`)
+        missing.add(m[1]!)
+      } else raws.set(m[1]!, target)
     }
     for (const m of src.matchAll(CALL)) {
       const args = ARGS.exec(m[1]!)
@@ -38,11 +41,14 @@ export function checkDocsRefs(docsDir: string): string[] {
       }
       const target = raws.get(args[1]!)
       if (!target) {
+        if (missing.has(args[1]!)) continue
         problems.push(`${file}: extractRegion(${args[1]}, ...) is not a ?raw import of this file`)
         continue
       }
-      if (!regionNames(readFileSync(target, 'utf8')).includes(args[3]!)) {
-        problems.push(`${file}: ${target} has no region docs:${args[3]}`)
+      try {
+        extractRegion(readFileSync(target, 'utf8'), args[3]!)
+      } catch (e) {
+        problems.push(`${file}: ${e instanceof Error ? e.message : String(e)}`)
       }
     }
     for (const m of src.matchAll(/\]\((\.{1,2}\/[^)#\s]+)/g)) {

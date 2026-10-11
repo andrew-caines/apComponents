@@ -59,6 +59,24 @@ describe('checkDocsRefs', () => {
     const dir = fixture({ ...REGIONS, 'docs/A.mdx': `${IMPORT}{extractRegion(a, name)}\n` })
     expect(checkDocsRefs(dir)).toEqual([expect.stringContaining('cannot read')])
   })
+  it('reports a duplicate, an unclosed and an empty region, as render would throw', () => {
+    // Perturbation: go back to `regionNames(...).includes(name)`, and all three pass silently.
+    const cases: Array<[string, string, RegExp]> = [
+      ['dup', '// #region docs:dup\nx\n// #endregion docs:dup\n// #region docs:dup\ny\n// #endregion docs:dup\n', /appears 2 times/],
+      ['open', '// #region docs:open\nx\n', /not closed/],
+      ['blank', '// #region docs:blank\n// #endregion docs:blank\n', /is empty/],
+    ]
+    for (const [name, body, message] of cases) {
+      const dir = fixture({ 'src/a.ts': body, 'docs/A.mdx': `${IMPORT}{extractRegion(a, '${name}')}\n` })
+      expect(checkDocsRefs(dir)).toEqual([expect.stringMatching(message)])
+    }
+  })
+  it('reports a missing ?raw file once, not again per call', () => {
+    const dir = fixture({
+      'docs/A.mdx': "import x from '../src/gone.ts?raw'\n{extractRegion(x, 'a')}{extractRegion(x, 'b')}\n",
+    })
+    expect(checkDocsRefs(dir)).toHaveLength(1)
+  })
   it('reports a relative markdown link to a missing file', () => {
     const dir = fixture({ 'docs/A.mdx': 'See [x](./Nope.mdx).\n' })
     expect(checkDocsRefs(dir)).toEqual([expect.stringContaining('Nope.mdx')])
