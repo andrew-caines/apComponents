@@ -354,12 +354,20 @@ describe('gate 6: React Router 8 framework-mode SSR', () => {
     // Guides/Getting started quotes this route (Phase 6 spec §4.1a), so the
     // sample a reader copies is proven to server-render.
     // Perturbation: drop `label="Email"` from start.tsx, and the label match fails.
+    // Perturbation: move `<Input>` out of `<Field>` in start.tsx, and the
+    // label's `for` names no `<input>`, so the wiring match fails.
     const res = await fetchAsBrowser(`${base}/start`)
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toMatch(/<label[^>]*>Email<\/label>/)
     expect(html).toMatch(/<input[^>]*\sname="email"/)
     expect(html).toMatch(/<button[^>]*>Subscribe<\/button>/)
+    // The same label-to-control check as the form route above, anchored to an
+    // `<input>` and with the extracted id escaped, for the same reasons.
+    const labelFor = /<label[^>]*\sfor="([^"]+)"[^>]*>Email<\/label>/.exec(html)?.[1]
+    expect(labelFor, 'no for attribute on the Email label').toBeDefined()
+    const escapedLabelFor = labelFor!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    expect(html).toMatch(new RegExp(`<input[^>]*\\sid="${escapedLabelFor}"`))
   })
 
   it('posts the server-rendered DEFAULT values of Textarea, Checkbox, Switch, RadioGroup and Select through to the action, with no JavaScript involved', async () => {

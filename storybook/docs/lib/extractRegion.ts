@@ -8,17 +8,6 @@ const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const marker = (kind: 'region' | 'endregion', name: string): RegExp =>
   new RegExp(`^\\s*(?:\\/\\/|\\{\\/\\*)\\s*#${kind} docs:${escape(name)}\\s*(?:\\*\\/\\})?\\s*$`)
 
-const ANY_REGION = /^\s*(?:\/\/|\{\/\*)\s*#region docs:([\w-]+)\s*(?:\*\/\})?\s*$/
-
-export function regionNames(raw: string): string[] {
-  const names: string[] = []
-  for (const line of raw.split(/\r?\n/)) {
-    const m = ANY_REGION.exec(line)
-    if (m && !names.includes(m[1]!)) names.push(m[1]!)
-  }
-  return names
-}
-
 export function extractRegion(raw: string, name: string): string {
   const lines = raw.split(/\r?\n/)
   const open = marker('region', name)

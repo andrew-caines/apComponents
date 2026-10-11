@@ -1,8 +1,12 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { checkDocsRefs } from './docs-refs.js'
+import { checkDocsRefs, docsIdOf } from './docs-refs.js'
+
+// Resolved from this file, not the cwd, so the check runs from any directory.
+const REAL_DOCS = fileURLToPath(new URL('../storybook/docs', import.meta.url))
 
 function fixture(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), 'docs-refs-'))
@@ -19,7 +23,7 @@ const IMPORT = "import a from '../src/a.ts?raw'\n\n"
 describe('checkDocsRefs', () => {
   it('passes the real docs tree', () => {
     // Perturbation: rename `docs:start` in fixtures/ssr-app/app/routes/start.tsx, and this fails.
-    expect(checkDocsRefs('storybook/docs')).toEqual([])
+    expect(checkDocsRefs(REAL_DOCS)).toEqual([])
   })
   it('reports a ?raw import of a missing file', () => {
     const dir = fixture({ 'docs/A.mdx': "import x from '../src/gone.ts?raw'\n" })
@@ -60,7 +64,7 @@ describe('checkDocsRefs', () => {
     expect(checkDocsRefs(dir)).toEqual([expect.stringContaining('cannot read')])
   })
   it('reports a duplicate, an unclosed and an empty region, as render would throw', () => {
-    // Perturbation: go back to `regionNames(...).includes(name)`, and all three pass silently.
+    // Perturbation: check only that an opening marker for the name exists, and all three pass silently.
     const cases: Array<[string, string, RegExp]> = [
       ['dup', '// #region docs:dup\nx\n// #endregion docs:dup\n// #region docs:dup\ny\n// #endregion docs:dup\n', /appears 2 times/],
       ['open', '// #region docs:open\nx\n', /not closed/],
@@ -81,8 +85,29 @@ describe('checkDocsRefs', () => {
     const dir = fixture({ 'docs/A.mdx': 'See [x](./Nope.mdx).\n' })
     expect(checkDocsRefs(dir)).toEqual([expect.stringContaining('Nope.mdx')])
   })
-  it('ignores Storybook-internal ?path= links', () => {
-    const dir = fixture({ 'docs/A.mdx': 'See [x](?path=/docs/foo--docs) and [y](https://example.com).\n' })
+  it('accepts a ?path= docs link whose id is an MDX page, in Markdown or a JSX href', () => {
+    const dir = fixture({
+      'docs/A.mdx': '<Meta title="Guides/SSR rules" />\nSee [x](?path=/docs/guides-ssr-rules--docs).\n',
+      'docs/B.mdx': '<Meta title="Foundations/Theme generator" />\n<a href="?path=/docs/guides-ssr-rules--docs">x</a>\n',
+    })
     expect(checkDocsRefs(dir)).toEqual([])
+  })
+  it('reports a ?path= docs link whose id is no MDX page, in Markdown or a JSX href', () => {
+    // Perturbation: delete the DOCS_LINK loop (the old "leave ?path= alone"), and both pass silently.
+    const dir = fixture({
+      'docs/A.mdx':
+        '<Meta title="Guides/SSR rules" />\nSee [x](?path=/docs/guides-ssr-rule--docs).\n' +
+        "<a href={'?path=/docs/guides-nope--docs'}>y</a> and [z](https://example.com).\n",
+    })
+    const problems = checkDocsRefs(dir)
+    expect(problems).toHaveLength(2)
+    expect(problems.join('\n')).toContain('guides-ssr-rule--docs')
+    expect(problems.join('\n')).toContain('guides-nope--docs')
+  })
+  it('derives docs ids from Meta titles as Storybook does', () => {
+    expect(docsIdOf('Guides/Getting started')).toBe('guides-getting-started--docs')
+    expect(docsIdOf('Guides/SSR rules')).toBe('guides-ssr-rules--docs')
+    expect(docsIdOf('Foundations/Theme generator')).toBe('foundations-theme-generator--docs')
+    expect(docsIdOf('A/ Odd -- name! ')).toBe('a-odd-name--docs')
   })
 })

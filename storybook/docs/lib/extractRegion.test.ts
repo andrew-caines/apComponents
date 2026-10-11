@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractRegion, regionNames } from './extractRegion.js'
+import { extractRegion } from './extractRegion.js'
 
 const SRC = [
   "import x from 'y'",
@@ -42,11 +42,5 @@ describe('extractRegion', () => {
   })
   it('throws on an empty region, so a guide never renders a blank block', () => {
     expect(() => extractRegion('// #region docs:e\n// #endregion docs:e', 'e')).toThrow(/is empty/)
-  })
-})
-
-describe('regionNames', () => {
-  it('lists every opened region once, in order', () => {
-    expect(regionNames(SRC)).toEqual(['alpha', 'beta'])
   })
 })
