@@ -137,6 +137,8 @@ Storybook build and Pages deployment, MDX guides (theming, SSR rules, colour the
 
 **Done when:** Storybook is live on GitHub Pages and CI deploys it on merge to `main`.
 
+**Status:** done 2026-10-11. Pages deployment shipped with `08098d1`. The guides and the theme generator merged in PR #10 (`ac83e46`), and the plan is [`2026-10-11-phase6-documentation.md`](../plans/2026-10-11-phase6-documentation.md).
+
 ## 6. Verification
 
 Full detail in [ADR-0014](../../adr/0014-verification-gates.md). The summary:

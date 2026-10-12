@@ -1366,3 +1366,36 @@ Expected: four "listed" lines and `200`.
 | 9 | Everything is live | Task 9, Step 4 | — |
 
 **Final proof artifact:** the PR's CI run (7/7, gate 9 clean against the new baselines) and the `main` Pages deploy run, plus Task 9 Step 4's output showing the four new docs entries listed and the site returning 200.
+
+## What actually happened
+
+PR #10 merged to `main` at `ac83e46` on 2026-10-11, by fast-forward.
+
+### Proof
+- **Locally:** all 12 sweep commands passed, with 2466 unit tests. The public-copy grep was clean.
+- **First CI run:** 7/7 green. Gate 9 reported exactly the expected 10 missing baselines (5 generator stories × 2 schemes) and no diffs on any existing story.
+- **Baselines:** the `update-visual-baselines` bot committed them as `3506bf8`.
+- **CI on the empty commit:** 7/7 green. Gate 9: 264 passed, 2 skipped, 0 failed.
+- **Pages deploy on `main`:** green. The live `index.json` lists `guides-getting-started--docs`, `guides-ssr-rules--docs`, `guides-colour-theory--docs` and `foundations-theme-generator--docs`, and the site returns 200.
+
+### Departures from the plan
+- **Missing regions.** `storybook build` and the storybook vitest project do not render MDX pages, so neither catches a missing region. `scripts/docs-refs.ts` in the unit job is the only build-time net, and spec §4.0 says so.
+- **Story title.** The generator stories are titled `Foundations/Theme generator stories`, because a docs page and a story group cannot share a sidebar path.
+- **`vite-imports` regions.** These were added to both vite configs, so the guides have no hand-typed code around quoted samples.
+- **SSR rules table.** The page states what each gate actually enforces. Five rows of the spec table overstated this, and the spec is amended.
+- **Base UI `ssr.noExternal`.** This is scoped to the fixture's place in this workspace. No gate tests an external submodule consumer, so the guides say to add the entries if a null hook dispatcher error appears.
+- **`?brand=` mirror.** It writes to `window.top` when that is same-origin, and only after the first edit.
+- **docs-refs scope.** It also checks `?path=/docs/<id>--docs` links, and it fails on duplicate, unclosed and empty regions.
+
+### Still open
+- Swatch hex values are reachable only by hover, not by keyboard.
+- The 110-row contrast table is long.
+- A whitespace-padded `?brand=` is not handled.
+- Marker-comment forms are not checked strictly.
+- The docs-link regex also scans code fences.
+- docs-refs test temp dirs are not removed.
+- The generation counter is updated inside `useMemo`.
+- `docsIdOf` only approximates Storybook's title sanitizer.
+- The `META_TITLE` regex mishandles a title containing an apostrophe.
+- The `/start` test skips the `HYDRATION_MARKERS` filter.
+- `/subscribe` is illustrative only.
