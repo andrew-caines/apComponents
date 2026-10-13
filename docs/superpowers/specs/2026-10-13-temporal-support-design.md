@@ -151,6 +151,11 @@ default for the `calendar` option, and the caller's `calendar` still wins.
 **Option rules:**
 - `timeZoneName` with a `plain` value is invalid, because it would print a zone for a value that
   has none.
+- A `plain: 'date'` value with a time field (`timeStyle`, `hour`, `minute`, `second`,
+  `fractionalSecondDigits`, `dayPeriod`) is invalid. So is a `plain: 'time'` value with a date
+  field (`dateStyle`, `weekday`, `era`, `year`, `month`, `day`). Either would print a midnight,
+  or a 1 January 1970, that the value does not hold. This mirrors Temporal's own
+  `toLocaleString`, which throws a `TypeError` for both. (Added while planning.)
 - For a `TemporalDuration`, `milliseconds + microseconds / 1e3 + nanoseconds / 1e6` is added to
   `seconds` as a fraction. The existing composition (`NumberFormat` + `ListFormat`) is unchanged.
 
@@ -217,7 +222,7 @@ v1, and the JSDoc says so.
   zone, and the hydration-pass case for a PlainDate gives the same text as the client pass.
 - **SSR fixture.** A new `dates` route, routed in both modes and with no loader, renders a
   PlainDate, a ZonedDateTime and an Instant through `useFormatter`, each inside
-  `<time dateTime>`. The polyfill is a devDependency of the fixture. `hydration.spec.ts` adds the
+  `<time dateTime>`. The polyfill is a runtime `dependency` of the fixture app, because the app brings Temporal (decision 1). `hydration.spec.ts` adds the
   route to its list, so the empty-`__apRecoverableErrors` assertion covers it. Perturbation:
   the `/dates` test sets its browser context's `timezoneId` to `America/Los_Angeles`.
   Render the PlainDate through `new Date(...)` instead, and the visible day must differ from the
