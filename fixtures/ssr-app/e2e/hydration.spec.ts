@@ -94,6 +94,19 @@ test('getting-started route hydrates with no React warnings or recoverable error
   expect(messages, `unexpected console output:\n${messages.join('\n')}`).toEqual([])
 })
 
+test('dates route hydrates with no recoverable errors (Temporal values via useFormatter)', async ({ page }) => {
+  // Perturbation: render `{typeof window === 'undefined' ? 'server' : 'client'}` inside <main>
+  // in routes/dates.tsx; this must fail. (An Instant's UTC-then-local flip is not a mismatch:
+  // useFormatter renders the server's text on the hydration pass, so that is not a perturbation.)
+  const messages = collect(page)
+  await page.goto('/dates')
+  await expect(page.locator('#plain-date')).toBeVisible()
+  await waitForHydration(page)
+  await page.waitForTimeout(200)
+  expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
+  expect(messages, `unexpected console output:\n${messages.join('\n')}`).toEqual([])
+})
+
 test('streamed route hydrates cleanly after late Suspense content', async ({ page }) => {
   const messages = collect(page)
   await page.goto('/streamed')

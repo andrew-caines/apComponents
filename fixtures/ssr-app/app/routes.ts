@@ -22,5 +22,7 @@ export default [
   route('theme', 'routes/theme.tsx'),
   // Quoted by the Getting started guide. No loader or action, so routed in both modes.
   route('start', 'routes/start.tsx'),
+  // Temporal values through useFormatter. No loader or action, so routed in both modes.
+  route('dates', 'routes/dates.tsx'),
   ...(isSpa ? [] : [route('streamed', 'routes/streamed.tsx'), route('form', 'routes/form.tsx')]),
 ] satisfies RouteConfig
