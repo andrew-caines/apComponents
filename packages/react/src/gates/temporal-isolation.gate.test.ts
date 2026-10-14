@@ -23,7 +23,7 @@ describe('gate: the Temporal polyfill is test-only (spec decision 1: the app bri
     expect(tests.length).toBeGreaterThan(0)
   })
 
-  // Perturbation: add `import { Temporal } from '@js-temporal/polyfill'` to format/date.ts.
+  // Perturbation: add an import of the polyfill to format/date.ts.
   it('no non-test source file imports @js-temporal/polyfill', () => {
     const importers = sourceFiles(SRC, { extensions: ['.ts', '.tsx'] })
       .filter(importsPolyfill)
