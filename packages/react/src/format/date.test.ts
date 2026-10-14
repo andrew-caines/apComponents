@@ -261,6 +261,17 @@ describe('Temporal ranges', () => {
   it('rejects mixed classes', () => {
     expect(formatDateRange(pd, inst, ny)).toBe('')
   })
+  it('defaults a PlainTime pair to a short time range', () => {
+    expect(formatDateRange(pt, Temporal.PlainTime.from('17:00'), ny)).toBe('9:00\u202fAM\u2009\u2013\u20095:00\u202fPM')
+  })
+  it('rejects a PlainTime pair with a date style', () => {
+    expect(formatDateRange(pt, Temporal.PlainTime.from('17:00'), { ...ny, dateStyle: 'medium' })).toBe('')
+    expect(console.warn).toHaveBeenCalledTimes(1)
+  })
+  it('rejects a PlainDate pair with a time field', () => {
+    expect(formatDateRange(pd, pd, { ...ny, hour: 'numeric' })).toBe('')
+    expect(console.warn).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('Temporal relative and duration', () => {
@@ -270,6 +281,12 @@ describe('Temporal relative and duration', () => {
   it('formatRelative rejects a plain value, including a date-only string', () => {
     expect(formatRelative(pd, { locale: 'en-US', now: inst })).toBe('')
     expect(formatRelative('1990-05-12', { locale: 'en-US', now: inst })).toBe('')
+  })
+  it('formatRelative rejects a plain now', () => {
+    expect(formatRelative(inst, { locale: 'en-US', now: pd })).toBe('')
+  })
+  it('formatDuration rejects another Temporal class', () => {
+    expect(formatDuration(pd as never, { locale: 'en-US' })).toBe('')
   })
   it('formatDuration takes a Temporal.Duration and folds sub-second fields into seconds', () => {
     expect(formatDuration(Temporal.Duration.from({ hours: 2, milliseconds: 500 }), { locale: 'en-US' })).toBe('2 hr, 0.5 sec')

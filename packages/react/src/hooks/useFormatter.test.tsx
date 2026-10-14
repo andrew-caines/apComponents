@@ -229,6 +229,7 @@ describe('the two-pass date rule', () => {
     const html = renderToString(tree)
     expect(html).toContain('May 12, 1990')
     const result = hydrate(tree, html)
+    expect(result.seen.length).toBeGreaterThan(0)
     expect(result.seen).toEqual(result.seen.map(() => 'May 12, 1990'))
     expect(result.text).toBe('May 12, 1990')
   })

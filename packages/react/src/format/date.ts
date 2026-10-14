@@ -78,8 +78,9 @@ function intlOptions(r: ResolvedDate, opts: Intl.DateTimeFormatOptions): Intl.Da
  *
  * A PlainDate, or a date-only ISO string such as '1990-05-12', is a calendar
  * date: it renders as that day in every zone. A ZonedDateTime renders in its
- * own zone and ignores `timeZone`; convert it first with `withTimeZone` to show
- * it elsewhere. An Instant, a Date, a number or a timestamp string renders in
+ * own zone and ignores `timeZone`. To show it in the reader's zone, format
+ * `zdt.toInstant()`, which follows the two-pass rule; `withTimeZone(zone)` is for
+ * a fixed zone that is known on the server too. An Instant, a Date, a number or a timestamp string renders in
  * `timeZone`.
  */
 export function formatDate(value: DateInput | null | undefined, options: DateFormatOptions): string {
@@ -125,7 +126,9 @@ export function formatDateTime(value: DateInput | null | undefined, options: Dat
  * Formats a start and end as a range. Both ends must be the same kind of
  * value: two calendar dates, two plain date-times, two plain times, or two
  * instants (ZonedDateTime, Instant, Date, number, timestamp string). A range
- * renders in one zone, the start's: a ZonedDateTime start brings its own.
+ * renders in one zone, the start's: a ZonedDateTime start brings its own, while
+ * an Instant or Date start uses `timeZone`, so a mixed instant-like pair renders in
+ * the start's zone.
  */
 export function formatDateRange(
   start: DateInput | null | undefined,
@@ -136,7 +139,8 @@ export function formatDateRange(
   const b = toInstant(end)
   const bad = a === undefined || b === undefined || a.plain !== b.plain || asksForMissing(a, options)
   return guard('formatDateRange', `${String(start)} - ${String(end)}`, bad, () => {
-    const [locale, opts] = resolve(options, { dateStyle: 'medium' })
+    const defaults: Intl.DateTimeFormatOptions = a!.plain === 'time' ? { timeStyle: 'short' } : { dateStyle: 'medium' }
+    const [locale, opts] = resolve(options, defaults)
     return new Intl.DateTimeFormat(locale, intlOptions(a!, opts)).formatRange(a!.ms, b!.ms)
   })
 }
