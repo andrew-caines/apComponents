@@ -7,7 +7,18 @@ export {
   formatTime,
 } from './date.js'
 export type { DateFormatOptions, Duration, DurationOptions, RelativeOptions } from './date.js'
-export type { DateInput, LocaleOptions, ZonedOptions } from './shared.js'
+export type {
+  DateInput,
+  LocaleOptions,
+  TemporalDateLike,
+  TemporalDuration,
+  TemporalInstant,
+  TemporalPlainDate,
+  TemporalPlainDateTime,
+  TemporalPlainTime,
+  TemporalZonedDateTime,
+  ZonedOptions,
+} from './shared.js'
 export {
   formatBytes,
   formatCompact,

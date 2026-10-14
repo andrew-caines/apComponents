@@ -29,6 +29,7 @@ import type {
   PluralForms,
   RelativeOptions,
 } from '../format/index.js'
+import { toIsoString } from '../format/shared.js'
 import { useLocale } from '../providers/LocaleProvider.js'
 
 /** `formatX` bound to the provider: the locale (and zone, currency) is already filled in. */
@@ -138,10 +139,7 @@ export function useFormatter(): Formatter {
       pluralize: (n, forms, o) => pluralize(n, forms, { ...L, ...defined(o) }),
       truncate: (t, o) => truncate(t, { ...L, ...defined(o), length: o?.length }),
       collator: (o) => collator(locale, o),
-      isoFor: (v) => {
-        const ms = v instanceof Date ? v.getTime() : new Date(v).getTime()
-        return Number.isFinite(ms) ? new Date(ms).toISOString() : ''
-      },
+      isoFor: (v) => toIsoString(v),
     }
   }, [locale, currency, timeZone])
 }
