@@ -1,9 +1,12 @@
 import {
   guard,
   isFiniteNumber,
-  toTimestamp,
+  temporalKind,
+  toInstant,
   type DateInput,
   type LocaleOptions,
+  type ResolvedDate,
+  type TemporalDuration,
   type ZonedOptions,
 } from './shared.js'
 
@@ -39,18 +42,51 @@ function resolve(
   return [locale, callerPicked ? rest : { ...defaults, ...rest }]
 }
 
+const TIME_KEYS = ['timeStyle', 'hour', 'minute', 'second', 'fractionalSecondDigits', 'dayPeriod'] as const
+const DATE_KEYS = ['dateStyle', 'weekday', 'era', 'year', 'month', 'day'] as const
+
+/**
+ * True when the options ask a plain value for something it does not hold: a
+ * time of a PlainDate, a date of a PlainTime, or a zone name of either. Intl
+ * would print a midnight, a 1 January 1970 or 'UTC'. Temporal's own
+ * toLocaleString throws for the same cases.
+ */
+function asksForMissing(r: ResolvedDate, options: DateFormatOptions): boolean {
+  if (r.plain === undefined) return false
+  if (options.timeZoneName !== undefined) return true
+  if (r.plain === 'date') return TIME_KEYS.some((k) => options[k] !== undefined)
+  if (r.plain === 'time') return DATE_KEYS.some((k) => options[k] !== undefined)
+  return false
+}
+
+/**
+ * The resolved value's zone overrides the caller's: 'UTC' renders a plain
+ * value's wall time, and a ZonedDateTime keeps its own zone. Its calendar is
+ * the default; an explicit calendar wins.
+ */
+function intlOptions(r: ResolvedDate, opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormatOptions {
+  const calendar = opts.calendar ?? r.calendar
+  return {
+    ...opts,
+    ...(calendar !== undefined ? { calendar } : {}),
+    ...(r.zone !== undefined ? { timeZone: r.zone } : {}),
+  }
+}
+
 /**
  * Formats the date part.
  *
- * A date-only ISO string such as '1990-05-12' is UTC midnight (ECMAScript), so
- * in a zone west of UTC it shows the previous day. To render a calendar date
- * (a birthday, a hire date), pass `timeZone: 'UTC'`.
+ * A PlainDate, or a date-only ISO string such as '1990-05-12', is a calendar
+ * date: it renders as that day in every zone. A ZonedDateTime renders in its
+ * own zone and ignores `timeZone`; convert it first with `withTimeZone` to show
+ * it elsewhere. An Instant, a Date, a number or a timestamp string renders in
+ * `timeZone`.
  */
 export function formatDate(value: DateInput | null | undefined, options: DateFormatOptions): string {
-  const ts = toTimestamp(value)
-  return guard('formatDate', value, ts === undefined, () => {
+  const r = toInstant(value)
+  return guard('formatDate', value, r === undefined || r.plain === 'time' || asksForMissing(r, options), () => {
     const [locale, opts] = resolve(options, { dateStyle: 'medium' })
-    return new Intl.DateTimeFormat(locale, opts).format(ts!)
+    return new Intl.DateTimeFormat(locale, intlOptions(r!, opts)).format(r!.ms)
   })
 }
 
@@ -58,47 +94,50 @@ export function formatDate(value: DateInput | null | undefined, options: DateFor
  * Formats the time of day. Passing only `timeZoneName` switches off the time default,
  * so `Intl` fills in its default date fields. To get a time with a zone name, pass
  * `hour` and `minute` too.
+ *
+ * A PlainTime or PlainDateTime renders its wall time. A ZonedDateTime renders
+ * in its own zone and ignores `timeZone`. A PlainDate or a date-only string has
+ * no time and is invalid.
  */
 export function formatTime(value: DateInput | null | undefined, options: DateFormatOptions): string {
-  const ts = toTimestamp(value)
-  return guard('formatTime', value, ts === undefined, () => {
+  const r = toInstant(value)
+  return guard('formatTime', value, r === undefined || r.plain === 'date' || asksForMissing(r, options), () => {
     const [locale, opts] = resolve(options, { timeStyle: 'short' })
-    return new Intl.DateTimeFormat(locale, opts).format(ts!)
+    return new Intl.DateTimeFormat(locale, intlOptions(r!, opts)).format(r!.ms)
   })
 }
 
 /**
- * Formats the date and time.
- *
- * A date-only ISO string such as '1990-05-12' is UTC midnight (ECMAScript), so
- * in a zone west of UTC it shows the previous day. To render a calendar date
- * (a birthday, a hire date), pass `timeZone: 'UTC'`.
+ * Formats the date and time. A PlainDateTime renders its wall time, and a
+ * ZonedDateTime renders in its own zone and ignores `timeZone`. A PlainDate, a
+ * PlainTime or a date-only string lacks half of the output and is invalid.
  */
 export function formatDateTime(value: DateInput | null | undefined, options: DateFormatOptions): string {
-  const ts = toTimestamp(value)
-  return guard('formatDateTime', value, ts === undefined, () => {
+  const r = toInstant(value)
+  const bad = r === undefined || r.plain === 'date' || r.plain === 'time' || asksForMissing(r, options)
+  return guard('formatDateTime', value, bad, () => {
     const [locale, opts] = resolve(options, { dateStyle: 'medium', timeStyle: 'short' })
-    return new Intl.DateTimeFormat(locale, opts).format(ts!)
+    return new Intl.DateTimeFormat(locale, intlOptions(r!, opts)).format(r!.ms)
   })
 }
 
 /**
- * Formats a start and end as a range.
- *
- * A date-only ISO string such as '1990-05-12' is UTC midnight (ECMAScript), so
- * in a zone west of UTC it shows the previous day. To render a calendar date
- * (a birthday, a hire date), pass `timeZone: 'UTC'`.
+ * Formats a start and end as a range. Both ends must be the same kind of
+ * value: two calendar dates, two plain date-times, two plain times, or two
+ * instants (ZonedDateTime, Instant, Date, number, timestamp string). A range
+ * renders in one zone, the start's: a ZonedDateTime start brings its own.
  */
 export function formatDateRange(
   start: DateInput | null | undefined,
   end: DateInput | null | undefined,
   options: DateFormatOptions,
 ): string {
-  const a = toTimestamp(start)
-  const b = toTimestamp(end)
-  return guard('formatDateRange', `${String(start)} - ${String(end)}`, a === undefined || b === undefined, () => {
+  const a = toInstant(start)
+  const b = toInstant(end)
+  const bad = a === undefined || b === undefined || a.plain !== b.plain || asksForMissing(a, options)
+  return guard('formatDateRange', `${String(start)} - ${String(end)}`, bad, () => {
     const [locale, opts] = resolve(options, { dateStyle: 'medium' })
-    return new Intl.DateTimeFormat(locale, opts).formatRange(a!, b!)
+    return new Intl.DateTimeFormat(locale, intlOptions(a!, opts)).formatRange(a!.ms, b!.ms)
   })
 }
 
@@ -116,12 +155,18 @@ const DAY = 24 * HOUR
 /**
  * `now` is a required input, never read from the clock, so the same props
  * give the same string on the server and in the browser.
+ *
+ * Takes an Instant or a ZonedDateTime for `value` and `now`. A PlainDate,
+ * PlainDateTime, PlainTime or date-only string is invalid.
  */
 export function formatRelative(value: DateInput | null | undefined, options: RelativeOptions): string {
-  const ts = toTimestamp(value)
-  const now = toTimestamp(options.now)
-  return guard('formatRelative', value, ts === undefined || now === undefined, () => {
-    const diff = ts! - now!
+  const r = toInstant(value)
+  const n = toInstant(options.now)
+  // Relative time between calendar dates is calendar arithmetic, out of scope:
+  // a plain value (including a date-only string) is invalid here.
+  const bad = r === undefined || n === undefined || r.plain !== undefined || n.plain !== undefined
+  return guard('formatRelative', value, bad, () => {
+    const diff = r!.ms - n!.ms
     const abs = Math.abs(diff)
     const days = diff / DAY
     let unit: Intl.RelativeTimeFormatUnit
@@ -166,11 +211,22 @@ const DURATION_UNITS = [
   ['seconds', 'second'],
 ] as const
 
+/** Temporal.Duration's fields, with the sub-second ones folded into fractional seconds. */
+function fromTemporalDuration(d: TemporalDuration): Duration | undefined {
+  if (d.sign === -1) return undefined
+  const seconds = d.seconds + d.milliseconds / 1e3 + d.microseconds / 1e6 + d.nanoseconds / 1e9
+  return { years: d.years, months: d.months, weeks: d.weeks, days: d.days, hours: d.hours, minutes: d.minutes, seconds }
+}
+
 /**
  * Composed from NumberFormat and ListFormat, never from Intl.DurationFormat:
  * that API is missing on Node 22, and output must not differ by runtime.
+ * Takes a Temporal.Duration too; a negative one is invalid, as a negative
+ * field already is.
  */
-export function formatDuration(duration: Duration | null | undefined, options: DurationOptions): string {
+export function formatDuration(input: Duration | TemporalDuration | null | undefined, options: DurationOptions): string {
+  const kind = temporalKind(input)
+  const duration = kind === 'Duration' ? fromTemporalDuration(input as TemporalDuration) : kind === undefined ? (input as Duration | null | undefined) : undefined
   const present = duration
     ? DURATION_UNITS.flatMap(([key, unit]) => {
         const amount = duration[key]
@@ -178,7 +234,7 @@ export function formatDuration(duration: Duration | null | undefined, options: D
       })
     : []
   const bad = !duration || present.some(({ amount }) => !isFiniteNumber(amount) || amount < 0)
-  return guard('formatDuration', duration, bad, () => {
+  return guard('formatDuration', input, bad, () => {
     const style = options.style ?? 'short'
     const parts = present.filter(({ amount }) => amount !== 0)
     if (parts.length === 0) parts.push({ unit: 'second', amount: 0 })

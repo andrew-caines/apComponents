@@ -1,3 +1,4 @@
+import { Temporal } from '@js-temporal/polyfill'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   formatDate,
@@ -189,12 +190,107 @@ describe('formatDuration', () => {
   })
 })
 
-describe('date-only strings', () => {
-  // A date-only ISO string is UTC midnight, so zones west of UTC show the previous day.
-  it('shows the previous day west of UTC', () => {
-    expect(formatDate('1990-05-12', { locale: 'en-US', timeZone: 'America/New_York' })).toBe('May 11, 1990')
+const pd = Temporal.PlainDate.from('1990-05-12')
+const pdt = Temporal.PlainDateTime.from('2026-03-05T09:00')
+const pt = Temporal.PlainTime.from('09:00')
+const zdt = Temporal.ZonedDateTime.from('2026-03-05T09:00[Asia/Tokyo]')
+const inst = Temporal.Instant.from('2026-03-05T00:00Z')
+const ny = { locale: 'en-US', timeZone: 'America/New_York' }
+
+describe('date-only strings are calendar dates', () => {
+  it('shows the same day west of UTC', () => {
+    expect(formatDate('1990-05-12', ny)).toBe('May 12, 1990')
   })
-  it('shows the same day with timeZone UTC', () => {
-    expect(formatDate('1990-05-12', { locale: 'en-US', timeZone: 'UTC' })).toBe('May 12, 1990')
+  it('are invalid for formatTime and formatDateTime (no time to show)', () => {
+    expect(formatTime('1990-05-12', ny)).toBe('')
+    expect(formatDateTime('1990-05-12', ny)).toBe('')
+  })
+})
+
+describe('Temporal values', () => {
+  it.each([
+    ['formatDate(PlainDate)', () => formatDate(pd, ny), 'May 12, 1990'],
+    ['formatDate(PlainDateTime)', () => formatDate(pdt, ny), 'Mar 5, 2026'],
+    ['formatDate(ZonedDateTime) in its own zone', () => formatDate(zdt, ny), 'Mar 5, 2026'],
+    ['formatDate(Instant) in the given zone', () => formatDate(inst, ny), 'Mar 4, 2026'],
+    ['formatTime(PlainTime)', () => formatTime(pt, ny), '9:00 AM'],
+    ['formatTime(PlainDateTime)', () => formatTime(pdt, ny), '9:00 AM'],
+    ['formatTime(ZonedDateTime) in its own zone', () => formatTime(zdt, ny), '9:00 AM'],
+    ['formatDateTime(PlainDateTime)', () => formatDateTime(pdt, ny), 'Mar 5, 2026, 9:00 AM'],
+    ['formatDateTime(ZonedDateTime) ignores timeZone', () => formatDateTime(zdt, ny), 'Mar 5, 2026, 9:00 AM'],
+    ['formatDateTime(Instant)', () => formatDateTime(inst, ny), 'Mar 4, 2026, 7:00 PM'],
+    ['a year below 100', () => formatDate(Temporal.PlainDate.from('0045-01-02'), ny), 'Jan 2, 45'],
+    ['a Hebrew-calendar PlainDate defaults to its calendar', () => formatDate(pd.withCalendar('hebrew'), ny), '17 Iyar 5750'],
+    ['an explicit calendar wins', () => formatDate(pd.withCalendar('hebrew'), { ...ny, calendar: 'gregory' }), 'May 12, 1990'],
+    ['an explicit undefined calendar keeps the value’s', () => formatDate(pd.withCalendar('hebrew'), { ...ny, calendar: undefined }), '17 Iyar 5750'],
+  ])('%s', (_label, run, expected) => {
+    expect(run()).toBe(expected)
+  })
+
+  it.each([
+    ['formatDate(PlainTime)', () => formatDate(pt, ny)],
+    ['formatTime(PlainDate)', () => formatTime(pd, ny)],
+    ['formatDateTime(PlainDate)', () => formatDateTime(pd, ny)],
+    ['formatDateTime(PlainTime)', () => formatDateTime(pt, ny)],
+    ['formatDate(PlainYearMonth)', () => formatDate(Temporal.PlainYearMonth.from('2026-03') as never, ny)],
+    ['formatDate(Duration)', () => formatDate(Temporal.Duration.from({ days: 1 }) as never, ny)],
+    ['a PlainDate with a time field', () => formatDate(pd, { ...ny, hour: 'numeric' })],
+    ['a PlainTime with a date field', () => formatTime(pt, { ...ny, dateStyle: 'full' })],
+    ['timeZoneName on a plain value', () => formatDateTime(pdt, { ...ny, timeZoneName: 'short' })],
+    ['a malformed Temporal-tagged object', () => formatDate({ [Symbol.toStringTag]: 'Temporal.PlainDate' } as never, ny)],
+  ])('%s is invalid: empty string and a warning', (_label, run) => {
+    expect(run()).toBe('')
+    expect(console.warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('timeZoneName on a ZonedDateTime names its own zone', () => {
+    expect(formatTime(zdt, { locale: 'en-US', timeZone: 'UTC', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })).toBe('9:00 AM GMT+9')
+  })
+})
+
+describe('Temporal ranges', () => {
+  it('formats a PlainDate pair as calendar dates', () => {
+    expect(formatDateRange(Temporal.PlainDate.from('2026-03-05'), Temporal.PlainDate.from('2026-03-09'), ny)).toBe(
+      'Mar 5 – 9, 2026',
+    )
+  })
+  it('renders a zoned pair in the start’s zone', () => {
+    const end = Temporal.ZonedDateTime.from('2026-03-05T12:00[Europe/London]') // 21:00 in Tokyo
+    expect(formatDateRange(zdt, end, { ...ny, timeStyle: 'short' })).toBe('9:00 AM – 9:00 PM')
+  })
+  it('rejects mixed classes', () => {
+    expect(formatDateRange(pd, inst, ny)).toBe('')
+  })
+})
+
+describe('Temporal relative and duration', () => {
+  it('formatRelative takes an Instant and a ZonedDateTime', () => {
+    expect(formatRelative(inst, { locale: 'en-US', now: zdt.add({ hours: 3 }) as never })).toBe('3 hours ago')
+  })
+  it('formatRelative rejects a plain value, including a date-only string', () => {
+    expect(formatRelative(pd, { locale: 'en-US', now: inst })).toBe('')
+    expect(formatRelative('1990-05-12', { locale: 'en-US', now: inst })).toBe('')
+  })
+  it('formatDuration takes a Temporal.Duration and folds sub-second fields into seconds', () => {
+    expect(formatDuration(Temporal.Duration.from({ hours: 2, milliseconds: 500 }), { locale: 'en-US' })).toBe('2 hr, 0.5 sec')
+  })
+  it('formatDuration rejects a negative Temporal.Duration', () => {
+    expect(formatDuration(Temporal.Duration.from({ hours: -2 }), { locale: 'en-US' })).toBe('')
+  })
+})
+
+describe('calendar dates do not depend on the process zone', () => {
+  // Perturbation: drop `zone: 'UTC'` from the PlainDate branch of resolveInput and
+  // pass no timeZone override; the Los Angeles case must then read May 11.
+  it.each(['America/Los_Angeles', 'Pacific/Kiritimati'])('renders the same day under TZ=%s', (zone) => {
+    const saved = process.env.TZ
+    process.env.TZ = zone
+    try {
+      expect(formatDate(pd, { locale: 'en-US', timeZone: zone })).toBe('May 12, 1990')
+      expect(formatDate('1990-05-12', { locale: 'en-US', timeZone: zone })).toBe('May 12, 1990')
+    } finally {
+      if (saved === undefined) delete process.env.TZ
+      else process.env.TZ = saved
+    }
   })
 })
