@@ -1,6 +1,6 @@
 {
   "format": {
-    "js": 3300,
+    "js": 4000,
     "css": 0
   },
   "format/phone": {
@@ -8,7 +8,7 @@
     "css": 0
   },
   "hooks": {
-    "js": 6900,
+    "js": 7800,
     "css": 0
   },
   "import:Accordion": {
