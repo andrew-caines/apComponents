@@ -140,3 +140,13 @@ The decision above stands. Phase 5g changed these points; the detail is in spec 
 - **Bad input returns `''` and warns in development.** An invalid date, locale or time zone makes `Intl` throw `RangeError`; a formatter that throws takes a route down for one bad table cell, and a silent `''` hides the bug, so it warns once per function.
 - **`maskTaxId` rules are cited, and a country is added only with a source.** US (law, 26 CFR 301.6109-4), Canada (official guidance by analogy), India (regulation plus guidance) and Singapore (guidance) carry citations, listed in spec §5.5.2. Other countries use the last-four fallback until someone finds a source for a rule.
 - **`libphonenumber-js` is an optional peer behind `./format/phone`.** Its metadata is large, and most products never format a phone number, so only a product that imports that subpath pays for it. A gate walks the import graphs of `./format` and `./hooks` to prove neither reaches it.
+
+## Amendment — 2026-10-13 (Temporal)
+
+The decision above stands. These points are added; the detail is in
+`docs/superpowers/specs/2026-10-13-temporal-support-design.md`.
+
+- **The formatters accept Temporal values and bundle nothing.** `PlainDate`, `PlainDateTime`, `PlainTime`, `ZonedDateTime` and `Instant` are `DateInput`s, and `formatDuration` takes a `Temporal.Duration`. The app brings Temporal, native or polyfill. The library recognises a value by its `Symbol.toStringTag` and never reads the Temporal global, so it runs on Node 22 and 24, where there is none. A gate keeps `@js-temporal/polyfill` out of library sources.
+- **One formatting path.** Every value resolves to epoch milliseconds plus an optional zone and calendar, and goes through the same `Intl.DateTimeFormat` call as a `Date`. Delegating to `toLocaleString` would give output that depends on which Temporal implementation the app loaded.
+- **Each value renders by its meaning.** A plain value renders its wall time, and a `ZonedDateTime` renders in its own zone and ignores `timeZone`, so neither takes part in the two-pass rule. An `Instant` is an instant and does. A plain value asked for a field it does not hold (a PlainDate's time, a PlainTime's date, either's zone name) is invalid input.
+- **A date-only ISO string is a calendar date.** `'1990-05-12'` renders as 12 May in every zone. Before this amendment it was UTC midnight, the ECMAScript reading, which shows 11 May west of UTC.

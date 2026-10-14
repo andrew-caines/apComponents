@@ -3,6 +3,7 @@ import { extractRegion } from './lib/extractRegion'
 import ssrVite from '../../fixtures/ssr-app/vite.config.ts?raw'
 import rootTsx from '../../fixtures/ssr-app/app/root.tsx?raw'
 import startTsx from '../../fixtures/ssr-app/app/routes/start.tsx?raw'
+import datesTsx from '../../fixtures/ssr-app/app/routes/dates.tsx?raw'
 import spaVite from '../../fixtures/consumer/vite.config.ts?raw'
 import consumerPkg from '../../fixtures/consumer/package.json?raw'
 import './docs.css'
@@ -126,6 +127,28 @@ The form submits before hydration, because the controls are uncontrolled: the
 browser owns their values, so a submission made before your JavaScript loads
 still works. To change the palette, read
 [Theming](?path=/docs/foundations-theming--docs).
+
+## Dates and Temporal
+
+The date formatters, and `useFormatter` from `@ap/react/hooks`, accept
+[Temporal](https://tc39.es/proposal-temporal/docs/) values alongside `Date`.
+The library does not ship Temporal: use the browser's, or add
+`@js-temporal/polyfill` to your app.
+
+<Source language="tsx" code={extractRegion(datesTsx, 'dates')} />
+
+Each value renders by what it means:
+
+- A `PlainDate`, such as a hire date, is the same day for every reader, on
+  the server and in the browser. So is a date-only string like `'1990-05-12'`.
+- A `ZonedDateTime` renders in its own zone: a 9:00 meeting in Tokyo reads
+  9:00 everywhere. To show it in the reader's zone, convert it first with
+  `withTimeZone`.
+- An `Instant` is a moment, like a `Date`. It renders in UTC on the server and
+  in the reader's zone after hydration.
+
+Wrap each one in `<time dateTime={isoFor(value)}>` so the value stays
+machine-readable.
 
 ## SPA instead of SSR
 
