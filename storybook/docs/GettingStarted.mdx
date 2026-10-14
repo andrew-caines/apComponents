@@ -142,8 +142,9 @@ Each value renders by what it means:
 - A `PlainDate`, such as a hire date, is the same day for every reader, on
   the server and in the browser. So is a date-only string like `'1990-05-12'`.
 - A `ZonedDateTime` renders in its own zone: a 9:00 meeting in Tokyo reads
-  9:00 everywhere. To show it in the reader's zone, convert it first with
-  `withTimeZone`.
+  9:00 everywhere. To show it in the reader's zone, format `zdt.toInstant()`, which follows
+  the same rule as an `Instant` below. Use `withTimeZone(zone)` only for a fixed
+  zone that the server knows too.
 - An `Instant` is a moment, like a `Date`. It renders in UTC on the server and
   in the reader's zone after hydration.
 

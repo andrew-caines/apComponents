@@ -23,8 +23,9 @@ it never shifts by a day. A `Temporal.ZonedDateTime` is a wall time in its own z
    (output depends on the implementation) and passing objects to `Intl` (native only) were both
    rejected.
 3. **A `ZonedDateTime` renders in its own zone.** The `timeZone` option is ignored for it, and
-   so is the bound zone of `useFormatter`. To show it in another zone, the caller converts it
-   first with `zdt.withTimeZone(…)`.
+   so is the bound zone of `useFormatter`. To show it in the reader’s zone, the caller formats
+   `zdt.toInstant()`, which follows the two-pass rule. `zdt.withTimeZone(zone)` is for a fixed
+   zone that is known on the server too.
 4. **A date-only ISO string is a calendar date.** `'1990-05-12'` is treated like a `PlainDate`.
    This replaces today's ECMAScript reading, which is UTC midnight. That decision was taken
    earlier in the same session, as a follow-up item, and is folded in here because it is the
@@ -129,8 +130,8 @@ new type names are exported from `format/index.ts`.
 - **Building `ms` from ISO fields** uses `new Date(0)`, then `setUTCFullYear(y, m - 1, d)`, then
   `setUTCHours(...)`. It never uses `Date.UTC`, which maps the years 0–99 to 1900–1999.
 - **A date-only string** is checked against the regex, and its fields are then validated by a
-  round trip, so `'2026-02-30'` is invalid. Today `new Date('2026-02-30')` is also invalid, so
-  this is not a regression.
+  round trip, so `'2026-02-30'` is invalid. Today `new Date('2026-02-30')` silently rolls over (on V8 to
+  2 March); the new behaviour rejects it, a visible improvement.
 - **`toTimestamp`** stays as a thin wrapper (`toInstant(v)?.ms`), for any caller that needs only
   the instant.
 
@@ -191,8 +192,8 @@ v1, and the JSDoc says so.
 - **ADR-0012:** add a "Temporal" section that records decisions 1–4, plus the rule that the
   library never reads `globalThis.Temporal`.
 - **`storybook/docs/GettingStarted.mdx`:** add a "Dates and Temporal" section. It says what each
-  kind means, that the app brings Temporal, and how to show a `ZonedDateTime` elsewhere
-  (`withTimeZone`). The sample is quoted by region from the fixture route (§5), following the
+  kind means, that the app brings Temporal, and how to show a `ZonedDateTime` in the reader’s
+  zone (format `zdt.toInstant()`; `withTimeZone` is for a fixed, server-known zone). The sample is quoted by region from the fixture route (§5), following the
   `extractRegion` pattern.
 - **JSDoc:** the four date-only paragraphs in `date.ts` and `useFormatter.ts` are rewritten to
   state the new rule.
