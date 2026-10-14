@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, render } from '@testing-library/react'
+import { Temporal } from '@js-temporal/polyfill'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import type { ReactNode } from 'react'
@@ -35,6 +36,23 @@ describe('useFormatter inside a provider', () => {
       {child}
     </LocaleProvider>
   )
+
+  it('a ZonedDateTime keeps its own zone under the provider zone', () => {
+    render(wrap(<Capture />))
+    const zdt = Temporal.ZonedDateTime.from('2026-03-05T09:00[America/New_York]')
+    expect(f().formatTime(zdt)).toBe('09:00')
+  })
+
+  it('a PlainDate is the same day under the provider zone', () => {
+    render(wrap(<Capture />))
+    expect(f().formatDate(Temporal.PlainDate.from('1990-05-12'))).toBe('12.05.1990')
+  })
+
+  it('isoFor gives <time dateTime> text for Temporal values and date-only strings', () => {
+    render(wrap(<Capture />))
+    expect(f().isoFor(Temporal.ZonedDateTime.from('2026-03-05T09:00[Asia/Tokyo]'))).toBe('2026-03-05T09:00:00+09:00')
+    expect(f().isoFor('1990-05-12')).toBe('1990-05-12')
+  })
 
   it('binds the provider currency', () => {
     render(wrap(<Capture />))
@@ -192,6 +210,27 @@ describe('the two-pass date rule', () => {
       act(() => root.unmount())
       container.remove()
     }
+  })
+
+  it('a PlainDate renders the same text on the server, the hydration pass and after', () => {
+    stubBrowserZone('Pacific/Honolulu')
+    const pd = Temporal.PlainDate.from('1990-05-12')
+    function PlainProbe() {
+      const { formatDate } = useFormatter()
+      const text = formatDate(pd)
+      seen.push(text)
+      return <span>{text}</span>
+    }
+    const tree = (
+      <LocaleProvider locale="en-US">
+        <PlainProbe />
+      </LocaleProvider>
+    )
+    const html = renderToString(tree)
+    expect(html).toContain('May 12, 1990')
+    const result = hydrate(tree, html)
+    expect(result.seen).toEqual(result.seen.map(() => 'May 12, 1990'))
+    expect(result.text).toBe('May 12, 1990')
   })
 
   it('with a provider zone, every render and the server HTML are already local', () => {

@@ -60,9 +60,9 @@ export interface Formatter {
   /** The zone dates render in right now: the provider's, else UTC until hydrated, then the browser's. */
   timeZone: string
   /**
-   * A date-only ISO string such as '1990-05-12' is UTC midnight (ECMAScript), so
-   * in a zone west of UTC it shows the previous day. To render a calendar date
-   * (a birthday, a hire date), pass `timeZone: 'UTC'`.
+   * A PlainDate, or a date-only ISO string such as '1990-05-12', is a calendar
+   * date: the same day in every zone, with no UTC-then-local flip. A
+   * ZonedDateTime renders in its own zone and ignores the bound zone.
    */
   formatDate: Bound<typeof formatDate>
   formatTime: Bound<typeof formatTime>
@@ -83,7 +83,7 @@ export interface Formatter {
   pluralize: (count: number, forms: PluralForms, options?: { type?: Intl.PluralRuleType | undefined }) => string
   truncate: (text: string, options: { length: number; ellipsis?: string | undefined }) => string
   collator: (options?: Intl.CollatorOptions) => (a: string, b: string) => number
-  /** For `<time dateTime={isoFor(value)}>`; '' for an invalid input. */
+  /** For <time dateTime={isoFor(value)}>: Temporal's ISO form for a Temporal value, the string itself for a date-only string, else the UTC ISO string; '' for an invalid input. */
   isoFor: (value: DateInput) => string
 }
 
@@ -98,6 +98,12 @@ const noopSubscribe = () => () => {}
  * that has no server pass (a client-side navigation) is local from its first
  * render. Wrap any date output in `<time dateTime={isoFor(value)}>` so the
  * instant stays machine-readable while the visible text changes zone.
+ *
+ * Temporal values carry their own meaning and skip the two-pass rule: a
+ * PlainDate, PlainDateTime or PlainTime renders its wall time, and a
+ * ZonedDateTime its own zone, identically on the server and in the browser.
+ * An Instant is an instant and follows the rule like a Date. The app brings
+ * Temporal (native or polyfill); the library only recognises it.
  *
  * Per-call options win over the bound defaults, including `locale`, `timeZone`
  * and `currency`.
