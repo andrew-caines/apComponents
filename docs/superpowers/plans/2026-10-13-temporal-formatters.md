@@ -1115,3 +1115,32 @@ gh pr create --title "feat(format): Temporal values as first-class date inputs" 
 ```
 
 Expected: all CI jobs green. That green run, plus `dates.spec.ts` passing in both zones, is the spec's proof artifact.
+
+## Retrospective
+
+### What shipped
+The formatters take Temporal values: `PlainDate`, `PlainDateTime`, `PlainTime`, `ZonedDateTime`, `Instant`, and `Temporal.Duration` for `formatDuration`. A plain value renders its wall time, a `ZonedDateTime` its own zone, and an `Instant` follows the two-pass rule like a `Date`. A date-only ISO string is now a calendar date. `isoFor` emits the ISO form of a Temporal value. The library recognises values by `Symbol.toStringTag` and never reads `globalThis.Temporal`. A gate keeps the polyfill out of library sources, and the fixture's `/dates` route proves the values are zone-stable through SSR. ADR-0012 and the Getting started guide are updated.
+
+### Found while building
+- **Task 1 pulled the `isoFor` wiring forward.** The resolver change broke `isoFor` for Temporal values at once, so the wiring landed in Task 1 rather than Task 3.
+- **Task 2's raw non-ASCII test strings.** The first tests carried raw narrow no-break spaces and en dashes. They were rewritten as `\u` escapes, and the rule is now to grep test files with `grep -nP '[^\x00-\x7F]'`.
+- **Final review, PlainTime range.** `formatDateRange` gave a `PlainTime` pair the default `{ dateStyle: 'medium' }`, which printed "Jan 1, 1970". The default for a time pair is now `{ timeStyle: 'short' }`, and a time pair given a date style is invalid.
+- **Final review, `withTimeZone`.** The advice to convert with `withTimeZone` to show a `ZonedDateTime` in the reader's zone would cause a hydration mismatch, because the server does not know that zone. The guidance is now to format `zdt.toInstant()`, which follows the two-pass rule. `withTimeZone(zone)` is for a fixed zone the server knows too.
+- **Spec §3.2.** The note about `'2026-02-30'` said `new Date('2026-02-30')` is invalid today. On V8 it silently rolls over to 2 March, so the new rejection is a visible improvement.
+- **Gate 10 re-seed.** Temporal support pushed two entries over budget. `format` js went from a budget of 3300 to 4000 (measured 3622 B), and `hooks` js from 6900 to 7800 (measured 7028 B). Both follow the gate's seeding rule, `ceil(measured * 1.1 / 100) * 100`, and were hand-edited so no other entry moved.
+- **Gate self-match.** The temporal gate's own perturbation comment matched its specifier regex, so the non-vacuity check could have passed on the gate file alone. The comment is reworded.
+- Also taken in the final wave: the missing §3.3 test cells, a non-vacuity length check in the PlainDate two-pass test, and a mixed-range JSDoc sentence.
+
+### Still open
+- Duration sub-display fractions print "0 sec", for example 1 hr + 1 µs.
+- `toIsoString` may emit more than three fractional digits.
+- A tagged `PlainTime` fake that lacks fields resolves to 00:00 instead of being invalid.
+- `.stories.` files are not scanned by the temporal gate.
+- Node 22's acceptance of offset zone ids from a `ZonedDateTime` is unverified.
+- `shared.test.ts` has a double blank line before `describe('the test runtime')`.
+- `toIsoString` casts a `PlainTime` to `TemporalInstant` only to call `toString`.
+- The long ternary in `formatDuration` and the comment explaining why `asksForMissing(a)` suffices could be tidied.
+- The polyfill import order in `useFormatter.test.tsx`, and one long `isoFor` JSDoc line.
+- Hook-level `isoFor` tests cover only the Zoned and date-only cases.
+- The hydration test name mentions Temporal, but the Instant flip is not asserted, and the quoted region has long `<time>` lines.
+- The guide mentions `withTimeZone`, but the quoted sample does not show it.
