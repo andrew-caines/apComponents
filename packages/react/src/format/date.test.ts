@@ -222,7 +222,7 @@ describe('Temporal values', () => {
     ['a year below 100', () => formatDate(Temporal.PlainDate.from('0045-01-02'), ny), 'Jan 2, 45'],
     ['a Hebrew-calendar PlainDate defaults to its calendar', () => formatDate(pd.withCalendar('hebrew'), ny), '17 Iyar 5750'],
     ['an explicit calendar wins', () => formatDate(pd.withCalendar('hebrew'), { ...ny, calendar: 'gregory' }), 'May 12, 1990'],
-    ['an explicit undefined calendar keeps the value’s', () => formatDate(pd.withCalendar('hebrew'), { ...ny, calendar: undefined }), '17 Iyar 5750'],
+    ['an explicit undefined calendar keeps the value\u2019s', () => formatDate(pd.withCalendar('hebrew'), { ...ny, calendar: undefined }), '17 Iyar 5750'],
   ])('%s', (_label, run, expected) => {
     expect(run()).toBe(expected)
   })
@@ -251,12 +251,12 @@ describe('Temporal values', () => {
 describe('Temporal ranges', () => {
   it('formats a PlainDate pair as calendar dates', () => {
     expect(formatDateRange(Temporal.PlainDate.from('2026-03-05'), Temporal.PlainDate.from('2026-03-09'), ny)).toBe(
-      'Mar 5 – 9, 2026',
+      'Mar 5\u2009\u2013\u20099, 2026',
     )
   })
-  it('renders a zoned pair in the start’s zone', () => {
+  it('renders a zoned pair in the start\u2019s zone', () => {
     const end = Temporal.ZonedDateTime.from('2026-03-05T12:00[Europe/London]') // 21:00 in Tokyo
-    expect(formatDateRange(zdt, end, { ...ny, timeStyle: 'short' })).toBe('9:00 AM – 9:00 PM')
+    expect(formatDateRange(zdt, end, { ...ny, timeStyle: 'short' })).toBe('9:00\u202fAM\u2009\u2013\u20099:00\u202fPM')
   })
   it('rejects mixed classes', () => {
     expect(formatDateRange(pd, inst, ny)).toBe('')
