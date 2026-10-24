@@ -1065,11 +1065,11 @@ The run had nine build tasks, then one whole-branch review with a single fix wav
 ### Still open
 
 - **Carried from 5g and earlier:**
-  - the date-only ISO default;
-  - the focus ring vs `bg-raised`;
-  - underline vs hairline;
-  - Switch `[data-invalid]`;
-  - the Tooltip/Popover width caps.
+  - the date-only ISO default. Closed: date-only ISO strings are calendar dates (Temporal support, `f1f1d17`).
+  - the focus ring vs `bg-raised`. Closed: the ring is solved against canvas, surface and raised by construction (`8d40d68`).
+  - underline vs hairline. Closed: the underline indicator covers the hairline (`bf6367d`).
+  - Switch `[data-invalid]`. Closed: done in 5c (`Switch.css.ts` `&[data-invalid]`).
+  - the Tooltip/Popover width caps. Closed: Popover's was already a Tier 3 token; Tooltip's is now one too (`bbb8609`).
 - **Parked from 5h:**
   - Move `visual-baselines.yml` concurrency under the job.
   - The fork-PR comment names the wrong failing step.

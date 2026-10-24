@@ -226,3 +226,20 @@ gh pr edit --add-label update-visual-baselines
 
 Then pull the bot's baseline commit and push an empty commit to re-run CI (`docs/CONTRIBUTING.md`, gate 9).
 Expected: the bot commit changes only `components-tabs--*.png` in both modes, and all CI jobs are green. Any other screenshot changing means Task 1 moved a ring colour that is visible in a story. Explain it in the PR before merging.
+
+## Retrospective
+
+### What shipped
+- **Focus ring.** `generateTheme` hands the brand ramp the neutral surfaces (canvas, surface, raised) as well as the status subtle fills, so step 8 is solved against every surface it is drawn on. No theme value changed.
+- **Tooltip.** The width cap is the Tier 3 token `--ap-tooltip-max-inline-size`. Its default is still `calc(space-9 * 4)`.
+- **Tabs.** The underline list's hairline is an inset `box-shadow`, and the indicator paints over it. Under forced colours the list keeps a real border.
+- **Closed:** Switch `[data-invalid]` (done in 5c), and the date-only ISO default (done by the Temporal work). The Phase 5 deferred lists are annotated.
+
+### Found while building
+- **Task 1's planned test was vacuous.** The equality test passed before the change. A scan of 2,520 seeds (72 hues × 7 lightnesses × 5 chromas) found no ring that the neutral fills would move. The tightest was `#80ff88` in light mode, at 3.017:1 on `bg-raised`, so the pairing really was passing by a thin margin. The test is now a passthrough `vi.mock` of `generateRamp` that asserts what the brand ramp is solved against (`generateTheme.ring.test.ts`).
+- **The computed `box-shadow` serialises colour first and `inset` last.** The RTL assertion matches `' 1px 0px 0px 0px inset'`.
+- **Line endings.** Python on Windows writes CRLF in text mode, and git normalised it on commit. Later edits used `newline=''`.
+
+### Still open
+- Gate 9 baselines for `components-tabs--*` are regenerated on the PR, not locally.
+- The Phase 6 docs-tooling minors and the parked 5h CI minors, as before.
