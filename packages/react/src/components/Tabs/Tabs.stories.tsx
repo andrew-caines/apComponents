@@ -287,7 +287,7 @@ export const RightToLeft: Story = {
   render: (args) => (
     <div dir="rtl" style={{ padding: '2rem', display: 'grid', gap: '2rem' }}>
       <Tabs {...args} />
-      <Tabs {...args} aria-label="Vertical project" orientation="vertical" />
+      <Tabs aria-label="Vertical project" items={ITEMS} orientation="vertical" />
       <div style={{ inlineSize: '16rem' }}>
         <Tabs aria-label="Sections" items={MANY} />
       </div>
