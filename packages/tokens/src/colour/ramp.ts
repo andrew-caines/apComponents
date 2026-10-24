@@ -167,9 +167,10 @@ function solveOnSolid(seed: Oklch, backgrounds: string[]): string {
 
 /**
  * `ringBackgrounds` are extra fills the step-8 focus ring must also clear 3:1
- * on. The theme passes the status ramps' subtle fills (step 3) to the brand
- * ramp, because a focus ring sits on those fills in banners and toasts, and
- * they belong to other ramps so the ramp itself cannot see them.
+ * on. The theme passes the brand ramp the neutral surfaces (steps 1-3: canvas,
+ * surface, raised) and the status ramps' subtle fills (step 3), because the
+ * focus ring is drawn on all of them and they belong to other ramps, so the
+ * ramp itself cannot see them.
  */
 export function generateRamp(seed: Oklch, mode: Mode, ringBackgrounds: string[] = []): Ramp {
   const anchored = clampToSrgb(seed)

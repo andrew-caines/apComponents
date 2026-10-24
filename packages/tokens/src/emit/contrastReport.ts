@@ -39,8 +39,10 @@ const PAIRINGS: Array<[string, string, number]> = [
   ['color-border-interactive', 'color-bg-surface', 3],
   ['color-focus-ring', 'color-bg-canvas', 3],
   ['color-focus-ring', 'color-bg-surface', 3],
-  // Toast focus ring on bg-raised; Banner close button text on its hover fill.
+  // Toast focus ring on bg-raised. `generateTheme` solves the ring against
+  // canvas, surface and raised, so these three hold by construction.
   ['color-focus-ring', 'color-bg-raised', 3],
+  // Banner close button text on its hover fill.
   ['color-text-primary', 'color-action-bg-subtle', 4.5],
   ...(['danger', 'warning', 'success', 'info'] as const).flatMap(
     (name): Array<[string, string, number]> => [
