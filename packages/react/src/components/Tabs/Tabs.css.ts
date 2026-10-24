@@ -4,8 +4,21 @@ import { vars } from '../../theme/contract.css.js'
 import { componentsLayer } from '../../theme/layers.css.js'
 import { TABS_TOKENS as t } from './Tabs.tokens.js'
 
-/** The list's hairline, on its block end (horizontal) or inline end (vertical). */
+/**
+ * The underline list's hairline, on its block end (horizontal) or inline end
+ * (vertical). It is an inset shadow, not a border, so the indicator covers it:
+ * a border lies outside the padding box, and a horizontal list is a scroll
+ * container that clips its descendants there, so no inset could carry the
+ * indicator over a border. The inset shadow is painted inside the padding box,
+ * under the list's descendants, and stays put while the tabs scroll.
+ *
+ * Forced colours (Windows High Contrast) drop every `box-shadow`, so there the
+ * list draws a real border (`LIST_BORDER`) instead, and the indicator sits
+ * beside it.
+ */
+const hairline = (x: string, y: string) => `inset ${x} ${y} 0 ${t.listBorder}`
 const LIST_BORDER = `1px solid ${t.listBorder}`
+const FORCED_COLORS = '(forced-colors: active)'
 
 /**
  * The root only lays the list and the panels out. A vertical list sits
@@ -65,11 +78,27 @@ export const tabsListRecipe = recipe({
   compoundVariants: [
     {
       variants: { variant: 'underline', orientation: 'horizontal' },
-      style: { '@layer': { [componentsLayer]: { borderBlockEnd: LIST_BORDER } } },
+      style: {
+        '@layer': {
+          [componentsLayer]: {
+            boxShadow: hairline('0', '-1px'),
+            '@media': { [FORCED_COLORS]: { borderBlockEnd: LIST_BORDER } },
+          },
+        },
+      },
     },
     {
+      // `box-shadow` is physical, so the inline end moves to the left in RTL.
       variants: { variant: 'underline', orientation: 'vertical' },
-      style: { '@layer': { [componentsLayer]: { borderInlineEnd: LIST_BORDER } } },
+      style: {
+        '@layer': {
+          [componentsLayer]: {
+            boxShadow: hairline('-1px', '0'),
+            selectors: { '&:dir(rtl)': { boxShadow: hairline('1px', '0') } },
+            '@media': { [FORCED_COLORS]: { borderInlineEnd: LIST_BORDER } },
+          },
+        },
+      },
     },
   ],
   defaultVariants: { variant: 'underline', orientation: 'horizontal' },
@@ -181,7 +210,6 @@ const atSelectedTab = {
  * and outside this query nothing changes at all. Pinned by
  * `fixtures/ssr-app/e2e/disclosure.spec.ts`.
  */
-const FORCED_COLORS = '(forced-colors: active)'
 const forcedBorder = `${t.indicatorThickness} solid Highlight`
 
 /**
