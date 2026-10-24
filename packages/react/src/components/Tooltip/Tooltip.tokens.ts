@@ -11,7 +11,9 @@ import { vars } from '../../theme/contract.css.js'
  * the generator and the contrast gate. What separates the tooltip from the
  * page is the raised surface plus `border` and `shadow`. `shadow` is the
  * elevation `SELECT_TOKENS.popupShadow` and `DIALOG_TOKENS.shadow` use, so the
- * overlays sit at one height.
+ * overlays sit at one height. `maxInlineSize` caps the width so a long label
+ * wraps instead of spanning the viewport, as Popover's does; its default is
+ * four of the largest space step.
  */
 export const TOOLTIP_TOKENS = {
   bg: tier3('tooltip-bg', vars.color.bgRaised),
@@ -19,4 +21,5 @@ export const TOOLTIP_TOKENS = {
   border: tier3('tooltip-border', vars.color.borderSubtle),
   shadow: tier3('tooltip-shadow', vars.shadow['3']),
   radius: tier3('tooltip-radius', vars.radius.sm),
+  maxInlineSize: tier3('tooltip-max-inline-size', `calc(${vars.space['9']} * 4)`),
 } as const
