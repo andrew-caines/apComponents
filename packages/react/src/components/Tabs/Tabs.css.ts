@@ -6,17 +6,30 @@ import { TABS_TOKENS as t } from './Tabs.tokens.js'
 
 /**
  * The underline list's hairline, on its block end (horizontal) or inline end
- * (vertical). It is an inset shadow, not a border, so the indicator covers it:
- * a border lies outside the padding box, and a horizontal list is a scroll
- * container that clips its descendants there, so no inset could carry the
- * indicator over a border. The inset shadow is painted inside the padding box,
- * under the list's descendants, and stays put while the tabs scroll.
+ * (vertical). It is a 1px background line, not a border, so the indicator
+ * covers it: a border lies outside the padding box, and a horizontal list is
+ * a scroll container that clips its descendants there, so no inset could
+ * carry the indicator over a border.
  *
- * Forced colours (Windows High Contrast) drop every `box-shadow`, so there the
- * list draws a real border (`LIST_BORDER`) instead, and the indicator sits
- * beside it.
+ * `background-attachment: local` lays the line out over the scrollable
+ * content, so it spans every tab however far the list is scrolled. It also
+ * keeps it above a classic (space-taking) scrollbar, which is where
+ * `inset-block-end: 0` puts the indicator. An inset `box-shadow` would be
+ * painted under that scrollbar and vanish (Chrome and Edge on Windows),
+ * pinned by `fixtures/ssr-app/e2e/tabs-scrollbar.spec.ts`. The indicator is a
+ * positioned descendant, so it paints over the list's background.
+ *
+ * Forced colours (Windows High Contrast) replace author colours, so there the
+ * line is dropped and the list draws a real border (`LIST_BORDER`) instead,
+ * with the indicator beside it.
  */
-const hairline = (x: string, y: string) => `inset ${x} ${y} 0 ${t.listBorder}`
+const hairline = (size: string, position: string) => ({
+  backgroundImage: `linear-gradient(${t.listBorder}, ${t.listBorder})`,
+  backgroundRepeat: 'no-repeat',
+  backgroundAttachment: 'local',
+  backgroundSize: size,
+  backgroundPosition: position,
+})
 const LIST_BORDER = `1px solid ${t.listBorder}`
 const FORCED_COLORS = '(forced-colors: active)'
 
@@ -81,21 +94,22 @@ export const tabsListRecipe = recipe({
       style: {
         '@layer': {
           [componentsLayer]: {
-            boxShadow: hairline('0', '-1px'),
-            '@media': { [FORCED_COLORS]: { borderBlockEnd: LIST_BORDER } },
+            ...hairline('100% 1px', 'left bottom'),
+            '@media': { [FORCED_COLORS]: { backgroundImage: 'none', borderBlockEnd: LIST_BORDER } },
           },
         },
       },
     },
     {
-      // `box-shadow` is physical, so the inline end moves to the left in RTL.
+      // `background-position` is physical, so the inline end moves to the
+      // left in RTL.
       variants: { variant: 'underline', orientation: 'vertical' },
       style: {
         '@layer': {
           [componentsLayer]: {
-            boxShadow: hairline('-1px', '0'),
-            selectors: { '&:dir(rtl)': { boxShadow: hairline('1px', '0') } },
-            '@media': { [FORCED_COLORS]: { borderInlineEnd: LIST_BORDER } },
+            ...hairline('1px 100%', 'right top'),
+            selectors: { '&:dir(rtl)': { backgroundPosition: 'left top' } },
+            '@media': { [FORCED_COLORS]: { backgroundImage: 'none', borderInlineEnd: LIST_BORDER } },
           },
         },
       },

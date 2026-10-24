@@ -55,9 +55,10 @@ const expectInlineAligned = (indicator: HTMLElement, tab: HTMLElement) => {
 
 /**
  * The underline sits on the list's own edge, over the hairline, within 0.5 px,
- * and the hairline is drawn (an inset shadow inside the list's padding box).
- * Perturbation: restoring the list's `border-block-end` / `border-inline-end`
- * hairline leaves the indicator 1 px inside it, and the list has no shadow.
+ * and the hairline is drawn (a background line inside the list's padding
+ * box). Perturbation: restoring the list's `border-block-end` /
+ * `border-inline-end` hairline leaves the indicator 1 px inside it, and the
+ * list has no background line.
  */
 const expectCoversHairline = (
   indicator: HTMLElement,
@@ -67,7 +68,7 @@ const expectCoversHairline = (
   const i = indicator.getBoundingClientRect()
   const l = list.getBoundingClientRect()
   expect(Math.abs(i[edge] - l[edge])).toBeLessThanOrEqual(0.5)
-  expect(getComputedStyle(list).boxShadow).not.toBe('none')
+  expect(getComputedStyle(list).backgroundImage).not.toBe('none')
 }
 
 /**
@@ -306,14 +307,14 @@ export const RightToLeft: Story = {
 
     // In RTL the inline end is physical left, so the vertical hairline moves
     // sides and the indicator still covers it. Perturbation: dropping the
-    // `:dir(rtl)` shadow in `tabsListRecipe` leaves the hairline on the right.
+    // `:dir(rtl)` position in `tabsListRecipe` leaves the hairline on the right.
     await step('vertical list: the indicator covers the hairline on the left', async () => {
       const list = canvas.getByRole('tablist', { name: 'Vertical project' })
       const settings = within(list).getByRole('tab', { name: 'Account settings' })
       await userEvent.click(settings)
       await waitFor(() => expect(settings).toHaveAttribute('aria-selected', 'true'))
       await waitFor(() => expectCoversHairline(indicatorOf(list), list, 'left'))
-      await expect(getComputedStyle(list).boxShadow).toMatch(/ 1px 0px 0px 0px inset$/)
+      await expect(getComputedStyle(list).backgroundPosition).toBe('0% 0%')
     })
 
     const list = canvas.getByRole('tablist', { name: 'Sections' })

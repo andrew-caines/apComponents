@@ -149,7 +149,7 @@ test('under forced colours the selected tab keeps a visible indicator border', a
     expect(border.width, `${name}: indicator border width`).toBeGreaterThan(0)
     expect(border.style, `${name}: indicator border style`).not.toBe('none')
   }
-  // Forced colours drop the inset-shadow hairline, so the underline list keeps
+  // Forced colours drop the background-line hairline, so the underline list keeps
   // a real border there. Perturbation: dropping the forced-colours border in
   // `tabsListRecipe` leaves no hairline in High Contrast.
   expect(await listHairline(page, 'Employee sections'), 'hairline under forced colours').toBeGreaterThan(0)
