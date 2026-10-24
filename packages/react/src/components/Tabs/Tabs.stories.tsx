@@ -314,7 +314,10 @@ export const RightToLeft: Story = {
       await userEvent.click(settings)
       await waitFor(() => expect(settings).toHaveAttribute('aria-selected', 'true'))
       await waitFor(() => expectCoversHairline(indicatorOf(list), list, 'left'))
-      await expect(getComputedStyle(list).backgroundPosition).toBe('0% 0%')
+      // The line's x offset is 0, however it serialises: the dev build gives
+      // '0% 0%', the minified build '0px 0px'. In LTR it would be '100%'.
+      const [x] = getComputedStyle(list).backgroundPosition.split(' ')
+      await expect(parseFloat(x!)).toBe(0)
     })
 
     const list = canvas.getByRole('tablist', { name: 'Sections' })
