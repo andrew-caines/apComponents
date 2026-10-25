@@ -3,16 +3,27 @@ import { SEMANTIC_MAP } from '@ap/tokens'
 
 const RAMPS: RampName[] = ['brand', 'neutral', 'danger', 'warning', 'success', 'info']
 
-/** A row of decorative colour blocks. Each carries its hex as a `title`. */
+/**
+ * A row of decorative colour blocks. The hex values sit in a disclosure under
+ * them, so they are reachable by keyboard and not only by hovering a `title`.
+ */
 export function RampStrip({ hexes, label }: { hexes: string[]; label: string }) {
   return (
     <figure className="stack" style={{ margin: 0 }}>
       <figcaption className="mono">{label}</figcaption>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${hexes.length}, 1fr)` }}>
+      <div aria-hidden style={{ display: 'grid', gridTemplateColumns: `repeat(${hexes.length}, 1fr)` }}>
         {hexes.map((hex, i) => (
-          <div key={i} title={hex} style={{ background: hex, blockSize: '2.5rem' }} />
+          <div key={i} style={{ background: hex, blockSize: '2.5rem' }} />
         ))}
       </div>
+      <details>
+        <summary>Hex values</summary>
+        <ol className="mono">
+          {hexes.map((hex, i) => (
+            <li key={i}>{hex}</li>
+          ))}
+        </ol>
+      </details>
     </figure>
   )
 }

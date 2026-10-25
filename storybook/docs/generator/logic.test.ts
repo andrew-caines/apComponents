@@ -28,6 +28,10 @@ describe('buildSnippet', () => {
 describe('readBrandParam', () => {
   it('reads a bare hex', () => expect(readBrandParam('?brand=c2185b')).toBe('#c2185b'))
   it('reads an encoded hash', () => expect(readBrandParam('?brand=%23C2185B')).toBe('#c2185b'))
+  it.each(['?brand=%20c2185b%20', '?brand=+%23c2185b'])('reads a padded value %j', (s) => {
+    // Perturbation: check for `#` before trimming, and the padded bare hex becomes `# c2185b`.
+    expect(readBrandParam(s)).toBe('#c2185b')
+  })
   it.each(['', '?brand=', '?brand=zz', '?brand=%23', '?other=1'])('returns null for %j', (s) => {
     // Perturbation: return the raw value without isValidHex, and "zz" leaks through.
     expect(readBrandParam(s)).toBeNull()

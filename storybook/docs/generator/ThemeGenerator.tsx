@@ -27,11 +27,15 @@ export function ThemeGenerator({ initialBrand, syncUrl = true }: ThemeGeneratorP
   // Picker drags fire an event per frame; only a value that has settled for
   // SEED_DEBOUNCE_MS regenerates the theme. SeedInput only ever reports a valid hex.
   const settled = useDebouncedValue(brand, SEED_DEBOUNCE_MS)
+  const theme = useMemo(() => generateTheme({ brand: settled }), [settled])
+  // A test hook counting theme generations. Counted in an effect, written straight to
+  // the DOM, so render stays pure.
   const generations = useRef(0)
-  const theme = useMemo(() => {
+  const counter = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
     generations.current += 1
-    return generateTheme({ brand: settled })
-  }, [settled])
+    if (counter.current) counter.current.dataset.count = String(generations.current)
+  }, [theme])
 
   // Mirror only once the visitor has changed the brand. Writing on mount would
   // add `brand=` to a URL nobody edited, and would overwrite a top-window
@@ -48,7 +52,7 @@ export function ThemeGenerator({ initialBrand, syncUrl = true }: ThemeGeneratorP
   return (
     <div className="gen">
       <SeedInput value={brand} onChange={setBrand} />
-      <span hidden data-testid="generations" data-count={generations.current} />
+      <span hidden ref={counter} data-testid="generations" />
       <Preview theme={theme} />
       <RampView theme={theme} />
       <ContrastTable theme={theme} />
