@@ -66,8 +66,7 @@
 ### Found while building
 - **Storybook keeps non-ASCII letters in ids** (`Café` → `café`). The old `docsIdOf` dropped them.
 - **`scripts/` had one real type error.** It was an untyped tuple array in `gen-colour-demo.ts`, and the fix is type-only. It also needed `DOM.Iterable`.
-- **Process.** Escaped `
-` passed through a Bash heredoc into Python reached the files as real newlines. Use Edit for anything with escapes. Restoring after a perturbation with `git checkout -- <file>` also discards the uncommitted fix, so copy the file aside and restore from the copy.
+- **Process.** An escaped newline (backslash-n) passed through a Bash heredoc into Python reached the files as real newlines. Use Edit for anything with escapes. Restoring after a perturbation with `git checkout -- <file>` also discards the uncommitted fix, so copy the file aside and restore from the copy.
 
 ### Proof
 - Locally: `npm test` (2565), `test:gates`, `typecheck` (now with `scripts/`), the storybook typecheck, `test:stories` (132), `test:ssr`, `test:spa`, `test:hydration` (37), `size` (exit 0) and `check:lockfiles`. All green.
