@@ -24,5 +24,12 @@ export default [
   route('start', 'routes/start.tsx'),
   // Temporal values through useFormatter. No loader or action, so routed in both modes.
   route('dates', 'routes/dates.tsx'),
-  ...(isSpa ? [] : [route('streamed', 'routes/streamed.tsx'), route('form', 'routes/form.tsx')]),
+  // `subscribe` is the action the Getting started form posts to, so it is SSR-only too.
+  ...(isSpa
+    ? []
+    : [
+        route('streamed', 'routes/streamed.tsx'),
+        route('form', 'routes/form.tsx'),
+        route('subscribe', 'routes/subscribe.tsx'),
+      ]),
 ] satisfies RouteConfig

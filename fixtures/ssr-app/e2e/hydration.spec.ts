@@ -91,6 +91,9 @@ test('getting-started route hydrates with no React warnings or recoverable error
   await waitForHydration(page)
   await page.waitForTimeout(200)
   expect(await recoverableErrors(page), 'onRecoverableError fired').toEqual([])
+
+  const hydration = messages.filter((m) => HYDRATION_MARKERS.some((k) => m.includes(k)))
+  expect(hydration, `hydration problems:\n${hydration.join('\n')}`).toEqual([])
   expect(messages, `unexpected console output:\n${messages.join('\n')}`).toEqual([])
 })
 

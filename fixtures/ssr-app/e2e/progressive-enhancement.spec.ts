@@ -113,3 +113,15 @@ test('the same form still works after hydration, with no console noise', async (
   const noise = messages.filter((m) => !/Download the React DevTools|favicon/i.test(m))
   expect(noise, `unexpected console output:\n${noise.join('\n')}`).toEqual([])
 })
+
+test("the Getting started form posts to its action, as the guide's reader will", async ({ page }) => {
+  // routes/start.tsx is quoted by the guide and posts to /subscribe. With client
+  // JavaScript blocked the browser submits it as plain HTML.
+  // Perturbation: delete the `subscribe` route, and the post lands on a 404.
+  await blockClientJavaScript(page)
+  await page.goto('/start')
+  await page.getByRole('textbox', { name: 'Email' }).fill('reader@example.com')
+  await page.getByRole('button', { name: 'Subscribe' }).click()
+  await expect(page).toHaveURL(/\/subscribe$/)
+  await expect(page.getByTestId('subscribed')).toHaveText('Subscribed reader@example.com.')
+})
