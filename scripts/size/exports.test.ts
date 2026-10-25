@@ -14,6 +14,8 @@ function exportsOf(index: string): Set<string> {
       'export interface ButtonProps { a: string }',
       'export function Spinner() { return null }',
     ].join('\n'),
+    // A module that passes everything on as types only.
+    '/m/types.ts': `export type * from './button'`,
     '/m/index.ts': index,
   }
   const options: ts.CompilerOptions = {
@@ -60,5 +62,22 @@ describe('valueExports', () => {
   it('excludes a value imported type-only and then re-exported', () => {
     const names = exportsOf(`import type { Button } from './button'\nexport { Button }`)
     expect(names.has('Button')).toBe(false)
+  })
+
+  // Fails if `export type *` is read as `export *`: its names are resolved straight to
+  // the target's symbols, with no alias link that carries the type-only flag.
+  it('excludes values re-exported with export type *', () => {
+    expect([...exportsOf(`export type * from './button'`)]).toEqual([])
+    expect([...exportsOf(`export * from './button'`)].sort()).toEqual(['BUTTON_TOKENS', 'Button', 'Spinner'])
+  })
+
+  // Fails if only the entry module's own star exports are inspected.
+  it('excludes values that reach the entry through a nested export type *', () => {
+    expect([...exportsOf(`export * from './types'`)]).toEqual([])
+  })
+
+  // Fails if `export type *` hides a name that a value export also provides.
+  it('keeps a value exported both ways', () => {
+    expect([...exportsOf(`export type * from './button'\nexport { Spinner } from './button'`)]).toEqual(['Spinner'])
   })
 })

@@ -24,10 +24,30 @@ export function valueExports(program: ts.Program, file: string): Set<string> {
     }
     return current !== undefined && (current.flags & ts.SymbolFlags.Value) !== 0
   }
+  // A name that arrives through `export *` resolves straight to the target's symbol,
+  // with no alias link to carry an `export type *`. So follow the module's own star
+  // exports instead, skipping the type-only ones.
+  const viaValueStar = (module: ts.Symbol, name: string, seen: Set<ts.Symbol>): boolean => {
+    if (seen.has(module)) return false
+    seen.add(module)
+    const file = module.declarations?.find(ts.isSourceFile)
+    for (const decl of file?.statements ?? []) {
+      if (!ts.isExportDeclaration(decl) || decl.exportClause || decl.isTypeOnly || !decl.moduleSpecifier) continue
+      const target = checker.getSymbolAtLocation(decl.moduleSpecifier)
+      if (!target) continue
+      const own = target.exports?.get(ts.escapeLeadingUnderscores(name))
+      if (own ? isValue(own) : viaValueStar(target, name, seen)) return true
+    }
+    return false
+  }
+  const reachesAsValue = (symbol: ts.Symbol): boolean => {
+    const own = moduleSymbol.exports?.get(ts.escapeLeadingUnderscores(symbol.name))
+    return own ? isValue(own) : isValue(symbol) && viaValueStar(moduleSymbol, symbol.name, new Set())
+  }
   return new Set(
     checker
       .getExportsOfModule(moduleSymbol)
-      .filter(isValue)
+      .filter(reachesAsValue)
       .map((s) => s.name),
   )
 }

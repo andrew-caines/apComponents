@@ -34,7 +34,7 @@
     "test:spa": "vitest run --config vitest.gates.config.ts packages/react/src/gates/ssr-render.gate.test.ts -t \"gate 7\"",
     "test:hydration": "npm --prefix fixtures/ssr-app run test:e2e",
     "test:visual": "npm --prefix storybook run test:visual --",
-    "typecheck": "tsc -b packages/tokens packages/motion packages/react packages/vite",
+    "typecheck": "tsc -b packages/tokens packages/motion packages/react packages/vite && tsc -p scripts",
     "report:contrast": "tsx scripts/contrast-report.ts",
     "check:lockfiles": "tsx scripts/check-lockfiles.ts",
     "size": "tsx scripts/size.ts",

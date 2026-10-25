@@ -46,6 +46,14 @@ describe('evaluate', () => {
     expect(r.problems[0]).toContain('no budget for import:New')
   })
 
+  // Fails if a budget entry for a check that is no longer measured stays silent.
+  it('flags a budget entry with no measurement', () => {
+    const rows = evaluate({ index: { js: 1000, css: 100 } }, { index: { js: 1100, css: 200 }, 'import:Gone': { js: 1, css: 1 } })
+    const stale = rows.find((r) => r.check === 'import:Gone')
+    expect(stale?.problems).toEqual(['stale budget entry: nothing measured for import:Gone'])
+    expect(stale?.budget).toEqual({ js: 1, css: 1 })
+  })
+
   // Fails if the JS ratio tripwire is removed or its limit raised.
   it('flags a JS ratio above 70% of index', () => {
     const r = row({ 'import:A': { js: 701, css: 20 } }, { 'import:A': GENEROUS }, 'import:A')

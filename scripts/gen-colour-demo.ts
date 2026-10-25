@@ -217,12 +217,12 @@ const LEGAL =
 
 /** The size ladder around the floor, so the choice of 11px is visible. */
 function finePrintSizes(): string {
-  const rows = [
+  const rows = ([
     ['12px', 'text-xs — the smallest step in the ramp'],
     ['11px', 'text-fine-print — the floor'],
     ['10px', '0.625rem — below the floor'],
     ['9px', 'not legible'],
-  ]
+  ] satisfies Array<[string, string]>)
     .map(
       ([px, note]) => `<tr>
         <td class="tag mono">${px}</td>
