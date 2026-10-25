@@ -10,7 +10,10 @@ name: Visual baselines
 # - After merge: `gh workflow run visual-baselines.yml -f branch=<branch>`.
 #   workflow_dispatch only runs once this file is on the default branch.
 #
-# A PR from a fork gets a read-only GITHUB_TOKEN, so the push below fails there.
+# Not for PRs from forks: the checkout step fails first, since the fork's branch is
+# not a branch of this repository (and the token would be read-only for the push).
+# Generate a fork's baselines from a branch pushed here.
+#
 # A push made with GITHUB_TOKEN starts no CI: pull the bot commit and push an empty
 # commit to run gate 9 against the new baselines (docs/CONTRIBUTING.md, gate 9).
 on:
@@ -26,12 +29,14 @@ permissions:
   contents: write
   pull-requests: write
 
-concurrency:
-  group: visual-baselines-${{ github.head_ref || inputs.branch }}
-
 jobs:
   baselines:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'update-visual-baselines'
+    # On the job, not the workflow: every label event starts this workflow, and a
+    # workflow-level group would let an unrelated label's run replace a pending
+    # baseline run. A job skipped by its `if` never joins the group.
+    concurrency:
+      group: visual-baselines-${{ github.head_ref || inputs.branch }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { summarise } from '../storybook/visual/summary.js'
+import { parseReport, summarise } from '../storybook/visual/summary.js'
 import type { Report } from '../storybook/visual/summary.js'
 
 // Messages shaped like Playwright 1.62's JSON reporter output, taken from a Linux run.
@@ -112,5 +112,32 @@ describe('summarise', () => {
   it('does not blame missing baselines when there is also a global error', () => {
     const s = summarise({ ...report(test('a', { fail: MISSING })), errors: [{ message: 'Error: ENOENT' }] })
     expect(s.text).not.toContain('update-visual-baselines')
+  })
+})
+
+describe('parseReport', () => {
+  it('accepts a well-formed report', () => {
+    const r = report(test('a', 'pass'))
+    expect(summarise(parseReport(JSON.stringify(r))).passed).toBe(1)
+  })
+
+  // Fails if a malformed report reaches summarise, which then throws a TypeError
+  // with no hint of which part of the report was wrong.
+  it.each([
+    ['not JSON', '{', /not JSON/],
+    ['no suites', '{}', /suites must be an array/],
+    ['a suite without specs', JSON.stringify({ suites: [{ title: 's' }] }), /suites\[0\]\.specs must be an array/],
+    [
+      'a nested spec without tests',
+      JSON.stringify({ suites: [{ title: 's', specs: [], suites: [{ title: 'i', specs: [{ title: 'x' }] }] }] }),
+      /suites\[0\]\.suites\[0\]\.specs\[0\]\.tests must be an array/,
+    ],
+    [
+      'a test without results',
+      JSON.stringify({ suites: [{ title: 's', specs: [{ title: 'x', tests: [{ annotations: [] }] }] }] }),
+      /tests\[0\]\.results must be an array/,
+    ],
+  ])('names the problem in %s', (_, text, message) => {
+    expect(() => parseReport(text)).toThrow(message)
   })
 })
