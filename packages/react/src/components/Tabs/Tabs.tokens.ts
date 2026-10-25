@@ -12,7 +12,8 @@ import { vars } from '../../theme/contract.css.js'
  * `focusRing` is the dedicated Tier 2 ring role, as on every other control.
  *
  * `listBorder` is the hairline under (or beside) an underline list, the
- * quietest border role. `indicator` is `actionBg`, the same fill a checked
+ * quietest border role; the underline indicator covers it under the selected
+ * tab. `indicator` is `actionBg`, the same fill a checked
  * `Checkbox` or `Switch` takes. `indicatorThickness` falls back to the focus
  * ring width, the library's one existing stroke weight, so the underline and
  * a ring drawn on the same tab are the same weight.

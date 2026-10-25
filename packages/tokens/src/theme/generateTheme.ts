@@ -45,12 +45,19 @@ export function generateTheme(seed: ThemeSeed): Theme {
     const warning = generateRamp(seeds.warning, mode)
     const success = generateRamp(seeds.success, mode)
     const info = generateRamp(seeds.info, mode)
-    // The brand focus ring also sits on each status ramp's subtle fill (step 3),
-    // so the brand ramp is solved against those too.
-    const subtleFills = [danger, warning, success, info].map((r) => r.steps[2]!.hex)
+    const neutral = generateRamp(seeds.neutral, mode)
+    // The brand focus ring (step 8) is drawn on bg-canvas, bg-surface and
+    // bg-raised (neutral steps 1-3) and on each status ramp's subtle fill
+    // (step 3). Those belong to other ramps, so the brand ramp is handed them
+    // and solves its ring against every one: 3:1 by construction, not by the
+    // brand's own steps 1-2 happening to match the neutral surfaces.
+    const ringBackgrounds = [
+      ...[danger, warning, success, info].map((r) => r.steps[2]!.hex),
+      ...neutral.steps.slice(0, 3).map((s) => s.hex),
+    ]
     return {
-      brand: generateRamp(seeds.brand, mode, subtleFills),
-      neutral: generateRamp(seeds.neutral, mode),
+      brand: generateRamp(seeds.brand, mode, ringBackgrounds),
+      neutral,
       danger,
       warning,
       success,

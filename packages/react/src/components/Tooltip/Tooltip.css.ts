@@ -15,9 +15,10 @@ export const tooltipPositionerClass = style({
 
 /**
  * A short label on the raised surface, one step down the type scale. The
- * width cap is four of the largest space step, so a long description wraps
- * instead of spanning the viewport. No arrow: the side offset alone ties the
- * popup to its trigger. Motion is Select's pair (§4.1.5 adds none).
+ * width cap is `TOOLTIP_TOKENS.maxInlineSize`, four of the largest space step
+ * unless a product sets `--ap-tooltip-max-inline-size`. No arrow: the side
+ * offset alone ties the popup to its trigger. Motion is Select's pair (§4.1.5
+ * adds none).
  *
  * The popup is portalled out of the trigger's subtree, so it inherits none of
  * the trigger's type: it sets the family and scale itself.
@@ -26,7 +27,7 @@ export const tooltipPopupClass = style({
   '@layer': {
     [componentsLayer]: {
       boxSizing: 'border-box',
-      maxInlineSize: `calc(${vars.space['9']} * 4)`,
+      maxInlineSize: t.maxInlineSize,
       paddingBlock: vars.space['1'],
       paddingInline: vars.space['2'],
       fontFamily: vars.font.body,

@@ -4,8 +4,34 @@ import { vars } from '../../theme/contract.css.js'
 import { componentsLayer } from '../../theme/layers.css.js'
 import { TABS_TOKENS as t } from './Tabs.tokens.js'
 
-/** The list's hairline, on its block end (horizontal) or inline end (vertical). */
+/**
+ * The underline list's hairline, on its block end (horizontal) or inline end
+ * (vertical). It is a 1px background line, not a border, so the indicator
+ * covers it: a border lies outside the padding box, and a horizontal list is
+ * a scroll container that clips its descendants there, so no inset could
+ * carry the indicator over a border.
+ *
+ * `background-attachment: local` lays the line out over the scrollable
+ * content, so it spans every tab however far the list is scrolled. It also
+ * keeps it above a classic (space-taking) scrollbar, which is where
+ * `inset-block-end: 0` puts the indicator. An inset `box-shadow` would be
+ * painted under that scrollbar and vanish (Chrome and Edge on Windows),
+ * pinned by `fixtures/ssr-app/e2e/tabs-scrollbar.spec.ts`. The indicator is a
+ * positioned descendant, so it paints over the list's background.
+ *
+ * Forced colours (Windows High Contrast) replace author colours, so there the
+ * line is dropped and the list draws a real border (`LIST_BORDER`) instead,
+ * with the indicator beside it.
+ */
+const hairline = (size: string, position: string) => ({
+  backgroundImage: `linear-gradient(${t.listBorder}, ${t.listBorder})`,
+  backgroundRepeat: 'no-repeat',
+  backgroundAttachment: 'local',
+  backgroundSize: size,
+  backgroundPosition: position,
+})
 const LIST_BORDER = `1px solid ${t.listBorder}`
+const FORCED_COLORS = '(forced-colors: active)'
 
 /**
  * The root only lays the list and the panels out. A vertical list sits
@@ -65,11 +91,28 @@ export const tabsListRecipe = recipe({
   compoundVariants: [
     {
       variants: { variant: 'underline', orientation: 'horizontal' },
-      style: { '@layer': { [componentsLayer]: { borderBlockEnd: LIST_BORDER } } },
+      style: {
+        '@layer': {
+          [componentsLayer]: {
+            ...hairline('100% 1px', 'left bottom'),
+            '@media': { [FORCED_COLORS]: { backgroundImage: 'none', borderBlockEnd: LIST_BORDER } },
+          },
+        },
+      },
     },
     {
+      // `background-position` is physical, so the inline end moves to the
+      // left in RTL.
       variants: { variant: 'underline', orientation: 'vertical' },
-      style: { '@layer': { [componentsLayer]: { borderInlineEnd: LIST_BORDER } } },
+      style: {
+        '@layer': {
+          [componentsLayer]: {
+            ...hairline('1px 100%', 'right top'),
+            selectors: { '&:dir(rtl)': { backgroundPosition: 'left top' } },
+            '@media': { [FORCED_COLORS]: { backgroundImage: 'none', borderInlineEnd: LIST_BORDER } },
+          },
+        },
+      },
     },
   ],
   defaultVariants: { variant: 'underline', orientation: 'horizontal' },
@@ -181,7 +224,6 @@ const atSelectedTab = {
  * and outside this query nothing changes at all. Pinned by
  * `fixtures/ssr-app/e2e/disclosure.spec.ts`.
  */
-const FORCED_COLORS = '(forced-colors: active)'
 const forcedBorder = `${t.indicatorThickness} solid Highlight`
 
 /**

@@ -1630,11 +1630,11 @@ flaky, and the cheap open follow-ups (§6.3.4).
 | F12 | `useControllableState`'s JSDoc states that it cannot hold a function-typed value | Doc |
 
 **Still deferred:**
-- the date-only ISO default;
-- the focus ring against `bg-raised`;
-- underline vs hairline;
-- Switch `[data-invalid]`;
-- the Tooltip and Popover width caps.
+- the date-only ISO default. Closed: date-only ISO strings are calendar dates (Temporal support, `f1f1d17`).
+- the focus ring against `bg-raised`. Closed: the ring is solved against canvas, surface and raised by construction (`8d40d68`).
+- underline vs hairline. Closed: the underline indicator covers the hairline (`bf6367d`).
+- Switch `[data-invalid]`. Closed: done in 5c (`Switch.css.ts` `&[data-invalid]`).
+- the Tooltip and Popover width caps. Closed: Popover's was already a Tier 3 token; Tooltip's is now one too (`bbb8609`).
 
 Each is a design or product call, not cheap work. The `:dir()` item is no longer deferred: it
 turned out to be a bug (§6.3.6).

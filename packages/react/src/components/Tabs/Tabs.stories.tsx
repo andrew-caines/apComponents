@@ -54,6 +54,24 @@ const expectInlineAligned = (indicator: HTMLElement, tab: HTMLElement) => {
 }
 
 /**
+ * The underline sits on the list's own edge, over the hairline, within 0.5 px,
+ * and the hairline is drawn (a background line inside the list's padding
+ * box). Perturbation: restoring the list's `border-block-end` /
+ * `border-inline-end` hairline leaves the indicator 1 px inside it, and the
+ * list has no background line.
+ */
+const expectCoversHairline = (
+  indicator: HTMLElement,
+  list: HTMLElement,
+  edge: 'bottom' | 'left' | 'right',
+) => {
+  const i = indicator.getBoundingClientRect()
+  const l = list.getBoundingClientRect()
+  expect(Math.abs(i[edge] - l[edge])).toBeLessThanOrEqual(0.5)
+  expect(getComputedStyle(list).backgroundImage).not.toBe('none')
+}
+
+/**
  * Manual activation with a real keyboard. Tab from the button before the
  * list lands on the selected tab (Activity), not the first one. ArrowRight
  * moves focus to the next tab without selecting it, and Enter selects it and
@@ -100,6 +118,11 @@ export const Default: Story = {
       await waitFor(() =>
         expect(canvas.getByRole('tabpanel')).toHaveTextContent('Settings panel'),
       )
+    })
+
+    await step('the underline covers the list hairline', async () => {
+      const list = canvas.getByRole('tablist')
+      await waitFor(() => expectCoversHairline(indicatorOf(list), list, 'bottom'))
     })
   },
 }
@@ -226,12 +249,11 @@ export const Vertical: Story = {
     await waitFor(() => {
       const i = indicator.getBoundingClientRect()
       const t = settings.getBoundingClientRect()
-      const l = list.getBoundingClientRect()
       expect(i.height).toBeGreaterThan(0)
       expect(Math.abs(centreY(i) - centreY(t))).toBeLessThanOrEqual(2)
       expect(Math.abs(i.height - t.height)).toBeLessThanOrEqual(2)
-      // The inline end, inside the list's 1 px border.
-      expect(Math.abs(i.right - l.right)).toBeLessThanOrEqual(2)
+      // The inline end, over the list's hairline.
+      expectCoversHairline(indicator, list, 'right')
     })
 
     // The panel fills the rest of the root's row, so its width does not
@@ -265,6 +287,7 @@ export const RightToLeft: Story = {
   render: (args) => (
     <div dir="rtl" style={{ padding: '2rem', display: 'grid', gap: '2rem' }}>
       <Tabs {...args} />
+      <Tabs aria-label="Vertical project" items={ITEMS} orientation="vertical" />
       <div style={{ inlineSize: '16rem' }}>
         <Tabs aria-label="Sections" items={MANY} />
       </div>
@@ -280,6 +303,21 @@ export const RightToLeft: Story = {
       await userEvent.click(settings)
       await waitFor(() => expect(settings).toHaveAttribute('aria-selected', 'true'))
       await waitFor(() => expectInlineAligned(indicator, settings))
+    })
+
+    // In RTL the inline end is physical left, so the vertical hairline moves
+    // sides and the indicator still covers it. Perturbation: dropping the
+    // `:dir(rtl)` position in `tabsListRecipe` leaves the hairline on the right.
+    await step('vertical list: the indicator covers the hairline on the left', async () => {
+      const list = canvas.getByRole('tablist', { name: 'Vertical project' })
+      const settings = within(list).getByRole('tab', { name: 'Account settings' })
+      await userEvent.click(settings)
+      await waitFor(() => expect(settings).toHaveAttribute('aria-selected', 'true'))
+      await waitFor(() => expectCoversHairline(indicatorOf(list), list, 'left'))
+      // The line's x offset is 0, however it serialises: the dev build gives
+      // '0% 0%', the minified build '0px 0px'. In LTR it would be '100%'.
+      const [x] = getComputedStyle(list).backgroundPosition.split(' ')
+      await expect(parseFloat(x!)).toBe(0)
     })
 
     const list = canvas.getByRole('tablist', { name: 'Sections' })
@@ -349,6 +387,8 @@ export const Overflow: Story = {
     await waitFor(() => expect(last).toHaveAttribute('aria-selected', 'true'))
     await waitFor(() => expect(list.scrollLeft).toBeGreaterThan(0))
     await waitFor(() => expectInlineAligned(indicator, last))
+    // Scrolled, the hairline stays put and the indicator still lands on it.
+    await waitFor(() => expectCoversHairline(indicator, list, 'bottom'))
     await expect(root.scrollWidth).toBeLessThanOrEqual(root.clientWidth)
   },
 }

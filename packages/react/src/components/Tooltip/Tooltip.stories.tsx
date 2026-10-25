@@ -262,3 +262,58 @@ export const DisabledFocusable: Story = {
     await waitFor(() => expect(trigger).toHaveAccessibleDescription('Add a title before saving'))
   },
 }
+
+const LONG_TIP =
+  'Saves your work to the server. Drafts are kept for thirty days, then removed. ' +
+  'Anything you have already published stays as it is, and the history of every ' +
+  'change you make is kept with the document so it can be restored later. ' +
+  'Saving does not notify anyone who follows this document.'
+
+/** The px value of a length, resolved by the browser on a probe element. */
+const resolvePx = (length: string) => {
+  const probe = document.createElement('div')
+  probe.style.inlineSize = length
+  document.body.append(probe)
+  const px = probe.getBoundingClientRect().width
+  probe.remove()
+  return px
+}
+
+/**
+ * The width cap is the Tier 3 token `--ap-tooltip-max-inline-size`. Unset, it
+ * is four of the largest space step, and a long label wraps at it. Set, the
+ * product's value wins. Perturbation: a hard-coded `maxInlineSize` in
+ * `Tooltip.css.ts` ignores the token and fails the override half.
+ */
+export const WidthCap: Story = {
+  args: { content: LONG_TIP },
+  render: (args) => (
+    <div style={{ padding: '4rem' }}>
+      <Tooltip {...args}>
+        <Button>Save</Button>
+      </Tooltip>
+    </div>
+  ),
+  play: async ({ step }) => {
+    await step('unset: the cap is 4 x space-9', async () => {
+      await userEvent.tab()
+      const tip = await body().findByRole('tooltip')
+      const cap = 4 * resolvePx('var(--ap-space-9)')
+      await expect(cap).toBeGreaterThan(0)
+      await expect(parseFloat(getComputedStyle(tip).maxInlineSize)).toBeCloseTo(cap, 1)
+      await expect(tip.getBoundingClientRect().width).toBeLessThanOrEqual(cap + 0.5)
+    })
+
+    await step('set: the product value wins', async () => {
+      const root = document.documentElement
+      root.style.setProperty('--ap-tooltip-max-inline-size', '10rem')
+      try {
+        const tip = await body().findByRole('tooltip')
+        await waitFor(() => expect(getComputedStyle(tip).maxInlineSize).toBe('160px'))
+        await expect(tip.getBoundingClientRect().width).toBeLessThanOrEqual(160.5)
+      } finally {
+        root.style.removeProperty('--ap-tooltip-max-inline-size')
+      }
+    })
+  },
+}

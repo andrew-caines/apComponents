@@ -125,6 +125,12 @@ const indicatorBorder = (page: Page, listName: string) =>
       return sides.reduce((a, b) => (b.width > a.width ? b : a))
     })
 
+/** The underline list's block-end border width, in px. */
+const listHairline = (page: Page, listName: string) =>
+  page
+    .getByRole('tablist', { name: listName })
+    .evaluate((el) => parseFloat(getComputedStyle(el).borderBlockEndWidth))
+
 // Spec 4.1.4: selection is never shown by colour alone. Forced colours replace
 // the indicator's background with the canvas, so there it must draw a border.
 // Fails if the `(forced-colors: active)` rule is removed from
@@ -143,9 +149,14 @@ test('under forced colours the selected tab keeps a visible indicator border', a
     expect(border.width, `${name}: indicator border width`).toBeGreaterThan(0)
     expect(border.style, `${name}: indicator border style`).not.toBe('none')
   }
+  // Forced colours drop the background-line hairline, so the underline list keeps
+  // a real border there. Perturbation: dropping the forced-colours border in
+  // `tabsListRecipe` leaves no hairline in High Contrast.
+  expect(await listHairline(page, 'Employee sections'), 'hairline under forced colours').toBeGreaterThan(0)
 
   await page.emulateMedia({ forcedColors: 'none' })
   for (const name of ['Employee sections', 'Pill sections']) {
     expect((await indicatorBorder(page, name)).width, `${name}: no border normally`).toBe(0)
   }
+  expect(await listHairline(page, 'Employee sections'), 'no list border normally').toBe(0)
 })
