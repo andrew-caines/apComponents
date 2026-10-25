@@ -52,3 +52,27 @@
 ### F. Close-out
 19. **Cosmetic test minors (5h Tasks 1–4, 6, 8).** No list of them survives in the plan or the PR. Close the item as unrecorded, not as done.
 20. Annotate both "Still open" lists in place with commits, append a retrospective here, open the PR, and run the baseline sequence.
+
+## Retrospective
+
+### What shipped
+- **docs-refs** (`de6f891`): ids come from Storybook's own `toId`, titles with an apostrophe read whole, fenced samples are not checked as links, markers are exactly one of the two forms, and test temp dirs are removed.
+- **Generator** (`d82cb3d`): a padded `?brand=` is trimmed, generations are counted in an effect, the contrast table opens on a summary and the failing rows, and swatch hexes sit in a keyboard-reachable disclosure.
+- **SSR fixture** (`aa5446e`): `/subscribe` is a real action, and an e2e test submits the guide's form to it with client JavaScript blocked. `/start` applies the hydration marker filter.
+- **Gate 9** (`939f46e`): concurrency is job-level, the fork note is accurate, an unreadable report warns rather than throws, and orphan baselines fail a per-project check.
+- **Gate 10 and typecheck** (`1757f1c`): stale budget entries fail, names reached only through `export type *` are not value exports, and `scripts/` is typechecked.
+- **Closed without code:** the 5h cosmetic minors, as unrecorded. The 5h Pages item was already done (`08098d1`).
+
+### Found while building
+- **Storybook keeps non-ASCII letters in ids** (`Café` → `café`). The old `docsIdOf` dropped them.
+- **`scripts/` had one real type error.** It was an untyped tuple array in `gen-colour-demo.ts`, and the fix is type-only. It also needed `DOM.Iterable`.
+- **Process.** Escaped `
+` passed through a Bash heredoc into Python reached the files as real newlines. Use Edit for anything with escapes. Restoring after a perturbation with `git checkout -- <file>` also discards the uncommitted fix, so copy the file aside and restore from the copy.
+
+### Proof
+- Locally: `npm test` (2565), `test:gates`, `typecheck` (now with `scripts/`), the storybook typecheck, `test:stories` (132), `test:ssr`, `test:spa`, `test:hydration` (37), `size` (exit 0) and `check:lockfiles`. All green.
+- Perturbations: the debounce story fails without the debounce. A fake orphan PNG fails in its project only. A fake budget key fails `size`. A type error in `scripts/` fails `typecheck`.
+
+### Still open
+- Gate 9 baselines for the generator stories are regenerated on the PR.
+

@@ -1071,12 +1071,12 @@ The run had nine build tasks, then one whole-branch review with a single fix wav
   - Switch `[data-invalid]`. Closed: done in 5c (`Switch.css.ts` `&[data-invalid]`).
   - the Tooltip/Popover width caps. Closed: Popover's was already a Tier 3 token; Tooltip's is now one too (`bbb8609`).
 - **Parked from 5h:**
-  - Move `visual-baselines.yml` concurrency under the job.
-  - The fork-PR comment names the wrong failing step.
-  - `summary.ts` throws on a malformed report.
-  - Orphan baselines are not reported.
-  - Stale budget entries are not reported.
-  - `scripts/` is not typechecked.
-  - `export type *` is not detected as type-only.
-  - Cosmetic test minors from Tasks 1–4, 6 and 8.
-- **Not started:** a GitHub Pages deploy for Storybook. `STORYBOOK_BASE_PATH` is ready; spec §3.5 deferred the workflow to Phase 6.
+  - Move `visual-baselines.yml` concurrency under the job. Closed (`939f46e`).
+  - The fork-PR comment names the wrong failing step. Closed: checkout fails first (`939f46e`).
+  - `summary.ts` throws on a malformed report. Closed: `parseReport` names the bad path, and the CLI warns (`939f46e`).
+  - Orphan baselines are not reported. Closed: a per-project check in `stories.spec.ts` (`939f46e`).
+  - Stale budget entries are not reported. Closed: a failing row (`1757f1c`).
+  - `scripts/` is not typechecked. Closed: `tsc -p scripts` in `typecheck` (`1757f1c`).
+  - `export type *` is not detected as type-only. Closed (`1757f1c`).
+  - Cosmetic test minors from Tasks 1–4, 6 and 8. Closed as unrecorded: no list of them survives, so there is nothing to act on (2026-10-25).
+- **Not started:** a GitHub Pages deploy for Storybook. `STORYBOOK_BASE_PATH` is ready; spec §3.5 deferred the workflow to Phase 6. Closed: `pages.yml` publishes from `main` (`08098d1`).

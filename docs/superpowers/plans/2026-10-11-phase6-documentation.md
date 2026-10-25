@@ -1388,14 +1388,14 @@ PR #10 merged to `main` at `ac83e46` on 2026-10-11, by fast-forward.
 - **docs-refs scope.** It also checks `?path=/docs/<id>--docs` links, and it fails on duplicate, unclosed and empty regions.
 
 ### Still open
-- Swatch hex values are reachable only by hover, not by keyboard.
-- The 110-row contrast table is long.
-- A whitespace-padded `?brand=` is not handled.
-- Marker-comment forms are not checked strictly.
-- The docs-link regex also scans code fences.
-- docs-refs test temp dirs are not removed.
-- The generation counter is updated inside `useMemo`.
-- `docsIdOf` only approximates Storybook's title sanitizer.
-- The `META_TITLE` regex mishandles a title containing an apostrophe.
-- The `/start` test skips the `HYDRATION_MARKERS` filter.
-- `/subscribe` is illustrative only.
+- Swatch hex values are reachable only by hover, not by keyboard. Closed: a `Hex values` disclosure under each strip (`d82cb3d`).
+- The 110-row contrast table is long. Closed: a summary and the failing rows; the full table is collapsed (`d82cb3d`).
+- A whitespace-padded `?brand=` is not handled. Closed: trimmed before the `#` check (`d82cb3d`).
+- Marker-comment forms are not checked strictly. Closed: exactly `//` or `{/* … */}`, never a mix (`de6f891`).
+- The docs-link regex also scans code fences. Closed: fenced blocks are blanked first (`de6f891`).
+- docs-refs test temp dirs are not removed. Closed: removed in `afterEach` (`de6f891`).
+- The generation counter is updated inside `useMemo`. Closed: counted in an effect (`d82cb3d`).
+- `docsIdOf` only approximates Storybook's title sanitizer. Closed: it is Storybook's `toId` (`de6f891`).
+- The `META_TITLE` regex mishandles a title containing an apostrophe. Closed: the closing quote must match the opening one (`de6f891`).
+- The `/start` test skips the `HYDRATION_MARKERS` filter. Closed (`aa5446e`).
+- `/subscribe` is illustrative only. Closed: the fixture has a `/subscribe` action, and an e2e test submits the guide's form to it (`aa5446e`).
