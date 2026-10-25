@@ -73,5 +73,5 @@
 - Perturbations: the debounce story fails without the debounce. A fake orphan PNG fails in its project only. A fake budget key fails `size`. A type error in `scripts/` fails `typecheck`.
 
 ### Still open
-- Gate 9 baselines for the generator stories are regenerated on the PR.
+- Nothing. The baseline run left every baseline unchanged (268 passed). Gate 9 captures only the 1024×768 viewport, and the contrast table and ramp disclosures sit below the fold. Verification row 8's expected screenshot change was wrong.
 
