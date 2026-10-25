@@ -43,4 +43,15 @@ describe('extractRegion', () => {
   it('throws on an empty region, so a guide never renders a blank block', () => {
     expect(() => extractRegion('// #region docs:e\n// #endregion docs:e', 'e')).toThrow(/is empty/)
   })
+  it('accepts only the two marker forms, never a mix of them', () => {
+    // Perturbation: make the comment opener and closer independent optionals, and the mixes match.
+    expect(extractRegion('  {/* #region docs:j */}\n  <A />\n  {/* #endregion docs:j */}', 'j')).toBe('<A />')
+    for (const [open, close] of [
+      ['// #region docs:m */}', '// #endregion docs:m'],
+      ['{/* #region docs:m', '{/* #endregion docs:m */}'],
+      ['// #region docs:m', '{/* #endregion docs:m'],
+    ]) {
+      expect(() => extractRegion(`${open}\nx\n${close}`, 'm')).toThrow(/no region|not closed/)
+    }
+  })
 })

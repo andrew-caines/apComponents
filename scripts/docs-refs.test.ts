@@ -1,15 +1,21 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { checkDocsRefs, docsIdOf } from './docs-refs.js'
 
 // Resolved from this file, not the cwd, so the check runs from any directory.
 const REAL_DOCS = fileURLToPath(new URL('../storybook/docs', import.meta.url))
 
+const roots: string[] = []
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+})
+
 function fixture(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), 'docs-refs-'))
+  roots.push(root)
   for (const [path, body] of Object.entries(files)) {
     mkdirSync(join(root, path, '..'), { recursive: true })
     writeFileSync(join(root, path), body)
@@ -109,5 +115,23 @@ describe('checkDocsRefs', () => {
     expect(docsIdOf('Guides/SSR rules')).toBe('guides-ssr-rules--docs')
     expect(docsIdOf('Foundations/Theme generator')).toBe('foundations-theme-generator--docs')
     expect(docsIdOf('A/ Odd -- name! ')).toBe('a-odd-name--docs')
+    // Storybook keeps non-ASCII letters. Perturbation: strip [^a-z0-9], and this fails.
+    expect(docsIdOf('Guides/Café notes')).toBe('guides-café-notes--docs')
+  })
+  it('reads a Meta title that contains an apostrophe', () => {
+    // Perturbation: end the title at either quote (`[^"']+`), and the id is cut at the apostrophe.
+    const dir = fixture({
+      'docs/A.mdx': `<Meta title="Guides/Reader's notes" />\nSee [x](?path=/docs/guides-reader-s-notes--docs).\n`,
+    })
+    expect(checkDocsRefs(dir)).toEqual([])
+  })
+  it('ignores links inside fenced code blocks', () => {
+    // Perturbation: scan the raw source for links, and the fenced samples are reported.
+    const dir = fixture({
+      'docs/A.mdx':
+        '<Meta title="Guides/A" />\n```md\nSee [x](?path=/docs/guides-nope--docs) and [y](./Nope.mdx).\n```\n' +
+        'See [z](?path=/docs/guides-gone--docs).\n',
+    })
+    expect(checkDocsRefs(dir)).toEqual([expect.stringContaining('guides-gone--docs')])
   })
 })
