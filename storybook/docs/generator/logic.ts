@@ -13,7 +13,7 @@ export function buildSnippet(hex: string): string {
 
 /** `?brand=` with or without the leading `#`. Anything invalid is ignored, never thrown. */
 export function readBrandParam(search: string): string | null {
-  const v = new URLSearchParams(search).get('brand')
+  const v = new URLSearchParams(search).get('brand')?.trim()
   if (!v) return null
   const hex = v.startsWith('#') ? v : `#${v}`
   return isValidHex(hex) ? normalizeHex(hex) : null

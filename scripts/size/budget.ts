@@ -32,7 +32,19 @@ const limit = (l: number): string => `${Math.round(l * 100)}%`
 
 export function evaluate(measured: Record<string, Measured>, budgets: Budgets): Row[] {
   const index = measured['index']
-  return Object.entries(measured).map(([check, { js, css }]) => {
+  // A budget left behind by a removed export would otherwise sit in the file forever.
+  const stale: Row[] = Object.entries(budgets)
+    .filter(([check]) => !(check in measured))
+    .map(([check, budget]) => ({
+      check,
+      js: 0,
+      css: 0,
+      budget,
+      jsRatio: undefined,
+      cssRatio: undefined,
+      problems: [`stale budget entry: nothing measured for ${check}`],
+    }))
+  const rows = Object.entries(measured).map(([check, { js, css }]): Row => {
     const budget = budgets[check]
     const problems: string[] = []
     if (!budget) {
@@ -52,6 +64,7 @@ export function evaluate(measured: Record<string, Measured>, budgets: Budgets): 
     }
     return { check, js, css, budget, jsRatio, cssRatio, problems }
   })
+  return [...rows, ...stale]
 }
 
 export function renderTable(rows: Row[]): string {

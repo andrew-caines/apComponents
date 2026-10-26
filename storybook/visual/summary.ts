@@ -67,6 +67,41 @@ function* specsOf(suites: Suite[]): Generator<Spec> {
   }
 }
 
+/**
+ * Parses the JSON report and checks the arrays summarise walks, so a truncated or
+ * reshaped report fails with a message naming the bad path, not a TypeError.
+ */
+export function parseReport(text: string): Report {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch (e) {
+    throw new Error(`report is not JSON: ${e instanceof Error ? e.message : String(e)}`)
+  }
+  const arrayAt = (value: unknown, path: string): unknown[] => {
+    if (!Array.isArray(value)) throw new Error(`report: ${path} must be an array`)
+    return value
+  }
+  const field = (value: unknown, key: string): unknown =>
+    typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined
+  const checkSuites = (suites: unknown, path: string): void => {
+    arrayAt(suites, path).forEach((suite, i) => {
+      const at = `${path}[${i}]`
+      arrayAt(field(suite, 'specs'), `${at}.specs`).forEach((spec, j) => {
+        arrayAt(field(spec, 'tests'), `${at}.specs[${j}].tests`).forEach((t, k) => {
+          const tAt = `${at}.specs[${j}].tests[${k}]`
+          arrayAt(field(t, 'annotations'), `${tAt}.annotations`)
+          arrayAt(field(t, 'results'), `${tAt}.results`)
+        })
+      })
+      const nested = field(suite, 'suites')
+      if (nested !== undefined) checkSuites(nested, `${at}.suites`)
+    })
+  }
+  checkSuites(field(raw, 'suites'), 'suites')
+  return raw as Report
+}
+
 export function summarise(report: Report, headRef = '<branch>'): Summary {
   let passed = 0
   const failures: Record<Kind, string[]> = { missing: [], playError: [], diff: [], other: [] }
@@ -144,7 +179,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     console.log('::warning::gate 9 produced no report')
     process.exit(0)
   }
-  const report = JSON.parse(readFileSync(path, 'utf8')) as Report
+  let report: Report
+  try {
+    report = parseReport(readFileSync(path, 'utf8'))
+  } catch (e) {
+    // A report cut short or reshaped by a Playwright upgrade: warn, as for no report.
+    console.log(`::warning::gate 9 report is unreadable: ${e instanceof Error ? e.message : String(e)}`)
+    process.exit(0)
+  }
   const { text } = summarise(report, process.env.GITHUB_HEAD_REF || '<branch>')
   console.log(text)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, text + '\n')

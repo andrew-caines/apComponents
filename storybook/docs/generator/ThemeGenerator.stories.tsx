@@ -19,6 +19,14 @@ const snippet = (root: HTMLElement) => within(root).getByTestId('snippet')
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     await expect(snippet(canvasElement)).toHaveTextContent("brand: '#2e5fd9'")
+    // Perturbation: count the failing rows of one mode only, and the summary disagrees with the table.
+    const all = within(canvasElement).getByText(/^All \d+ pairings$/).closest('details')!
+    await expect(all.open).toBe(false)
+    const rows = [...all.querySelectorAll('tbody tr')]
+    const fails = rows.filter((r) => r.getAttribute('data-pass') === 'false').length
+    await expect(within(canvasElement).getByTestId('contrast-summary')).toHaveTextContent(
+      `${rows.length} pairings, ${fails ? `${fails} fail` : 'all pass'}.`,
+    )
   },
 }
 

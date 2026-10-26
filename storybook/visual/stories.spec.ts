@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
@@ -30,6 +30,15 @@ test('every SKIP entry names a real story and gives a reason', () => {
   expect(Object.keys(SKIP).filter((id) => !ids.has(id)), 'SKIP keys with no story').toEqual([])
   const blank = Object.entries(SKIP).filter(([, reason]) => typeof reason !== 'string' || !reason.trim())
   expect(blank, 'SKIP entries with no reason').toEqual([])
+})
+
+test('every baseline names a story that gate 9 screenshots', ({}, testInfo) => {
+  // Reads only files, so it runs on every platform. A renamed or deleted story leaves
+  // its PNG behind, and nothing else compares against it. Checks this project's folder.
+  const dir = join(import.meta.dirname, '__screenshots__', testInfo.project.name)
+  const shot = new Set(stories.filter((s) => !(s.id in SKIP)).map((s) => `${s.id}.png`))
+  const pngs = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.png')) : []
+  expect(pngs.filter((f) => !shot.has(f)), `orphan baselines in __screenshots__/${testInfo.project.name}`).toEqual([])
 })
 
 for (const story of stories) {

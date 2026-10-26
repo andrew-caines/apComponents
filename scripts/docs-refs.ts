@@ -7,6 +7,7 @@
 // storybook vitest project notices. This runs in the unit job and is the only build-time net.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { toId } from 'storybook/internal/csf'
 import { extractRegion } from '../storybook/docs/lib/extractRegion.js'
 
 function mdxFiles(dir: string): string[] {
@@ -21,31 +22,26 @@ const CALL = /\bextractRegion\(([^)]*)\)/g
 // The only argument shape the check can verify: identifier, then a literal name.
 const ARGS = /^\s*(\w+)\s*,\s*(['"`])([\w-]+)\2\s*,?\s*$/
 
-/**
- * The docs id Storybook gives an MDX page from its `<Meta title>`: each `/` part
- * lowercased, non-alphanumeric runs turned into one `-` (trimmed at the ends),
- * the parts joined with `-`, then `--docs`.
- */
+/** The docs id Storybook gives an MDX page from its `<Meta title>`, by Storybook's own sanitizer. */
 export function docsIdOf(title: string): string {
-  const parts = title.split('/').map((p) =>
-    p
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, ''),
-  )
-  return `${parts.join('-')}--docs`
+  return toId(title, 'Docs')
 }
 
-const META_TITLE = /<Meta\s+title=["']([^"']+)["']/
+// The closing quote must match the opening one, so `title="Reader's notes"` reads whole.
+const META_TITLE = /<Meta\s+title=(["'])(.+?)\1/
 // A `?path=/docs/...--docs` target in a Markdown link `](…)` or a JSX `href` string.
 const DOCS_LINK = /(?:\]\(|\bhref=\{?\s*["'`])\?path=\/docs\/([\w-]+--docs)\b/g
+
+// A fenced code block quotes links as samples, not as links. Blank it, keeping its line count.
+const FENCE = /^([ \t]*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1\2[^\n]*$/gm
+const withoutFences = (src: string): string => src.replace(FENCE, (block) => block.replace(/[^\n]/g, ''))
 
 export function checkDocsRefs(docsDir: string): string[] {
   const problems: string[] = []
   const files = mdxFiles(docsDir)
   const pageIds = new Set<string>()
   for (const file of files) {
-    const title = META_TITLE.exec(readFileSync(file, 'utf8'))?.[1]
+    const title = META_TITLE.exec(readFileSync(file, 'utf8'))?.[2]
     if (title) pageIds.add(docsIdOf(title))
   }
   for (const file of files) {
@@ -77,10 +73,11 @@ export function checkDocsRefs(docsDir: string): string[] {
         problems.push(`${file}: ${e instanceof Error ? e.message : String(e)}`)
       }
     }
-    for (const m of src.matchAll(/\]\((\.{1,2}\/[^)#\s]+)/g)) {
+    const prose = withoutFences(src)
+    for (const m of prose.matchAll(/\]\((\.{1,2}\/[^)#\s]+)/g)) {
       if (!existsSync(resolve(dirname(file), m[1]!))) problems.push(`${file}: relative link to missing ${m[1]}`)
     }
-    for (const m of src.matchAll(DOCS_LINK)) {
+    for (const m of prose.matchAll(DOCS_LINK)) {
       if (!pageIds.has(m[1]!)) problems.push(`${file}: ?path=/docs/${m[1]} names no MDX page`)
     }
   }

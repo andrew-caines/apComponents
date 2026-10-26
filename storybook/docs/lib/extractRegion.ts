@@ -5,8 +5,11 @@
 
 const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-const marker = (kind: 'region' | 'endregion', name: string): RegExp =>
-  new RegExp(`^\\s*(?:\\/\\/|\\{\\/\\*)\\s*#${kind} docs:${escape(name)}\\s*(?:\\*\\/\\})?\\s*$`)
+// Exactly one of the two forms: a `//` line, or a `{/* … */}` that closes on the same line.
+const marker = (kind: 'region' | 'endregion', name: string): RegExp => {
+  const body = `#${kind} docs:${escape(name)}`
+  return new RegExp(`^\\s*(?:\\/\\/\\s*${body}|\\{\\/\\*\\s*${body}\\s*\\*\\/\\})\\s*$`)
+}
 
 export function extractRegion(raw: string, name: string): string {
   const lines = raw.split(/\r?\n/)
