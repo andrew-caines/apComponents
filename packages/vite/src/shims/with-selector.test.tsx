@@ -59,12 +59,33 @@ describe.each([
     expect(m.text()).toBe('2')
   })
 
+  // An object selection is a new reference every time, so only `isEqual` can
+  // stop the re-render; a primitive would be stopped by Object.is alone.
+  const mountObject = (store: ReturnType<typeof createStore>, isEqual?: (a: { count: number }, b: { count: number }) => boolean) => {
+    const renders = { n: 0 }
+    const Probe: FC = () => {
+      renders.n++
+      const sel = impl(store.subscribe, store.get, store.get, (s: State) => ({ count: s.count }), isEqual)
+      return createElement('span', null, String(sel.count))
+    }
+    render(createElement(Probe))
+    return renders
+  }
+
   it('does not re-render when isEqual says the selection is unchanged', () => {
     const store = createStore({ count: 1, label: 'a' })
-    const m = mount(impl, store, (a, b) => a === b)
-    const before = m.renders.n
+    const renders = mountObject(store, (a, b) => a.count === b.count)
+    const before = renders.n
     act(() => store.set({ count: 1, label: 'changed' }))
-    expect(m.renders.n).toBe(before)
+    expect(renders.n).toBe(before)
+  })
+
+  it('re-renders for a new object selection when there is no isEqual', () => {
+    const store = createStore({ count: 1, label: 'a' })
+    const renders = mountObject(store)
+    const before = renders.n
+    act(() => store.set({ count: 1, label: 'changed' }))
+    expect(renders.n).toBeGreaterThan(before)
   })
 
   it('uses getServerSnapshot during server render', () => {
