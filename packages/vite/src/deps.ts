@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 /**
  * `@ap/react`'s own dependencies that import React, and how `apComponents()`
  * keeps each one on the app's single copy.
@@ -23,3 +25,15 @@ export const AP_BUNDLED_DEPS: readonly string[] = ['@base-ui/react', '@base-ui/u
  * evaluate once inlined, and on React 19 it only re-exports React's own hook.
  */
 export const AP_ALIASED_DEPS: readonly string[] = ['use-sync-external-store']
+
+const shim = (file: string): string => fileURLToPath(new URL(`./shims/${file}`, import.meta.url))
+
+/**
+ * Vite `resolve.alias` entries sending `use-sync-external-store`'s entry points
+ * to this package's ESM replacements. Exact-match patterns, so `with-selector`
+ * is never swallowed by the bare `shim` rule.
+ */
+export const SHIM_ALIASES: readonly { find: RegExp; replacement: string }[] = [
+  { find: /^use-sync-external-store\/(shim\/)?with-selector(\.js)?$/, replacement: shim('with-selector.ts') },
+  { find: /^use-sync-external-store\/shim(\/index(\.js)?)?$/, replacement: shim('use-sync-external-store-shim.ts') },
+]
