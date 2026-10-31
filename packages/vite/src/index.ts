@@ -81,6 +81,24 @@ export const AP_PREBUNDLE: readonly string[] = [
   '@vanilla-extract/recipes/createRuntimeFn',
 ]
 
+/**
+ * Base UI's own bare imports, pre-bundled through it as nested
+ * `@ap/react > <base-ui package> > <specifier>` entries. When Base UI sits
+ * outside the Vite root (a vendored checkout beside the app rather than inside
+ * it, or this repo's showcase), Vite otherwise finds these only after its first
+ * optimisation, re-optimises, and the chunks the first page was loading fail
+ * with 504 "Outdated Optimize Dep". `index.test.ts` re-reads Base UI's modules
+ * and fails if this list drifts.
+ */
+export const AP_PREBUNDLE_NESTED: readonly string[] = [
+  '@ap/react > @base-ui/react > @floating-ui/react-dom',
+  '@ap/react > @base-ui/react > @floating-ui/react-dom > @floating-ui/dom',
+  '@ap/react > @base-ui/react > @floating-ui/react-dom > @floating-ui/dom > @floating-ui/core',
+  '@ap/react > @base-ui/react > @floating-ui/utils',
+  '@ap/react > @base-ui/react > @floating-ui/utils/dom',
+  '@ap/react > @base-ui/utils > reselect',
+]
+
 const shim = (file: string): string => fileURLToPath(new URL(`./shims/${file}`, import.meta.url))
 
 /**
@@ -157,7 +175,7 @@ export function apComponents(options: ApComponentsOptions = {}): PluginOption[] 
         resolve: { dedupe: ['react', 'react-dom'], alias: [...SHIM_ALIASES] },
         optimizeDeps: {
           exclude: [...AP_PACKAGES],
-          include: AP_PREBUNDLE.map((d) => `@ap/react > ${d}`),
+          include: [...AP_PREBUNDLE.map((d) => `@ap/react > ${d}`), ...AP_PREBUNDLE_NESTED],
         },
         ...(user.build?.cssTarget === undefined && user.build?.target === undefined
           ? { build: { cssTarget: [...AP_CSS_TARGET] } }

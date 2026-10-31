@@ -1026,7 +1026,13 @@ package, when one is in neither. When it fails, add the package to
 `AP_BUNDLED_DEPS` in `packages/vite/src/index.ts`; if it is CommonJS and dev SSR
 then fails with `module is not defined`, it needs an ESM replacement instead.
 When `@ap/react` starts importing a new Base UI entry point, the
-`AP_PREBUNDLE` test fails until it is listed.
+`AP_PREBUNDLE` test fails until it is listed. `AP_PREBUNDLE_NESTED` does the
+same one level further out: every bare import reachable from those entry points
+outside Base UI (`@floating-ui/*`, `reselect`), as nested `a > b > c` includes.
+Without it, an app whose Base UI sits outside its Vite root (the showcase, or a
+vendored checkout beside the app) re-optimises on a cold first load and 504s
+with "Outdated Optimize Dep". A warm `node_modules/.vite` hides this, so check a
+dev change with the cache deleted.
 
 **It is not only a monorepo artifact.** It was first seen in
 `fixtures/ssr-app`, a non-workspace app inside the workspace. But an external
