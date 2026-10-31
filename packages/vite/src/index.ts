@@ -90,7 +90,11 @@ const shim = (file: string): string => fileURLToPath(new URL(`./shims/${file}`, 
  */
 export const SHIM_ALIASES: readonly { find: RegExp; replacement: string }[] = [
   { find: /^use-sync-external-store\/(shim\/)?with-selector(\.js)?$/, replacement: shim('with-selector.ts') },
-  { find: /^use-sync-external-store\/shim(\/index(\.js)?)?$/, replacement: shim('use-sync-external-store-shim.ts') },
+  // The bare package and its `shim` entry both export React's own hook on React 18+.
+  {
+    find: /^use-sync-external-store(\/shim)?(\/index(\.js)?)?$/,
+    replacement: shim('use-sync-external-store-shim.ts'),
+  },
 ]
 
 /**

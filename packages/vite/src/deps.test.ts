@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
@@ -111,6 +111,8 @@ describe('SHIM_ALIASES', () => {
     SHIM_ALIASES.find((a) => a.find.test(specifier))?.replacement
 
   it.each([
+    ['use-sync-external-store', 'use-sync-external-store-shim.ts'],
+    ['use-sync-external-store/index.js', 'use-sync-external-store-shim.ts'],
     ['use-sync-external-store/shim', 'use-sync-external-store-shim.ts'],
     ['use-sync-external-store/shim/index.js', 'use-sync-external-store-shim.ts'],
     ['use-sync-external-store/shim/with-selector', 'with-selector.ts'],
@@ -124,6 +126,27 @@ describe('SHIM_ALIASES', () => {
 
   it('points every alias at a file that exists', () => {
     for (const a of SHIM_ALIASES) expect(existsSync(a.replacement), a.replacement).toBe(true)
+  })
+
+  // Not only by package name: every specifier the bundled packages actually use
+  // must hit an alias, or that one import falls back to the CommonJS original.
+  it('covers every use-sync-external-store specifier the bundled packages import', () => {
+    const specifiers = new Set<string>()
+    const scan = (dir: string): void => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, e.name)
+        if (e.isDirectory()) {
+          if (e.name !== 'node_modules') scan(path)
+        } else if (/\.(m?js|cjs)$/.test(e.name)) {
+          for (const m of readFileSync(path, 'utf8').matchAll(/['"](use-sync-external-store(?:\/[^'"]*)?)['"]/g)) {
+            specifiers.add(m[1]!)
+          }
+        }
+      }
+    }
+    for (const dep of AP_BUNDLED_DEPS) scan(packageDir(dep, realpathSync(REACT_PKG)))
+    expect(specifiers.size).toBeGreaterThan(0)
+    expect([...specifiers].filter((s) => target(s) === undefined)).toEqual([])
   })
 
   it('leaves unrelated specifiers alone', () => {
