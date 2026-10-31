@@ -276,4 +276,23 @@ Spawn with `shell: true` on Windows, as `consumer-build.gate.test.ts` does.
 
 **npm's layout facts.** npm 11 installs a linked `file:` package's dependencies, including `@base-ui/*` and their React peer (deduped), into the **app's** `node_modules`. Layout A therefore has one React and one Base UI. In layout B, Node resolution from `@ap/react`'s real path finds `vendor/apComponents/node_modules` first.
 
-_(rest filled in at Task 9)_
+### What shipped
+- **Harness** (`8613b20`): `scripts/external-consumer/run.ts`, an app outside the checkout with only `apComponents()`. It runs layout A/B × build/dev, typechecks, renders `/form`, `/dialog` and `/overlays` in Chromium, and fails on console errors.
+- **Completeness** (`e773385`, fixed in review): `AP_BUNDLED_DEPS`, with a test that walks `@ap/react`'s installed tree through `node_modules` and fails on an unhandled React importer or an uninstalled dependency.
+- **Shims** (`5eef7b8`, plus the bare-entry alias in review): ESM `use-sync-external-store` and `with-selector`, compared case by case with upstream.
+- **Preset** (`8c735f1`): `ssr.noExternal` += `AP_BUNDLED_DEPS`, `resolve.dedupe`, `resolve.alias`, and `optimizeDeps.include` of `@ap/react > AP_PREBUNDLE`.
+- **Cleanup, dev smoke, CI, docs** (`2746b2d`, `9d77305`, `bc10bd1`, `234c2eb`):
+  - both in-repo apps lost their workaround lists;
+  - the showcase smokes under `react-router dev`;
+  - the CI matrix `external-consumer` was added;
+  - Getting started, SSR rules, CONTRIBUTING and ADR-0002 were updated.
+
+### Found while building
+- **`@ap/vite`'s entry must have no relative imports.** A consumer's Vite config loads its `.ts` source through Node type stripping, so `./deps.js` does not resolve, and `./deps.ts` fails the consumer's own `tsc`. The lists moved into `index.ts`, guarded by a plain-Node load test.
+- **Layout A dev reloaded the first page** ("Outdated Optimize Dep") because `@ap/*` is excluded from pre-bundling. `AP_PREBUNDLE` fixes it, with a drift test.
+- **`@floating-ui/react-dom`** is bundled by rule, not by an observed failure. Removing it fails no cell, because positioners mount only when open.
+- **Layout B typechecks with a plain tsconfig.** The in-repo `paths` pins are a monorepo artifact only.
+
+### Still open
+- The deferred review minors: listed in the PR description.
+- The first Linux run of the four-cell matrix happens on the PR. The npm layout facts above were recorded with npm 11 on Windows, and CI's Node 22.22 ships npm 10.
