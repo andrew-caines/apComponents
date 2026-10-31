@@ -1,6 +1,5 @@
 import { Meta, Source } from '@storybook/addon-docs/blocks'
 import { extractRegion } from './lib/extractRegion'
-import ssrVite from '../../fixtures/ssr-app/vite.config.ts?raw'
 import './docs.css'
 
 <Meta title="Guides/SSR rules" />
@@ -127,53 +126,39 @@ value. Gate 6,
 posts the server-rendered defaults of `Textarea`, `Checkbox`, `Switch`,
 `RadioGroup` and `Select` to the same action with no JavaScript involved.
 
-## Bundle Base UI into a `file:` SSR build
+## One copy of React, handled for you
 
-**Rule.** If your SSR app consumes `@ap/react` through a `file:` path into the
-submodule, and its build succeeds but fails at request time with a null hook
-dispatcher, add Base UI's React-importing packages to `ssr.noExternal` in your
-own `vite.config.ts`:
+**Rule.** Nothing to do. `apComponents()` keeps every React import in your
+app on your app's single copy, in `react-router dev` and in production builds.
+Do not add `ssr.noExternal`, `resolve.dedupe` or aliases for apComponents'
+sake.
 
-<Source language="ts" code={extractRegion(ssrVite, 'ssr-noexternal')} />
+**Why.** Base UI, which the components are built on, imports React itself. Left
+as a plain external import in an SSR build, it is loaded at request time from
+wherever its files sit, and in some install layouts that finds a second copy of
+React. `@ap/vite` compiles Base UI's React-importing packages into your server
+build, replaces the CommonJS `use-sync-external-store` with an ES module, and
+dedupes React, so there is only ever one.
 
-`@ap/vite` does not add this for you. A client-only app does not need it.
-
-**Why.** The fixture app these samples come from needs these three entries
-because it sits inside this repository's workspace. `@base-ui/react` is
-installed only in the repository's root `node_modules`, not in the fixture's
-own, so left external it loads at request time next to the root copy of
-React, while the rest of the server build uses the fixture's copy. A component
-then renders through one copy of React while the renderer drives the other.
-No gate builds an app outside the repository that consumes the submodule
-through `file:`, so whether your layout needs the entries is not tested. If it
-fails as shown below, it does. Every package in Base UI's dependency chain
-that imports React must be bundled into the same chunk. If a future component
-pulls in a new one, the same failure appears again.
-
-**Broken looks like.** The build succeeds, then the request fails with a null
-hook dispatcher:
+**Broken looks like.** A page that renders and builds, then fails at request
+time with a null hook dispatcher:
 
 ```
 TypeError: Cannot read properties of null (reading 'useId')
 ```
 
-Leaving out `use-sync-external-store` gives the same failure as
-`Cannot read properties of null (reading 'useSyncExternalStore')`, and only on
-pages whose components use a Base UI store, such as Dialog. Pages with only
-fields and buttons keep working, which makes it easy to miss.
+The hook name varies (`useRef`, `useSyncExternalStore`). If you see this, it is
+a library bug: please file it.
 
-**Enforced by.** The gates prove that the fixture renders and hydrates with
-these entries in its
-[`vite.config.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/vite.config.ts).
-Gate 6,
-[`ssr-render.gate.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/react/src/gates/ssr-render.gate.test.ts)
-(`npm run test:ssr`), builds and serves it, and requires its form, streamed
-and getting-started pages to render their markup, and
-[`dialog.spec.ts`](https://github.com/andrew-caines/apComponents/blob/main/fixtures/ssr-app/e2e/dialog.spec.ts)
-(`npm run test:hydration`) loads and hydrates the Dialog route. The whole
-diagnosis is in
-[CONTRIBUTING](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md#base-uireact-left-external-in-an-ssr-build-loads-a-second-react),
-under "`@base-ui/react` left external in an SSR build loads a second React".
+**Enforced by.** A unit test in
+[`deps.test.ts`](https://github.com/andrew-caines/apComponents/blob/main/packages/vite/src/deps.test.ts)
+walks `@ap/react`'s installed dependency tree and fails if a package that
+imports React is not handled. The `external-consumer` CI job
+([`run.ts`](https://github.com/andrew-caines/apComponents/blob/main/scripts/external-consumer/run.ts))
+builds an app outside this repository, configured with nothing but
+`apComponents()`, and renders a form, a dialog and the overlays under both
+`react-router dev` and a production build, with the submodule both installed
+and not installed.
 
 ## Accordion content is findable only after hydration
 

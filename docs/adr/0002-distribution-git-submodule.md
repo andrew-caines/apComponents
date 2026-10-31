@@ -41,6 +41,8 @@ export default defineConfig({
 
 `react` and `react-dom` are peer dependencies and must resolve to a single copy in the consumer's tree.
 
+**Amendment, 2026-10-31.** `apComponents()` also owns that single copy, so a consumer adds nothing beyond the plugin. It bundles `@ap/react`'s React-importing dependencies (`AP_BUNDLED_DEPS`) into SSR builds, replaces the CommonJS `use-sync-external-store` with ESM shims, dedupes `react` and `react-dom`, and pre-bundles `@ap/react`'s dependencies for the dev client (`AP_PREBUNDLE`). React itself stays external and resolves to the consumer's copy. This holds whether or not the vendored submodule has its own `node_modules`, in dev and in production; the `external-consumer` CI job proves it. See `docs/superpowers/specs/2026-10-31-single-react-design.md`.
+
 Releases are tagged with semver (`v1.4.0`) on this repository; consumers pin to a tag. `CHANGELOG.md` is maintained at the repository root.
 
 ## Consequences

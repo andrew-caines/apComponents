@@ -1000,40 +1000,46 @@ the root `node_modules` and finds the root's `react`. Every other external
 `Field`, `Input` or `Button` — reads a null dispatcher from whichever one is
 not currently rendering.
 
-**Fix:** `ssr: { noExternal: ['@base-ui/react', '@base-ui/utils',
-'use-sync-external-store'] }` in the app's own `vite.config.ts`. All three
-entries are needed, and each was found the same way — by a component reaching
-one hop further into Base UI's dependency chain than the last one did:
+**Fix:** owned by `@ap/vite`, so no app carries it (spec
+`docs/superpowers/specs/2026-10-31-single-react-design.md`). `apComponents()`
+adds `AP_BUNDLED_DEPS` to `ssr.noExternal`, aliases `use-sync-external-store` to
+ESM replacements (`SHIM_ALIASES`, `packages/vite/src/shims/`), dedupes React,
+and pre-bundles `AP_PREBUNDLE` for the dev client. The history of how each
+package was found:
 
 | Package | Found by | Symptom |
 |---|---|---|
 | `@base-ui/react` | Button/Field/Input | `Cannot read properties of null (reading 'useId')` |
 | `@base-ui/utils` | the same, one hop down — `useId.mjs` actually lives here | identical |
 | `use-sync-external-store` | **Dialog**, the first component with a Base UI *store* | `Cannot read properties of null (reading 'useSyncExternalStore')` |
+| `@floating-ui/react-dom` | the completeness test, not a failure: it imports React, so it is bundled by the rule | — |
 
-The third is the instructive one. `/form` kept working the whole time, because
-Field and Input reach Base UI through `useId`, which was already bundled;
-`/dialog` returned a 500 while every other route returned 200. The built server
-file had `import { useSyncExternalStore } from "use-sync-external-store/shim"`
-as its own external import, that package `require`s `react` and resolves it from
-the ROOT `node_modules`, and the second React reported a null dispatcher.
+`use-sync-external-store` is replaced rather than bundled because it is
+CommonJS, and Vite's dev SSR runner cannot evaluate an inlined CommonJS module
+(`module is not defined`). That is also why the showcase used to be served from
+a build only.
 
-**The general rule:** every package in Base UI's dependency chain that imports
-React must end up in the same bundled chunk. A new Base UI component that pulls
-in a new React-importing transitive dependency will need a fourth entry. The
-symptom is always a null hook dispatcher, and the diagnosis is always to grep
-the built `build/server/index.js` for top-level `import` statements naming a
-package that lives only in the root `node_modules`.
+**The general rule:** every package in `@ap/react`'s dependency chain that
+imports React must be in `AP_BUNDLED_DEPS` or `AP_ALIASED_DEPS`.
+`packages/vite/src/deps.test.ts` walks the installed tree and fails, naming the
+package, when one is in neither. When it fails, add the package to
+`AP_BUNDLED_DEPS` in `packages/vite/src/index.ts`; if it is CommonJS and dev SSR
+then fails with `module is not defined`, it needs an ESM replacement instead.
+When `@ap/react` starts importing a new Base UI entry point, the
+`AP_PREBUNDLE` test fails until it is listed.
 
-**This is a monorepo-nesting artifact, not a consumer problem.** It happens
-because `fixtures/ssr-app` is a non-workspace app sitting *inside* the
-workspace, so its dependency resolution straddles two `node_modules` trees. A
-product that installs `@ap/react` from a registry gets `@base-ui/react` under
-its own `node_modules` like any other transitive dependency, with one `react`
-in scope, and never sees this. That is why the fix lives in the fixture's
-`vite.config.ts` and **not** in `@ap/vite`: putting it in the plugin would
-force every consumer to bundle Base UI to work around a problem only this
-repository has.
+**It is not only a monorepo artifact.** It was first seen in
+`fixtures/ssr-app`, a non-workspace app inside the workspace. But an external
+app hits it too when the vendored submodule has its own `node_modules` (a
+developer ran `npm install` in it): in `react-router dev`, Base UI then loads
+from the submodule's tree, next to the submodule's React. The
+`external-consumer` CI job covers both layouts.
+
+**`@ap/vite`'s entry has no relative imports.** A consumer's `vite.config.ts`
+loads `packages/vite/src/index.ts` through Node's type stripping, which does
+not map `./x.js` to `./x.ts`, and a `./x.ts` import fails the consumer's own
+typecheck. The lists therefore live in `index.ts`. The shims are separate
+files because only Vite loads them, through the alias.
 
 ## `Select`'s object values render as JSON when the default is rebuilt
 

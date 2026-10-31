@@ -84,23 +84,15 @@ your `defineConfig({ … })`.
 
 - **vanilla-extract**, which the components' styles are written in.
 - **`ssr.noExternal` and `optimizeDeps.exclude`** for the `@ap/*` packages only. Their source is compiled by your build rather than loaded as-is, so an SSR build runs the style transform over it and the dev server does not pre-bundle it.
+- **One copy of React.** Base UI's packages that import React are compiled into your SSR build, `use-sync-external-store` is replaced with an ES module that re-exports React's own hook, `react` and `react-dom` are deduped, and `@ap/react`'s dependencies are pre-bundled for the dev server. React itself is never bundled: every React import resolves to your app's copy, in development and production, whether or not the submodule has its own `node_modules`.
 - **`build.cssTarget`** set to `AP_CSS_TARGET` (Chrome and Edge 120, Firefox 114, Safari 16.4), so the minifier does not rewrite `:dir()` into `:lang()` and break right-to-left styling. It does this only if you set neither `build.target` nor `build.cssTarget`; if you set either, your value wins.
 - **A build warning**, from a small `ap-components:rtl-check` plugin, if a `:dir()` rule still ends up lowered to `:lang()` in your built CSS.
 
-> **SSR apps that consume through a `file:` path.** The SSR fixture these
-> samples come from needs three Base UI entries in `ssr.noExternal`, because
-> it sits inside this repository's workspace. No gate builds an app outside
-> the repository that consumes the submodule through `file:`, so whether yours
-> needs them is not tested. If your SSR build succeeds but fails at request
-> time with a null hook dispatcher,
-> `TypeError: Cannot read properties of null (reading 'useId')`, add the
-> entries shown:
-
-<Source language="ts" code={extractRegion(ssrVite, 'ssr-noexternal')} />
-
-`@ap/vite` does not add this for you. The reasoning is written up under
-[`@base-ui/react` left external in an SSR build loads a second React](https://github.com/andrew-caines/apComponents/blob/main/docs/CONTRIBUTING.md#base-uireact-left-external-in-an-ssr-build-loads-a-second-react)
-in CONTRIBUTING.
+That plugin list is the whole of your apComponents setup. Your app adds
+nothing else: no `ssr.noExternal`, no `resolve.dedupe`, no alias and no extra
+dependency. CI proves it with an app outside this repository whose config is
+exactly the two lines above, in development and production, with the submodule
+installed and not installed.
 
 ## Load the CSS
 
