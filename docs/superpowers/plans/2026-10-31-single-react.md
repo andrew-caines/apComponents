@@ -265,4 +265,15 @@ Spawn with `shell: true` on Windows, as `consumer-build.gate.test.ts` does.
 
 ## Retrospective
 
-_(filled in at Task 9)_
+### Baseline (Task 1, before any plugin change, Windows)
+
+| Cell | Result |
+|---|---|
+| A, build | PASS. Typecheck clean. |
+| A, dev | SSR 200 on every route, but the first page load logs 504 "Outdated Optimize Dep": Vite discovers `@base-ui/*` and `@vanilla-extract/recipes/createRuntimeFn` only at runtime, because `@ap/*` is in `optimizeDeps.exclude`, and reloads the page. |
+| B, build | PASS. Typecheck clean: no duplicate `@types/react` with a plain tsconfig. |
+| B, dev | 500 on every route: `Cannot read properties of null (reading 'useRef')` in `ToastProvider` → `@base-ui/utils/useRefWithInit.mjs`, resolving `react` from `vendor/apComponents/node_modules/react` while `react-dom/server` is the app's. |
+
+**npm's layout facts.** npm 11 installs a linked `file:` package's dependencies, including `@base-ui/*` and their React peer (deduped), into the **app's** `node_modules`. Layout A therefore has one React and one Base UI. In layout B, Node resolution from `@ap/react`'s real path finds `vendor/apComponents/node_modules` first.
+
+_(rest filled in at Task 9)_
