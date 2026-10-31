@@ -1,7 +1,10 @@
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { AP_CSS_TARGET, AP_PACKAGES, apComponents } from './index.js'
+import { AP_BUNDLED_DEPS, AP_CSS_TARGET, AP_PACKAGES, AP_PREBUNDLE, AP_PREBUNDLE_NESTED, SHIM_ALIASES, apComponents } from './index.js'
+
 
 const PKG_ROOT = join(import.meta.dirname, '..')
 const PACKAGES = join(PKG_ROOT, '..')
@@ -69,7 +72,7 @@ describe('apComponents()', () => {
   })
 
   it('marks every ap package as ssr.noExternal so .css.ts is transformed', () => {
-    expect([...presetConfig()['ssr'].noExternal].sort()).toEqual(consumablePackages())
+    expect(presetConfig()['ssr'].noExternal).toEqual(expect.arrayContaining(consumablePackages()))
   })
 
   it('excludes ap packages from dep pre-bundling', () => {
@@ -134,4 +137,170 @@ describe('CSS browser floor', () => {
     expect(warnings[0]).toContain('AP_CSS_TARGET')
     expect(run({ 'a.css': { type: 'asset', fileName: 'a.css', source: '.a:dir(rtl){left:0}' } })).toEqual([])
   })
+})
+
+/**
+ * The bare specifiers `@ap/react`'s runtime source imports from its own
+ * dependencies, read off the source: the same files a consumer's dev server
+ * serves. Tests, stories, gates and `.css.ts` (compiled away at build time)
+ * are skipped, and so are type-only imports.
+ */
+function runtimeImports(): string[] {
+  const src = join(PACKAGES, 'react/src')
+  const deps = Object.keys(
+    (JSON.parse(readFileSync(join(PACKAGES, 'react/package.json'), 'utf8')) as { dependencies: Record<string, string> })
+      .dependencies,
+  ).filter((d) => !d.startsWith('@ap/') && d !== '@vanilla-extract/css')
+  const found = new Set<string>()
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, e.name)
+      if (e.isDirectory()) {
+        if (e.name !== 'gates') walk(path)
+        continue
+      }
+      if (!/\.tsx?$/.test(e.name) || /\.(test|stories|css)\.tsx?$/.test(e.name)) continue
+      for (const m of readFileSync(path, 'utf8').matchAll(/^import (?!type )[^;]*?from '([^']+)'/gms)) {
+        const spec = m[1]!
+        if (deps.some((d) => spec === d || spec.startsWith(`${d}/`))) found.add(spec)
+      }
+    }
+  }
+  walk(src)
+  return [...found].sort()
+}
+
+describe('one React copy (spec 2026-10-31)', () => {
+  it('bundles AP_BUNDLED_DEPS in SSR', () => {
+    expect(presetConfig()['ssr'].noExternal).toEqual(expect.arrayContaining([...AP_BUNDLED_DEPS]))
+  })
+
+  // React must stay external: bundled, the server would carry its own copy.
+  it('never bundles react', () => {
+    const noExternal: string[] = presetConfig()['ssr'].noExternal
+    expect(noExternal.filter((n) => n === 'react' || n === 'react-dom')).toEqual([])
+  })
+
+  it('dedupes react and react-dom', () => {
+    expect(presetConfig()['resolve'].dedupe).toEqual(['react', 'react-dom'])
+  })
+
+  it('aliases use-sync-external-store to the ESM shims', () => {
+    expect(presetConfig()['resolve'].alias).toEqual([...SHIM_ALIASES])
+  })
+
+  // Without this the dev client discovers Base UI only on the first page load,
+  // re-optimises, and reloads the page (504 "Outdated Optimize Dep").
+  it("pre-bundles every runtime import of @ap/react's for the dev client", () => {
+    expect([...AP_PREBUNDLE].sort()).toEqual(
+      [...new Set([...runtimeImports(), '@vanilla-extract/recipes/createRuntimeFn'])].sort(),
+    )
+    expect(presetConfig()['optimizeDeps'].include).toEqual(
+      expect.arrayContaining(AP_PREBUNDLE.map((d) => `@ap/react > ${d}`)),
+    )
+  })
+})
+
+// A consumer's Vite config imports this package's TypeScript source, and Node
+// loads it by stripping types, without rewriting `./x.js` to `./x.ts`. Fails if
+// index.ts imports a sibling by its `.js` name.
+it('loads under plain Node type stripping, as a consumer config does', () => {
+  const entry = pathToFileURL(join(PKG_ROOT, 'src/index.ts')).href
+  const out = execFileSync(process.execPath, ['--input-type=module', '-e', `const m = await import(${JSON.stringify(entry)}); console.log(typeof m.apComponents)`])
+  expect(out.toString().trim()).toBe('function')
+})
+
+/**
+ * Every bare specifier reachable from the Base UI entry points `@ap/react`
+ * uses (`AP_PREBUNDLE`), outside Base UI itself, as the nested chain Vite
+ * resolves it through: `@ap/react > @base-ui/react > @floating-ui/react-dom`,
+ * then `… > @floating-ui/react-dom > @floating-ui/dom`, and so on down. The
+ * walk follows relative imports, `#` subpath imports and package `exports`
+ * (browser, then import, then default). React, react-dom and the aliased
+ * `use-sync-external-store` are left out: they are never pre-bundled this way.
+ */
+function baseUiImports(): string[] {
+  type Cond = string | { [k: string]: Cond }
+  interface Pkg { name: string; dir: string; exports?: Cond | Record<string, Cond>; imports: Record<string, Cond>; module?: string; main?: string }
+  const BASE_UI = new Set(['@base-ui/react', '@base-ui/utils'])
+  const skip = (spec: string) => /^(react|react-dom)(\/|$)/.test(spec) || spec.startsWith('use-sync-external-store')
+  const pkgName = (spec: string) => spec.split('/').slice(0, spec.startsWith('@') ? 2 : 1).join('/')
+  const pick = (c: Cond | undefined): string | undefined => {
+    if (c === undefined || typeof c === 'string') return c
+    for (const key of ['browser', 'import', 'default']) if (key in c) return pick(c[key])
+    return undefined
+  }
+  const findPkg = (name: string, fromDir: string): Pkg => {
+    for (let dir = fromDir; ; dir = dirname(dir)) {
+      const candidate = join(dir, 'node_modules', name)
+      if (existsSync(join(candidate, 'package.json'))) {
+        const m = JSON.parse(readFileSync(join(candidate, 'package.json'), 'utf8'))
+        return { name, dir: realpathSync(candidate), exports: m.exports, imports: m.imports ?? {}, module: m.module, main: m.main }
+      }
+      if (dir === dirname(dir)) throw new Error(`${name} is not installed above ${fromDir}`)
+    }
+  }
+  const entryFile = (pkg: Pkg, spec: string): string => {
+    const sub = spec === pkg.name ? '.' : `./${spec.slice(pkg.name.length + 1)}`
+    const exp = pkg.exports
+    let target: string | undefined
+    if (exp !== undefined) {
+      const map = typeof exp === 'object' && Object.keys(exp).some((k) => k.startsWith('.')) ? (exp as Record<string, Cond>) : { '.': exp }
+      target = pick(map[sub])
+    } else target = sub === '.' ? (pkg.module ?? pkg.main ?? 'index.js') : sub
+    if (target === undefined) throw new Error(`${spec} has no browser/ESM entry`)
+    return join(pkg.dir, target)
+  }
+
+  const chains = new Map<string, string>()
+  const seen = new Set<string>()
+  const visit = (file: string, pkg: Pkg, chain: string): void => {
+    if (seen.has(file)) return
+    seen.add(file)
+    const source = readFileSync(file, 'utf8')
+    const specs = [
+      ...source.matchAll(/(?:^|[;\s])(?:import|export)\b[^;'"]*?\bfrom\s*['"]([^'"]+)['"]/gm),
+      ...source.matchAll(/^\s*import\s*['"]([^'"]+)['"]/gm),
+    ].map((m) => m[1]!)
+    for (let spec of specs) {
+      if (spec.startsWith('#')) {
+        const target = pick(pkg.imports[spec])
+        if (target === undefined) continue
+        if (target.startsWith('.')) {
+          visit(join(pkg.dir, target), pkg, chain)
+          continue
+        }
+        spec = target
+      }
+      if (spec.startsWith('.')) {
+        visit(join(dirname(file), spec), pkg, chain)
+        continue
+      }
+      if (skip(spec)) continue
+      const dep = findPkg(pkgName(spec), pkg.dir)
+      if (BASE_UI.has(dep.name)) {
+        visit(entryFile(dep, spec), dep, `@ap/react > ${dep.name}`)
+        continue
+      }
+      if (!chains.has(spec)) chains.set(spec, `${chain} > ${spec}`)
+      visit(entryFile(dep, spec), dep, `${chain} > ${dep.name}`)
+    }
+  }
+  const reactDir = realpathSync(join(PACKAGES, 'react'))
+  for (const entry of AP_PREBUNDLE) {
+    const name = pkgName(entry)
+    if (!BASE_UI.has(name)) continue
+    const pkg = findPkg(name, reactDir)
+    visit(entryFile(pkg, entry), pkg, `@ap/react > ${name}`)
+  }
+  return [...chains.values()].sort()
+}
+
+// Base UI's own dependencies, pre-bundled through it. Without this, when Base UI
+// sits outside the Vite root (a vendored checkout beside the app, or this repo's
+// showcase), the first page load finds them late, re-optimises, and the chunks
+// it was loading 504 with "Outdated Optimize Dep".
+it("pre-bundles Base UI's own bare imports through nested includes", () => {
+  expect([...AP_PREBUNDLE_NESTED].sort()).toEqual(baseUiImports())
+  expect(presetConfig()['optimizeDeps'].include).toEqual(expect.arrayContaining([...AP_PREBUNDLE_NESTED]))
 })

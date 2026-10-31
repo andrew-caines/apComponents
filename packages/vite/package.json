@@ -8,7 +8,9 @@
     "@vanilla-extract/vite-plugin": "^5.2.6"
   },
   "peerDependencies": {
+    "react": ">=19.2.7",
     "vite": "^7.0.0 || ^8.0.0"
   },
+  "peerDependenciesMeta": { "react": { "optional": true } },
   "engines": { "node": ">=22.22.0" }
 }
