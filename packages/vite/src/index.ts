@@ -1,6 +1,8 @@
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 import type { PluginOption, UserConfig } from 'vite'
 
+export { AP_ALIASED_DEPS, AP_BUNDLED_DEPS } from './deps.js'
+
 /**
  * Packages whose source the consumer compiles. They must be bundled rather
  * than externalised, or an SSR build never runs the vanilla-extract
