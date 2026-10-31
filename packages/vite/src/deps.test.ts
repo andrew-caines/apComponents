@@ -2,7 +2,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { basename, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { AP_ALIASED_DEPS, AP_BUNDLED_DEPS, SHIM_ALIASES } from './deps.js'
+import { AP_ALIASED_DEPS, AP_BUNDLED_DEPS, SHIM_ALIASES } from './index.js'
 
 const REACT_PKG = join(import.meta.dirname, '../../react')
 const REACT_NAMES = new Set(['react', 'react-dom'])

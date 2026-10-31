@@ -1,7 +1,10 @@
+import { execFileSync } from 'node:child_process'
 import { readFileSync, readdirSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { AP_CSS_TARGET, AP_PACKAGES, apComponents } from './index.js'
+import { AP_BUNDLED_DEPS, AP_CSS_TARGET, AP_PACKAGES, AP_PREBUNDLE, SHIM_ALIASES, apComponents } from './index.js'
+
 
 const PKG_ROOT = join(import.meta.dirname, '..')
 const PACKAGES = join(PKG_ROOT, '..')
@@ -69,7 +72,7 @@ describe('apComponents()', () => {
   })
 
   it('marks every ap package as ssr.noExternal so .css.ts is transformed', () => {
-    expect([...presetConfig()['ssr'].noExternal].sort()).toEqual(consumablePackages())
+    expect(presetConfig()['ssr'].noExternal).toEqual(expect.arrayContaining(consumablePackages()))
   })
 
   it('excludes ap packages from dep pre-bundling', () => {
@@ -134,4 +137,73 @@ describe('CSS browser floor', () => {
     expect(warnings[0]).toContain('AP_CSS_TARGET')
     expect(run({ 'a.css': { type: 'asset', fileName: 'a.css', source: '.a:dir(rtl){left:0}' } })).toEqual([])
   })
+})
+
+/**
+ * The bare specifiers `@ap/react`'s runtime source imports from its own
+ * dependencies, read off the source: the same files a consumer's dev server
+ * serves. Tests, stories, gates and `.css.ts` (compiled away at build time)
+ * are skipped, and so are type-only imports.
+ */
+function runtimeImports(): string[] {
+  const src = join(PACKAGES, 'react/src')
+  const deps = Object.keys(
+    (JSON.parse(readFileSync(join(PACKAGES, 'react/package.json'), 'utf8')) as { dependencies: Record<string, string> })
+      .dependencies,
+  ).filter((d) => !d.startsWith('@ap/') && d !== '@vanilla-extract/css')
+  const found = new Set<string>()
+  const walk = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, e.name)
+      if (e.isDirectory()) {
+        if (e.name !== 'gates') walk(path)
+        continue
+      }
+      if (!/\.tsx?$/.test(e.name) || /\.(test|stories|css)\.tsx?$/.test(e.name)) continue
+      for (const m of readFileSync(path, 'utf8').matchAll(/^import (?!type )[^;]*?from '([^']+)'/gms)) {
+        const spec = m[1]!
+        if (deps.some((d) => spec === d || spec.startsWith(`${d}/`))) found.add(spec)
+      }
+    }
+  }
+  walk(src)
+  return [...found].sort()
+}
+
+describe('one React copy (spec 2026-10-31)', () => {
+  it('bundles AP_BUNDLED_DEPS in SSR', () => {
+    expect(presetConfig()['ssr'].noExternal).toEqual(expect.arrayContaining([...AP_BUNDLED_DEPS]))
+  })
+
+  // React must stay external: bundled, the server would carry its own copy.
+  it('never bundles react', () => {
+    const noExternal: string[] = presetConfig()['ssr'].noExternal
+    expect(noExternal.filter((n) => n === 'react' || n === 'react-dom')).toEqual([])
+  })
+
+  it('dedupes react and react-dom', () => {
+    expect(presetConfig()['resolve'].dedupe).toEqual(['react', 'react-dom'])
+  })
+
+  it('aliases use-sync-external-store to the ESM shims', () => {
+    expect(presetConfig()['resolve'].alias).toEqual([...SHIM_ALIASES])
+  })
+
+  // Without this the dev client discovers Base UI only on the first page load,
+  // re-optimises, and reloads the page (504 "Outdated Optimize Dep").
+  it("pre-bundles every runtime import of @ap/react's for the dev client", () => {
+    expect([...AP_PREBUNDLE].sort()).toEqual(
+      [...new Set([...runtimeImports(), '@vanilla-extract/recipes/createRuntimeFn'])].sort(),
+    )
+    expect(presetConfig()['optimizeDeps'].include).toEqual(AP_PREBUNDLE.map((d) => `@ap/react > ${d}`))
+  })
+})
+
+// A consumer's Vite config imports this package's TypeScript source, and Node
+// loads it by stripping types, without rewriting `./x.js` to `./x.ts`. Fails if
+// index.ts imports a sibling by its `.js` name.
+it('loads under plain Node type stripping, as a consumer config does', () => {
+  const entry = pathToFileURL(join(PKG_ROOT, 'src/index.ts')).href
+  const out = execFileSync(process.execPath, ['--input-type=module', '-e', `const m = await import(${JSON.stringify(entry)}); console.log(typeof m.apComponents)`])
+  expect(out.toString().trim()).toBe('function')
 })
