@@ -435,7 +435,14 @@ interaction tests, axe, and the MDX docs pages.
 
     npm run showcase:install     # once
     npm run showcase             # build + serve (no HMR — re-run after an edit)
-    npm run showcase:test        # the smoke test described below
+    npm --prefix showcase run dev                # react-router dev, with HMR
+    npm run showcase:test        # the smoke test described below, against a build
+    npm --prefix showcase run test:smoke:dev     # the same smoke test against `react-router dev`
+
+The two smoke runs are not redundant. Dev SSR inlines Base UI through Vite's
+module runner, which a build never exercises, and `@ap/vite`'s single-React
+handling (see "`@base-ui/react` left external in an SSR build loads a second
+React") has to hold in both.
 
 ### Adding a section is one entry and one file
 
