@@ -25,6 +25,7 @@ An ADR is immutable once accepted. To change a decision, write a new ADR that su
 | [0015](0015-typography.md) | Typography: self-hosted Inter default, theme-supplied font override | Accepted |
 | [0016](0016-cascade-layering-focus.md) | Cascade layers, z-index scale, and focus policy | Accepted |
 | [0017](0017-responsive-adaptive.md) | Responsive and adaptive behaviour: desktop and mobile | Accepted |
+| [0018](0018-icons-package.md) | `@ap/icons`: a standalone duotone icon set | Accepted |
 
 ## Context for all of these
 

@@ -91,6 +91,8 @@ The provider is SSR-safe and renders no portal content on the server. Notificati
 
 ### Icons
 
+*Superseded by [ADR-0018](0018-icons-package.md).*
+
 A minimal internal SVG set — roughly 15 icons the components genuinely need (check, close, chevrons, alert-triangle, info, error-circle, search, calendar, spinner) — as tree-shakeable React components. No dependency, nothing to version-skew.
 
 Every icon is overridable at two levels: per instance via prop, or globally via `IconProvider`, which maps our icon names onto a product's own icon library in one place. A product standardised on Lucide maps once and never thinks about it again.
