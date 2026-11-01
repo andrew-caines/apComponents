@@ -424,3 +424,22 @@ It links the spec. The ADR-0011 §6.3 colour amendment is **not** here; that is 
 - **Deferred by design:**
   - to `icons-react`: §5.2–§5.4 and the ADR-0011 amendment;
   - to `icons-pilot`: §7, emptying `PENDING_REDRAW`, and freezing STANDARD v1.
+
+## What actually happened (2026-11-01)
+
+Executed subagent-driven: 8 tasks, each with a task review; a final whole-branch review; one fix wave (`6d945eb`) with a clean scoped re-review. Final state: `npm test` 2667 passing, `test:icons` 45, typecheck clean, size gate green (`icons:renderer` 509/600, `icons:one` 510/600, `icons:all` 869/1000 brotli bytes), `packages/react` untouched.
+
+**Rulings made during execution**
+- R1: `src/gates/builtIns.ts` created in Task 2 (the plan's file list omitted it).
+- R2: the isolation gate bans *importing* lucide outside `src/gates/`, not the substring (`catalogue.ts` stores Lucide names as data).
+- LICENSE copyright holder: "Andrew Caines" (repo owner). **Confirm.**
+- SVG freshness and license gates normalise CRLF → LF (no `.gitattributes` in the repo).
+- Task 7: gate 10 keeps per-file brotli summing (`emit` → `measure` sums, `bundle` joins), so its semantics are unchanged.
+- Final fix wave: `defineIcon` rejects non-string name/viewBox; `Icon` throws a clear error for unbranded icon data (e.g. a spread copy of a built-in); `IconInput` arrays are readonly; no `.tsx` outside `react/`; the tree-shake test iterates every built-in; `duoToneSecondary=""` behaves as absent; `Icon` props are `?: T | undefined` for icons-react's wrapper.
+
+**Carried forward**
+- **Before merging `feat/icons`:** rebase onto `main` once single-react (PR #13) merges, then run `npm test`, `npm run test:consumer`, `npm run test:ssr`. `@ap/icons/react` imports React from a package with no `node_modules` of its own; single-react's completeness walk must accept `@ap/icons` (optional React peer).
+- **icons-pilot, before emptying `PENDING_REDRAW` (`check`, `chevron-down`):** make the Lucide divergence gate compare normalised geometry (`svgpath`: absolute commands, split subpaths, include `circle`/`line`/`rect`). Joining paths currently counts as "diverged". Reword the `PENDING_REDRAW` comment: the pilot redraws all seven. Flag stale entries that aren't Lucide-sourced built-ins; narrow the `catch {}` to ENOENT; stop duplicating the pending list in `icons.test.ts`.
+- **When consumer definitions or the SVG converter reach `toSvg`:** XML-escape `d` and `viewBox`.
+- **Open minors (non-blocking):** the REACT_IMPORT regex misses side-effect `import`/`import()`/`require`; the halo-bounds case passes vacuously for non-halo icons; the license gate doesn't assert our copyright heading; no negative test for the freshness gate; `gen-icons` DIR is cwd-relative; no test pins multi-file summing in `measure`; the foreign-icon test doesn't assert that `duoTonePrimary` leaves `style.color` unset; the CHANGELOG entry is terse.
+- **Not judged:** the brand symbol is lost across an RSC boundary (RSC is out of scope per ADR-0005). The visual quality of the seven ported glyphs at 1.5px/5px is the pilot's job. The PR proof screenshot (`svg/info.duotone.svg`) is a human step.
