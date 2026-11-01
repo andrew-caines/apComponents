@@ -103,11 +103,8 @@ const BROTLI = {
 }
 const brotli = (src: string | Uint8Array): number => brotliCompressSync(Buffer.from(src), BROTLI).length
 
-/**
- * Builds one virtual entry through the consumer pipeline and returns the JS
- * and CSS source text, concatenated per kind.
- */
-export async function bundle(entry: string): Promise<{ js: string; css: string }> {
+/** Builds one virtual entry through the consumer pipeline; one text per output file. */
+async function emit(entry: string): Promise<{ fileName: string; text: string }[]> {
   const result = await build({
     configFile: false,
     root: ROOT,
@@ -132,20 +129,30 @@ export async function bundle(entry: string): Promise<{ js: string; css: string }
   })
   // Vite 8 returns RollupOutput[] even for a single format.
   const outputs = (Array.isArray(result) ? result : [result]) as Rollup.RollupOutput[]
-  let js = ''
-  let css = ''
+  const files: { fileName: string; text: string }[] = []
   for (const { output } of outputs) {
     for (const file of output) {
       const src = file.type === 'chunk' ? file.code : file.source
-      const text = typeof src === 'string' ? src : Buffer.from(src).toString('utf8')
-      if (file.fileName.endsWith('.js')) js += text
-      else if (file.fileName.endsWith('.css')) css += text
+      files.push({ fileName: file.fileName, text: typeof src === 'string' ? src : Buffer.from(src).toString('utf8') })
     }
   }
-  return { js, css }
+  return files
+}
+
+/** The JS and CSS source text, joined per kind. For tests that inspect the output. */
+export async function bundle(entry: string): Promise<{ js: string; css: string }> {
+  const files = await emit(entry)
+  const join = (ext: string): string =>
+    files.filter((f) => f.fileName.endsWith(ext)).map((f) => f.text).join('')
+  return { js: join('.js'), css: join('.css') }
 }
 
 export async function measure(entry: string): Promise<Measured> {
-  const { js, css } = await bundle(entry)
-  return { js: js ? brotli(js) : 0, css: css ? brotli(css) : 0 }
+  let js = 0
+  let css = 0
+  for (const { fileName, text } of await emit(entry)) {
+    if (fileName.endsWith('.js')) js += brotli(text)
+    else if (fileName.endsWith('.css')) css += brotli(text)
+  }
+  return { js, css }
 }

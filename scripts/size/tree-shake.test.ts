@@ -9,6 +9,7 @@ describe('@ap/icons tree-shaking', () => {
     expect(js).toContain('M20 6 9 17l-5-5')
     expect(js).not.toContain('M18 6 6 18M6 6l12 12')
     expect(js).not.toContain('M12 16v-5')
+    // defineIcon's validation is legitimately bundled once, so the message may appear once.
     expect(js.split('must be kebab-case').length - 1).toBeLessThanOrEqual(1)
   }, 60_000)
 })
