@@ -11,6 +11,18 @@
     "js": 7800,
     "css": 0
   },
+  "icons:all": {
+    "js": 1000,
+    "css": 0
+  },
+  "icons:one": {
+    "js": 600,
+    "css": 0
+  },
+  "icons:renderer": {
+    "js": 600,
+    "css": 0
+  },
   "import:Accordion": {
     "js": 11700,
     "css": 700

@@ -37,6 +37,9 @@ export function checks(dirs: string[]): Record<string, string> {
     hooks: `export * from '@ap/react/hooks'`,
     format: `export * from '@ap/react/format'`,
     'format/phone': `export * from '@ap/react/format/phone'`,
+    'icons:renderer': `export { Icon } from '@ap/icons/react'`,
+    'icons:one': `export { Check } from '@ap/icons'`,
+    'icons:all': `export * from '@ap/icons'`,
   }
   for (const dir of dirs) out[`import:${dir}`] = `export { ${exportFor(dir)} } from '@ap/react'`
   return out
@@ -100,7 +103,11 @@ const BROTLI = {
 }
 const brotli = (src: string | Uint8Array): number => brotliCompressSync(Buffer.from(src), BROTLI).length
 
-export async function measure(entry: string): Promise<Measured> {
+/**
+ * Builds one virtual entry through the consumer pipeline and returns the JS
+ * and CSS source text, concatenated per kind.
+ */
+export async function bundle(entry: string): Promise<{ js: string; css: string }> {
   const result = await build({
     configFile: false,
     root: ROOT,
@@ -125,14 +132,20 @@ export async function measure(entry: string): Promise<Measured> {
   })
   // Vite 8 returns RollupOutput[] even for a single format.
   const outputs = (Array.isArray(result) ? result : [result]) as Rollup.RollupOutput[]
-  let js = 0
-  let css = 0
+  let js = ''
+  let css = ''
   for (const { output } of outputs) {
     for (const file of output) {
       const src = file.type === 'chunk' ? file.code : file.source
-      if (file.fileName.endsWith('.js')) js += brotli(src)
-      else if (file.fileName.endsWith('.css')) css += brotli(src)
+      const text = typeof src === 'string' ? src : Buffer.from(src).toString('utf8')
+      if (file.fileName.endsWith('.js')) js += text
+      else if (file.fileName.endsWith('.css')) css += text
     }
   }
   return { js, css }
+}
+
+export async function measure(entry: string): Promise<Measured> {
+  const { js, css } = await bundle(entry)
+  return { js: js ? brotli(js) : 0, css: css ? brotli(css) : 0 }
 }
