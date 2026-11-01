@@ -10,7 +10,7 @@ import type { PluginOption, UserConfig } from 'vite'
  * Every workspace package a consumer imports belongs here; `index.test.ts`
  * enumerates `packages/` and fails if one is missing.
  */
-export const AP_PACKAGES = ['@ap/react', '@ap/motion', '@ap/tokens'] as const
+export const AP_PACKAGES = ['@ap/react', '@ap/motion', '@ap/tokens', '@ap/icons'] as const
 
 /**
  * The CSS browser floor `:dir()` needs; lower targets make lightningcss
