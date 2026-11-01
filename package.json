@@ -42,6 +42,7 @@
     "gen:fonts": "tsx scripts/gen-fonts.ts",
     "gen:theme-contract": "tsx scripts/gen-theme-contract.ts",
     "gen:theme-css": "tsx scripts/gen-theme-css.ts",
+    "gen:icons": "tsx scripts/gen-icons.ts",
     "gen:motion-css": "tsx scripts/gen-motion-css.ts",
     "gen:scale-demo": "tsx scripts/gen-scale-demo.ts",
     "gen:colour-demo": "tsx scripts/gen-colour-demo.ts",
