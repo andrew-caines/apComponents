@@ -14,5 +14,5 @@ export const CATALOGUE: Readonly<Record<string, { readonly lucide: string | null
     'alert-triangle': { lucide: 'triangle-alert' },
   })
 
-/** Built-in icons awaiting a redraw. Task 5 fills this. */
-export const PENDING_REDRAW: readonly string[] = []
+/** Ported unchanged in icons-core. icons-pilot redraws them and empties this list. */
+export const PENDING_REDRAW: readonly string[] = ['check', 'chevron-down']

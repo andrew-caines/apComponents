@@ -24,7 +24,7 @@ describe('built-in icons', () => {
     const names = (await builtIns()).map((d) => d.name).sort()
     expect(Object.keys(CATALOGUE).sort()).toEqual(names)
   })
-  it('starts with nothing pending redraw', () => {
-    expect(PENDING_REDRAW).toEqual([])
+  it('lists exactly the icons ported unchanged from Lucide', () => {
+    expect(PENDING_REDRAW).toEqual(['check', 'chevron-down'])
   })
 })
