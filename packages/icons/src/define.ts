@@ -9,7 +9,8 @@ function checkPaths(name: string, paths: readonly unknown[]): void {
   }
 }
 
-function validViewBox(viewBox: string): boolean {
+function validViewBox(viewBox: unknown): boolean {
+  if (typeof viewBox !== 'string') return false
   const parts = viewBox.trim().split(/[\s,]+/)
   if (parts.length !== 4) return false
   const nums = parts.map(Number)
@@ -19,8 +20,8 @@ function validViewBox(viewBox: string): boolean {
 
 export function defineIcon(input: IconInput): IconDefinition {
   const { name, primary, secondary, viewBox } = input
-  if (!NAME.test(name)) {
-    throw new Error(`defineIcon: name "${name}" must be kebab-case`)
+  if (typeof name !== 'string' || !NAME.test(name)) {
+    throw new Error(`defineIcon: name "${String(name)}" must be kebab-case`)
   }
   if (!Array.isArray(primary) || primary.length === 0) {
     throw new Error(`defineIcon(${name}): primary must contain at least one path`)
@@ -36,7 +37,7 @@ export function defineIcon(input: IconInput): IconDefinition {
   }
   if (viewBox !== undefined && !validViewBox(viewBox)) {
     throw new Error(
-      `defineIcon(${name}): viewBox "${viewBox}" must be four numbers with positive width and height`,
+      `defineIcon(${name}): viewBox "${String(viewBox)}" must be four numbers with positive width and height`,
     )
   }
   const def = {

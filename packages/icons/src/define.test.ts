@@ -66,4 +66,19 @@ describe('isIconDefinition', () => {
     expect(Object.keys(def)).toEqual(['name', 'primary', 'viewBox'])
     expect(Object.getOwnPropertySymbols(def)).toHaveLength(1)
   })
+  it.each([undefined, null, 1, ['bell']])('rejects non-string name %j', (name) =>
+    expect(() => defineIcon({ name, primary: ['M0 0'] } as never)).toThrow(
+      `defineIcon: name "${String(name)}" must be kebab-case`,
+    ),
+  )
+  it.each([5, null, ['0 0 8 8']])('rejects non-string viewBox %j with the viewBox message', (viewBox) =>
+    expect(() => defineIcon({ name: 'bell', primary: ['M0 0'], viewBox } as never)).toThrow(
+      `defineIcon(bell): viewBox "${String(viewBox)}" must be four numbers with positive width and height`,
+    ),
+  )
+  it('rejects a plain-string secondary', () => {
+    expect(() => defineIcon({ name: 'bell', primary: ['M0 0'], secondary: 'M0 0' } as never)).toThrow(
+      "defineIcon(bell): secondary must be 'halo' or a non-empty array of paths",
+    )
+  })
 })

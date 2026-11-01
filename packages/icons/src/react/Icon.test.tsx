@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createElement, forwardRef, type ReactElement } from 'react'
 import { renderToString } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Check, Info, defineIcon } from '../index.js'
 import { Icon, type ForeignIconProps } from './index.js'
 
@@ -171,5 +171,28 @@ describe('Icon (standalone)', () => {
     const src = readFileSync(join(import.meta.dirname, 'Icon.tsx'), 'utf8')
     expect(src).not.toMatch(/use client/)
     expect(src).not.toMatch(/\buse[A-Z]\w*\(/)
+  })
+
+  it('throws a clear error for an unbranded plain object or a spread copy of a built-in', () => {
+    const msg =
+      'Icon: "icon" must be a defineIcon() result or a component; wrap plain icon data in defineIcon()'
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(() => render(<Icon icon={{ name: 'x', primary: ['M0 0'] } as never} />)).toThrow(msg)
+      expect(() => render(<Icon icon={{ ...Check } as never} />)).toThrow(msg)
+    } finally {
+      quiet.mockRestore()
+    }
+  })
+
+  it('duoToneSecondary="" behaves like absent: currentColor at 0.4', () => {
+    const filled = svgOf(<Icon icon={Info} duoTone duoToneSecondary="" />)
+    const fg = filled.querySelector(':scope > g')!
+    expect(fg.getAttribute('fill')).toBe('currentColor')
+    expect(fg.getAttribute('fill-opacity')).toBe('0.4')
+    const halo = svgOf(<Icon icon={Check} duoTone duoToneSecondary="" />)
+    const hg = halo.querySelector(':scope > g')!
+    expect(hg.getAttribute('stroke')).toBe('currentColor')
+    expect(hg.getAttribute('stroke-opacity')).toBe('0.4')
   })
 })

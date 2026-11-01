@@ -7,7 +7,7 @@ export interface IconDefinition {
 
 export interface IconInput {
   name: string
-  primary: string[]
-  secondary?: string[] | 'halo'
+  primary: readonly string[]
+  secondary?: readonly string[] | 'halo'
   viewBox?: string
 }

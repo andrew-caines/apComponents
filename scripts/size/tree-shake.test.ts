@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import * as icons from '@ap/icons'
 import { bundle } from './measure.js'
 
 describe('@ap/icons tree-shaking', () => {
@@ -7,8 +8,13 @@ describe('@ap/icons tree-shaking', () => {
       `export { Icon } from '@ap/icons/react'; export { Check } from '@ap/icons'`,
     )
     expect(js).toContain('M20 6 9 17l-5-5')
-    expect(js).not.toContain('M18 6 6 18M6 6l12 12')
-    expect(js).not.toContain('M12 16v-5')
+    const others = Object.entries(icons).filter(
+      ([name, v]) => name !== 'Check' && icons.isIconDefinition(v),
+    ) as [string, icons.IconDefinition][]
+    expect(others.length).toBeGreaterThan(0)
+    for (const [name, def] of others) {
+      expect(js, `${name} leaked into the bundle`).not.toContain(def.primary[0]!)
+    }
     // defineIcon's validation is legitimately bundled once, so the message may appear once.
     expect(js.split('must be kebab-case').length - 1).toBeLessThanOrEqual(1)
   }, 60_000)

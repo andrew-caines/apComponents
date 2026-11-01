@@ -1,8 +1,8 @@
 # `@ap/icons`: a standalone duotone icon set — design
 
 **Date:** 2026-10-31
-**Status:** Draft for review
-**Supersedes, once approved:** the Icons section of [ADR-0012](../../adr/0012-cross-cutting-services.md). It also amends [ADR-0011 §6.3](../../adr/0011-component-api-conventions.md) for icon colour props only.
+**Status:** Approved 2026-10-31
+**Supersedes:** the Icons section of [ADR-0012](../../adr/0012-cross-cutting-services.md). It also amends [ADR-0011 §6.3](../../adr/0011-component-api-conventions.md) for icon colour props only.
 **Scope:** a new `packages/icons`, the icon surface of `packages/react` (`src/icons/`, every component that renders an icon, `ApProvider`), `packages/vite` (`AP_PACKAGES`), `storybook/docs/Icons.mdx`, `scripts/size.ts`, and two new ADRs.
 
 ## 1. Intent

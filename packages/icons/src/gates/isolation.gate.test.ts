@@ -27,6 +27,13 @@ describe('@ap/icons isolation', () => {
     expect(offenders, `React imported outside react/: ${offenders.join(', ')}`).toEqual([])
   })
 
+  it('has no .tsx outside react/ and gates/ (JSX implies an implicit react/jsx-runtime import)', () => {
+    const offenders = files
+      .filter((f) => !f.startsWith('react/') && !f.startsWith('gates/'))
+      .filter((f) => f.endsWith('.tsx'))
+    expect(offenders, `.tsx outside react/: ${offenders.join(', ')}`).toEqual([])
+  })
+
   it('imports lucide only under gates/', () => {
     const offenders = outside('gates').filter((f) =>
       LUCIDE_IMPORT.test(readFileSync(join(SRC, f), 'utf8')),

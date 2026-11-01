@@ -5,7 +5,7 @@ import type { IconDefinition } from '../types.js'
 
 /** The props a non-definition icon component (Lucide, react-icons, ...) receives. */
 export type ForeignIconProps = {
-  className?: string
+  className?: string | undefined
   style?: CSSProperties
   role?: string
   'aria-label'?: string
@@ -18,18 +18,18 @@ export type IconValue = IconDefinition | ComponentType<ForeignIconProps>
 export interface IconProps {
   icon: IconValue
   /** Same contract as today: decorative unless labelled, never both. */
-  label?: string
+  label?: string | undefined
   /** A number is px; a string is any CSS length. Default '1em'. */
-  size?: number | string
+  size?: number | string | undefined
   /** Single-colour icon colour, any CSS colour. Default currentColor. */
-  color?: string
+  color?: string | undefined
   /** Presence turns duotone on. Absent or false: outline only. */
-  duoTone?: boolean
+  duoTone?: boolean | undefined
   /** Outline colour while duotone is active; ignored otherwise. */
-  duoTonePrimary?: string
+  duoTonePrimary?: string | undefined
   /** Fill colour while duotone is active, used exactly as given; ignored otherwise. Default: the primary at 40%. */
-  duoToneSecondary?: string
-  className?: string
+  duoToneSecondary?: string | undefined
+  className?: string | undefined
 }
 
 export function Icon({
@@ -54,6 +54,14 @@ export function Icon({
   const dim = typeof size === 'number' ? `${size}px` : size
 
   if (!isIconDefinition(icon)) {
+    if (
+      typeof icon !== 'function' &&
+      !(typeof icon === 'object' && icon !== null && '$$typeof' in icon)
+    ) {
+      throw new Error(
+        'Icon: "icon" must be a defineIcon() result or a component; wrap plain icon data in defineIcon()',
+      )
+    }
     const Foreign = icon
     const style: CSSProperties = {
       width: dim,
@@ -70,6 +78,7 @@ export function Icon({
   }
 
   const def = icon
+  const secondaryColour = duoToneSecondary || undefined
   const active = Boolean(duoTone) && def.secondary !== undefined
   const outline = active ? (duoTonePrimary ?? color) : color
   const style: CSSProperties = {
@@ -88,8 +97,8 @@ export function Icon({
       {active && def.secondary === 'halo' && (
         <g
           fill="none"
-          stroke={duoToneSecondary ?? 'currentColor'}
-          strokeOpacity={duoToneSecondary ? undefined : SECONDARY_OPACITY}
+          stroke={secondaryColour ?? 'currentColor'}
+          strokeOpacity={secondaryColour ? undefined : SECONDARY_OPACITY}
           strokeWidth={HALO_STROKE}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -101,8 +110,8 @@ export function Icon({
       )}
       {active && Array.isArray(def.secondary) && (
         <g
-          fill={duoToneSecondary ?? 'currentColor'}
-          fillOpacity={duoToneSecondary ? undefined : SECONDARY_OPACITY}
+          fill={secondaryColour ?? 'currentColor'}
+          fillOpacity={secondaryColour ? undefined : SECONDARY_OPACITY}
           stroke="none"
         >
           {(def.secondary as readonly string[]).map((d, i) => (

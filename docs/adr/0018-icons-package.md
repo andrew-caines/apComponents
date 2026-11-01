@@ -17,7 +17,7 @@ Icons live in their own package, `@ap/icons`, with its own version and changelog
 - `@ap/icons`: icon data, `defineIcon` and types. Framework-free: nothing under `src/` outside `src/react/` imports React (gate-enforced).
 - `@ap/icons/react`: the standalone `Icon` renderer. No hooks, no context, no `'use client'`.
 
-Apps import icons through `@ap/react/icons`, which re-exports `@ap/icons`, so an app keeps two dependencies and takes icon updates by bumping the submodule.
+Apps import icons through `@ap/react/icons` (lands in icons-react), which re-exports `@ap/icons`, so an app keeps two dependencies and takes icon updates by bumping the submodule.
 
 ### Imported values, not string names
 
