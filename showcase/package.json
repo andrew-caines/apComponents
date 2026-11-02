@@ -6,12 +6,14 @@
     "node": ">=22.22.0"
   },
   "scripts": {
+    "dev": "react-router dev",
     "build": "react-router build",
     "start": "react-router-serve ./build/server/index.js",
     "serve": "npm run build && npm run start",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "test:smoke": "playwright test e2e/smoke.spec.ts"
+    "test:smoke": "playwright test e2e/smoke.spec.ts",
+    "test:smoke:dev": "playwright test -c playwright.dev.config.ts e2e/smoke.spec.ts"
   },
   "dependencies": {
     "@ap/react": "file:../packages/react",

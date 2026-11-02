@@ -48,7 +48,8 @@
     "gen:colour-demo": "tsx scripts/gen-colour-demo.ts",
     "test:motion": "vitest run packages/motion/src",
     "test:icons": "vitest run packages/icons/src/gates",
-    "gen:input-demo": "tsx scripts/gen-input-demo.ts"
+    "gen:input-demo": "tsx scripts/gen-input-demo.ts",
+    "test:external": "tsx scripts/external-consumer/run.ts"
   },
   "devDependencies": {
     "@capsizecss/core": "^4.1.2",

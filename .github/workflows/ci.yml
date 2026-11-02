@@ -75,6 +75,28 @@ jobs:
       - run: npm --prefix fixtures/consumer run typecheck
       - run: npm run test:consumer
 
+  external-consumer:
+    name: External consumer (layout ${{ matrix.layout }}, ${{ matrix.mode }})
+    # An app outside the checkout, configured with nothing but apComponents(),
+    # renders with one React. Layout A: the vendored checkout is not installed;
+    # layout B: it has its own node_modules. See
+    # docs/superpowers/specs/2026-10-31-single-react-design.md.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        layout: [a, b]
+        mode: [build, dev]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:external -- --layout ${{ matrix.layout }} --mode ${{ matrix.mode }}
+
   ssr:
     name: SSR and SPA (gates 6 and 7)
     runs-on: ubuntu-latest
@@ -167,3 +189,4 @@ jobs:
       - run: npm --prefix showcase run typecheck
       - run: npx --prefix showcase playwright install --with-deps chromium
       - run: npm run showcase:test
+      - run: npm --prefix showcase run test:smoke:dev
