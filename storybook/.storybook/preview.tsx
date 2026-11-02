@@ -27,7 +27,7 @@ const preview: Preview = {
     options: {
       // Getting started is first in this order, so it is the landing page.
       storySort: {
-        order: ['Guides', ['Getting started', 'SSR rules', 'Colour theory'], 'Foundations', 'Components'],
+        order: ['Guides', ['Getting started', 'SSR rules', 'Colour theory'], 'Foundations', 'Icons', 'Components'],
       },
     },
     a11y: {
