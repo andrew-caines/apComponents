@@ -1,0 +1,44 @@
+import { Meta, Source } from '@storybook/addon-docs/blocks'
+import { IconGallery } from './icons/IconGallery'
+import './docs.css'
+
+<Meta title="Icons/Icon set" />
+
+# Icon set
+
+Every icon in `@ap/icons`, the library's own duotone set. Filter by name, switch
+duotone on, and try the sizes and colours. Click an icon's name to copy its import.
+
+<IconGallery />
+
+## Using an icon
+
+Icons are imported values, so a product only ships the icons it uses.
+
+<Source
+  language="tsx"
+  code={`import { Bell } from '@ap/icons'
+import { Icon } from '@ap/icons/react'
+
+<Icon icon={Bell} />                                  // outline, inherits text colour
+<Icon icon={Bell} color="var(--ap-color-danger-text)" />  // single colour
+<Icon icon={Bell} duoTone />                          // outline + 40% fill
+<Icon icon={Bell} duoTone duoTonePrimary="#1d4ed8" duoToneSecondary="#bfdbfe" />`}
+/>
+
+- **Duotone is off by default.** A bare `duoTone` turns it on.
+- **`color`** colours a single-colour icon. **`duoTonePrimary`** and
+  **`duoToneSecondary`** apply only while duotone is on. Without
+  `duoToneSecondary`, the fill is the outline colour at 40%.
+- **Filled or halo.** Icons with an enclosed area get a filled secondary shape.
+  Open glyphs such as `x` and `check` get a halo, a soft 5px surround behind the
+  1.5px outline.
+- **Your own icons** use the same format through `defineIcon`. An icon with no
+  secondary layer simply renders as outline only.
+
+Icons marked **Lucide port** are still unchanged from Lucide, the set's starting
+point. The icons-pilot phase redraws them to the house style, as
+`packages/icons/STANDARD.md` defines it.
+
+The set is small for now. It grows to about 250 icons across business-software
+categories, starting with a 25-icon pilot.
